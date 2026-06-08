@@ -14,5 +14,8 @@ export const config = {
     '/screening/:path*',
     '/trade-log/:path*',
     '/watchlist/:path*',
+    '/day-trading/:path*',
+    '/swing-trading/:path*',
+    '/risk-center/:path*',
   ],
 };

@@ -4,15 +4,18 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield
+  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/portfolio', label: 'Portföy', icon: Briefcase },
+  { href: '/day-trading', label: 'Day Trading', icon: Zap },
+  { href: '/swing-trading', label: 'Swing Trading', icon: Waves },
   { href: '/ai-assistant', label: 'Master AI', icon: Bot },
   { href: '/screening', label: 'Tarama', icon: Search },
+  { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
   { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
 ];
