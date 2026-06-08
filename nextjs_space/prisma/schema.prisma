@@ -1,0 +1,100 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/master_trader/nextjs_space/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  name           String?
+  password       String
+  role           String        @default("user")
+  balance        Float         @default(100000)
+  initialBalance Float         @default(100000)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  positions      Position[]
+  transactions   Transaction[]
+  watchlist      Watchlist[]
+  chatMessages   ChatMessage[]
+
+  @@index([email])
+}
+
+model Position {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  symbol        String
+  name          String
+  type          String   @default("BIST") // BIST or CRYPTO
+  side          String   @default("LONG") // LONG or SHORT
+  quantity       Float
+  entryPrice    Float
+  currentPrice  Float    @default(0)
+  stopLoss      Float?   
+  takeProfit    Float?   
+  commission    Float    @default(0)
+  status        String   @default("OPEN") // OPEN, CLOSED
+  pnl           Float    @default(0)
+  pnlPercent    Float    @default(0)
+  openedAt      DateTime @default(now())
+  closedAt      DateTime?
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([symbol])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  symbol      String
+  name        String
+  type        String   // BUY, SELL
+  marketType  String   @default("BIST") // BIST, CRYPTO
+  quantity    Float
+  price       Float
+  total       Float
+  commission  Float    @default(0)
+  stopLoss    Float?
+  takeProfit  Float?
+  pnl         Float?   
+  pnlPercent  Float?   
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([symbol])
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  symbol    String
+  name      String
+  type      String   @default("BIST") // BIST, CRYPTO
+  createdAt DateTime @default(now())
+
+  @@unique([userId, symbol])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  role      String   // user, assistant
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
