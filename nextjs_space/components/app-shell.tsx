@@ -4,7 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves
+  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -18,6 +18,8 @@ const NAV_ITEMS = [
   { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
   { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
+  { href: '/academy', label: 'Akademi', icon: GraduationCap },
+  { href: '/backtest', label: 'Backtest', icon: FlaskConical },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

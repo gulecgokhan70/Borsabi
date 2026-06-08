@@ -17,5 +17,7 @@ export const config = {
     '/day-trading/:path*',
     '/swing-trading/:path*',
     '/risk-center/:path*',
+    '/academy/:path*',
+    '/backtest/:path*',
   ],
 };

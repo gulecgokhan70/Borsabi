@@ -434,7 +434,7 @@ export function RiskCenterClient() {
             <div key={idx} className="flex items-center gap-3 bg-[#0F172A]/50 rounded-lg p-3">
               <item.icon className="w-4 h-4 text-[#F59E0B] flex-shrink-0" />
               <div>
-                <p className="text-xs text-[#64748B]">{item.rule}</p>
+                <p className="text-xs text-[#94A3B8]">{item.rule}</p>
                 <p className="text-sm font-medium text-white">{item.value}</p>
               </div>
             </div>
