@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { yf } from '@/lib/yahoo-finance';
+import { cachedChart } from '@/lib/yahoo-finance';
 
 function calculateEMA(data: number[], period: number): number[] {
   if (data.length === 0) return [];
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       default: startDate.setFullYear(endDate.getFullYear() - 1);
     }
 
-    const chart = await yf.chart(symbol, {
+    const chart = await cachedChart(symbol, {
       period1: startDate,
       period2: endDate,
       interval: '1d' as any,

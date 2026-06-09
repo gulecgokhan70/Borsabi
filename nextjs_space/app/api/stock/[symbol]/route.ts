@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { yf } from '@/lib/yahoo-finance';
+import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 
 function calculateRSI(closes: number[], period = 14): number {
@@ -44,7 +44,7 @@ export async function GET(
     // Fetch quote
     let quote: any = null;
     try {
-      quote = await yf.quote(symbol);
+      quote = await cachedQuote(symbol);
     } catch (e: any) {
       console.error('Quote fetch error:', e?.message);
     }
@@ -63,7 +63,7 @@ export async function GET(
       default: startDate.setMonth(endDate.getMonth() - 1);
     }
 
-    const chartResult: any = await yf.chart(symbol, {
+    const chartResult: any = await cachedChart(symbol, {
       period1: startDate,
       period2: endDate,
       interval: interval as any,

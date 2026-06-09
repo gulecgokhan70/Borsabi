@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
-import { yf } from '@/lib/yahoo-finance';
+import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
     const promises = stocks.map(async (stock: any) => {
       try {
         const [quote, chart] = await Promise.all([
-          yf.quote(stock.symbol).catch(() => null),
-          yf.chart(stock.symbol, {
+          cachedQuote(stock.symbol).catch(() => null),
+          cachedChart(stock.symbol, {
             period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0],
             period2: new Date().toISOString().split('T')[0],
             interval: '1d' as any,

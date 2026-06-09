@@ -26,7 +26,7 @@ export function PortfolioClient() {
 
   // Otomatik yenileme - 30 saniye
   useEffect(() => {
-    const interval = setInterval(() => { fetchPortfolio(); }, 30000);
+    const interval = setInterval(() => { fetchPortfolio(); }, 60000);
     return () => clearInterval(interval);
   }, [fetchPortfolio]);
 

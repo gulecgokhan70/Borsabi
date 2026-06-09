@@ -46,7 +46,7 @@ export function WatchlistClient() {
 
   // Otomatik yenileme - 30 saniye
   useEffect(() => {
-    const interval = setInterval(() => { fetchWatchlist(); }, 30000);
+    const interval = setInterval(() => { fetchWatchlist(); }, 60000);
     return () => clearInterval(interval);
   }, [fetchWatchlist]);
 

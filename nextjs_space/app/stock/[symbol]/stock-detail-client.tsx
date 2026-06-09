@@ -67,7 +67,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
   useEffect(() => {
     fetchData();
-    const refreshMs = period === '1d' ? 15000 : 30000;
+    const refreshMs = period === '1d' ? 30000 : 60000;
     const interval = setInterval(() => { fetchData(); }, refreshMs);
     return () => clearInterval(interval);
   }, [fetchData]);

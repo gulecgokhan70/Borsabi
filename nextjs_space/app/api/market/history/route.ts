@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { yf } from '@/lib/yahoo-finance';
+import { cachedChart } from '@/lib/yahoo-finance';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       default: startDate.setMonth(endDate.getMonth() - 1);
     }
 
-    const result: any = await yf.chart(symbol, {
+    const result: any = await cachedChart(symbol, {
       period1: startDate,
       period2: endDate,
       interval: interval as any,

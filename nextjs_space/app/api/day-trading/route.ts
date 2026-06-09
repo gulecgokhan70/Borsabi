@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { yf } from '@/lib/yahoo-finance';
+import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
@@ -252,8 +252,8 @@ export async function GET(request: NextRequest) {
         startDate.setMonth(endDate.getMonth() - 3);
 
         const [quote, chart] = await Promise.all([
-          yf.quote(stock.symbol).catch(() => null),
-          yf.chart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
+          cachedQuote(stock.symbol).catch(() => null),
+          cachedChart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
         if (!chart) return null;

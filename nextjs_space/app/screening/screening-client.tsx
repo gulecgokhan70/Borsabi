@@ -25,7 +25,7 @@ export function ScreeningClient() {
 
   useEffect(() => {
     fetchScreening();
-    const interval = setInterval(() => { fetchScreening(); }, 30000);
+    const interval = setInterval(() => { fetchScreening(); }, 60000);
     return () => clearInterval(interval);
   }, [fetchScreening]);
 

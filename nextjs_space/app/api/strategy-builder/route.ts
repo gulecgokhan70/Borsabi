@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
-import { yf } from '@/lib/yahoo-finance';
+import { cachedChart } from '@/lib/yahoo-finance';
 
 function calculateEMA(data: number[], period: number): number[] {
   const k = 2 / (period + 1);
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     let chart: any;
     try {
-      chart = await yf.chart(symbol, { period1: startDate, period2: endDate, interval: '1d' as any });
+      chart = await cachedChart(symbol, { period1: startDate, period2: endDate, interval: '1d' as any });
     } catch {
       return NextResponse.json({ error: 'Veri alınamadı' }, { status: 400 });
     }
