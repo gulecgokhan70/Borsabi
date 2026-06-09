@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { toTradingViewSymbol } from '@/lib/constants';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 
 interface PriceChartProps {
   symbol: string;
@@ -11,84 +11,100 @@ interface PriceChartProps {
   showPeriodSelector?: boolean;
 }
 
-export function PriceChart({ symbol, height = 'h-48' }: PriceChartProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [positive, setPositive] = useState(true);
 
   useEffect(() => {
-    if (!containerRef.current || !symbol) return;
-    const container = containerRef.current;
-    container.innerHTML = '';
-    setLoaded(false);
-    setError(false);
+    if (!symbol) return;
+    let cancelled = false;
+    setLoading(true);
 
-    const tvSymbol = toTradingViewSymbol(symbol);
+    fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&period=1mo`)
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        const pts = (json?.data ?? []).map((d: any) => ({ close: d?.close ?? 0 })).filter((d: any) => d.close > 0);
+        setData(pts);
+        if (pts.length >= 2) {
+          setPositive(pts[pts.length - 1].close >= pts[0].close);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-    try {
-      // Create a unique wrapper
-      const wrapper = document.createElement('div');
-      wrapper.className = 'tradingview-widget-container';
-      wrapper.style.width = '100%';
-      wrapper.style.height = '100%';
+    return () => { cancelled = true; };
+  }, [symbol]);
 
-      const widgetDiv = document.createElement('div');
-      widgetDiv.className = 'tradingview-widget-container__widget';
-      widgetDiv.style.width = '100%';
-      widgetDiv.style.height = '100%';
-      wrapper.appendChild(widgetDiv);
-
-      const script = document.createElement('script');
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-      script.type = 'text/javascript';
-      script.async = true;
-      script.innerHTML = JSON.stringify({
-        symbol: tvSymbol,
-        width: '100%',
-        height: '100%',
-        locale: 'tr',
-        dateRange: '1M',
-        colorTheme: 'dark',
-        isTransparent: true,
-        autosize: true,
-        largeChartUrl: '',
-        noTimeScale: false,
-      });
-
-      script.onload = () => setLoaded(true);
-      script.onerror = () => {
-        setError(true);
-        setLoaded(true);
-      };
-
-      wrapper.appendChild(script);
-      container.appendChild(wrapper);
-
-      // Fallback timeout
-      const timer = setTimeout(() => setLoaded(true), 4000);
-      return () => {
-        clearTimeout(timer);
-        container.innerHTML = '';
-      };
-    } catch (e: any) {
-      console.error('TradingView widget error:', e);
-      setError(true);
-      setLoaded(true);
-    }
-  }, [symbol, height]);
-
-  if (error) {
-    return <div className={`${height} flex items-center justify-center text-xs text-[#94A3B8]`}>Grafik yüklenemedi</div>;
+  if (loading) {
+    return (
+      <div className={`${height} flex items-center justify-center`}>
+        <Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" />
+      </div>
+    );
   }
 
+  if (data.length < 2) {
+    return <div className={`${height} flex items-center justify-center text-xs text-[#64748B]`}>Veri yok</div>;
+  }
+
+  const chartColor = color || (positive ? '#22C55E' : '#EF4444');
+
   return (
-    <div className={`${height} relative overflow-hidden rounded-lg`}>
-      {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" />
-        </div>
-      )}
-      <div ref={containerRef} className="w-full h-full" />
+    <div className={`${height} w-full`}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`grad-${symbol.replace(/[^a-zA-Z0-9]/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={chartColor} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <YAxis domain={['dataMin', 'dataMax']} hide />
+          <Area type="monotone" dataKey="close" stroke={chartColor} strokeWidth={1.5} fill={`url(#grad-${symbol.replace(/[^a-zA-Z0-9]/g, '')})`} dot={false} isAnimationActive={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// Mini sparkline for inline use in lists
+export function MiniSparkline({ symbol, width = 80, height = 32 }: { symbol: string; width?: number; height?: number }) {
+  const [data, setData] = useState<any[]>([]);
+  const [positive, setPositive] = useState(true);
+
+  useEffect(() => {
+    if (!symbol) return;
+    let cancelled = false;
+
+    fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&period=1w`)
+      .then(r => r.json())
+      .then(json => {
+        if (cancelled) return;
+        const pts = (json?.data ?? []).map((d: any) => ({ close: d?.close ?? 0 })).filter((d: any) => d.close > 0);
+        setData(pts);
+        if (pts.length >= 2) {
+          setPositive(pts[pts.length - 1].close >= pts[0].close);
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [symbol]);
+
+  if (data.length < 2) return null;
+
+  const chartColor = positive ? '#22C55E' : '#EF4444';
+
+  return (
+    <div style={{ width, height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 1, right: 0, left: 0, bottom: 1 }}>
+          <YAxis domain={['dataMin', 'dataMax']} hide />
+          <Area type="monotone" dataKey="close" stroke={chartColor} strokeWidth={1} fill="transparent" dot={false} isAnimationActive={false} />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }

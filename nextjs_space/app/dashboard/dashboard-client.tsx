@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownRight, DollarSign, PieChart, Zap
 } from 'lucide-react';
 import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
-import { PriceChart } from '@/components/price-chart';
+import { PriceChart, MiniSparkline } from '@/components/price-chart';
 import { TradeModal } from '@/components/trade-modal';
 
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
@@ -23,6 +23,7 @@ export function DashboardClient() {
   const [bistOpen, setBistOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
+  const [stockSort, setStockSort] = useState<'alpha' | 'change' | 'price'>('alpha');
 
   const [lastUpdate, setLastUpdate] = useState<string>('');
 
@@ -31,7 +32,7 @@ export function DashboardClient() {
     try {
       const [indRes, stockRes, cryptoRes, portRes] = await Promise.allSettled([
         fetch(`/api/market?symbols=${BIST_INDICES.map((i: any) => i?.symbol).join(',')}`).then((r: any) => r?.json?.()),
-        fetch(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 10).map((s: any) => s?.symbol).join(',')}`).then((r: any) => r?.json?.()),
+        fetch(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 20).map((s: any) => s?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch(`/api/market?symbols=${CRYPTO_ASSETS.slice(0, 8).map((c: any) => c?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch('/api/portfolio').then((r: any) => r?.json?.()),
       ]);
@@ -147,15 +148,26 @@ export function DashboardClient() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* BIST */}
         <motion.div {...fadeIn} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
-            <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-            <h2 className="text-sm font-semibold text-white">BIST Hisseleri</h2>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#334155]">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
+              <h2 className="text-sm font-semibold text-white">BIST Hisseleri</h2>
+            </div>
+            <div className="flex bg-[#0F172A] rounded-lg p-0.5">
+              <button onClick={() => setStockSort('alpha')} className={`px-2 py-0.5 rounded text-[9px] font-semibold transition-colors ${stockSort === 'alpha' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B]'}`}>A-Z</button>
+              <button onClick={() => setStockSort('change')} className={`px-2 py-0.5 rounded text-[9px] font-semibold transition-colors ${stockSort === 'change' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B]'}`}>%Değişim</button>
+              <button onClick={() => setStockSort('price')} className={`px-2 py-0.5 rounded text-[9px] font-semibold transition-colors ${stockSort === 'price' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B]'}`}>Fiyat</button>
+            </div>
           </div>
           <div className="divide-y divide-[#334155]/50">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" /></div>
             ) : (
-              (stocks ?? []).slice(0, 8).map((s: any) => (
+              [...(stocks ?? [])].sort((a: any, b: any) => {
+                if (stockSort === 'change') return Math.abs(b?.changePercent ?? 0) - Math.abs(a?.changePercent ?? 0);
+                if (stockSort === 'price') return (b?.price ?? 0) - (a?.price ?? 0);
+                return (a?.symbol ?? '').localeCompare(b?.symbol ?? '');
+              }).slice(0, 10).map((s: any) => (
                 <button key={s?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)}
                   className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
                   <div className="flex items-center gap-3">
@@ -169,11 +181,14 @@ export function DashboardClient() {
                       <p className="text-[10px] text-[#94A3B8] truncate max-w-[120px]">{s?.name}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-mono font-semibold text-white">{formatNumber(s?.price)}</p>
-                    <p className={`text-xs font-mono ${(s?.changePercent ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-                      {formatPercent(s?.changePercent)}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <MiniSparkline symbol={s?.symbol} />
+                    <div className="text-right">
+                      <p className="text-sm font-mono font-semibold text-white">{formatNumber(s?.price)}</p>
+                      <p className={`text-xs font-mono ${(s?.changePercent ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+                        {formatPercent(s?.changePercent)}
+                      </p>
+                    </div>
                   </div>
                 </button>
               ))
