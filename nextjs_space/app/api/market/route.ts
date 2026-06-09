@@ -57,8 +57,9 @@ export async function GET(request: NextRequest) {
       const midas = midasOk && isBistSymbol(sym) ? midasMap.get(cleanSym) : null;
 
       if (midas) {
-        // Midas verisinden oluştur
-        const price = midas.Last || midas.Close || 0;
+        // Midas verisinden oluştur - Last > Close > PreviousClose fallback
+        const price = midas.Last || midas.Close || midas.PreviousClose || 0;
+        const isOpen = (midas.Last > 0 && midas.TotalVolume > 0);
         return {
           symbol: sym,
           name: nameMap.get(sym) || nameMap.get(cleanSym) || cleanSym,
@@ -66,13 +67,13 @@ export async function GET(request: NextRequest) {
           change: midas.DailyChange ?? 0,
           changePercent: midas.DailyChangePercent ?? 0,
           volume: midas.TotalVolume ?? 0,
-          high: midas.High ?? 0,
-          low: midas.Low ?? 0,
-          open: midas.Open ?? 0,
+          high: midas.High || midas.PreviousClose || 0,
+          low: midas.Low || midas.PreviousClose || 0,
+          open: midas.Open || midas.PreviousClose || 0,
           prevClose: midas.PreviousClose ?? 0,
           marketCap: midas.MarketValue ?? 0,
           currency: 'TRY',
-          marketOpen: price > 0 && midas.TotalVolume > 0,
+          marketOpen: isOpen,
           source: 'midas',
         };
       }
