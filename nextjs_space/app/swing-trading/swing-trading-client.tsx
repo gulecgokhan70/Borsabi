@@ -243,9 +243,23 @@ export function SwingTradingClient() {
                   </div>
                 </div>
 
+                {/* Mum Formasyonları */}
+                {(item as any)?.candlePatterns?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {((item as any).candlePatterns ?? []).map((cp: any, cpIdx: number) => (
+                      <span key={cpIdx} className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                        cp.type === 'bullish' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30'
+                        : cp.type === 'bearish' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
+                        : 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                      }`}>
+                        🕯️ {cp.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {/* Signals + Formations */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {(item.signals ?? []).map((signal: string, sIdx: number) => (
+                  {(item.signals ?? []).filter((s: string) => !s.startsWith('🕯')).map((signal: string, sIdx: number) => (
                     <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#0F172A] text-muted-foreground border border-black/[0.08] dark:border-white/[0.08]">
                       {signal}
                     </span>

@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-5 border-b border-black/[0.06] dark:border-white/[0.06]">
             <div className="w-9 h-9 rounded-lg bg-[#3B82F6] flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-foreground" />
+              <TrendingUp className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground tracking-tight">Master Trader</h1>

@@ -195,6 +195,13 @@ export default function AlgoScanClient() {
                       <span className="text-muted-foreground">MACD: <span className={r.macd.histogram > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{r.macd.histogram > 0 ? '+' : ''}{r.macd.histogram.toFixed(3)}</span></span>
                       <span className="text-muted-foreground">EMA{filters.emaPeriod}: <span className="text-foreground">{formatNumber(r.ema)}</span></span>
                       <span className="text-muted-foreground">Hacim: <span className={r.volRatio > 1.5 ? 'text-[#F59E0B]' : 'text-foreground'}>{r.volRatio}x</span></span>
+                      {(r as any)?.candlePatterns?.map((cp: any, cpIdx: number) => (
+                        <span key={cpIdx} className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                          cp.type === 'bullish' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30'
+                          : cp.type === 'bearish' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
+                          : 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                        }`}>🕯️ {cp.name}</span>
+                      ))}
                     </div>
                   </div>
                 </motion.div>

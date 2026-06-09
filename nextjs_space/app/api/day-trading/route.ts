@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
@@ -284,6 +285,13 @@ export async function GET(request: NextRequest) {
         const lows = quotes.map((q: any) => q?.low ?? 0);
         const volumes = quotes.map((q: any) => q?.volume ?? 0);
 
+        // Mum formasyonları tespiti
+        const candleData = quotes
+          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
+          .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
+        const candlePatterns = detectCandlePatterns(candleData);
+        const cpScore = candlePatternScore(candlePatterns);
+
         if (closes.length < 26) return null;
 
         const rsi5 = calculateRSI(closes, 5);
@@ -354,6 +362,15 @@ export async function GET(request: NextRequest) {
 
         if (riskReward < 1.2) return null;
 
+        // Mum formasyonlarını sinyallere ve skora ekle
+        if (candlePatterns.length > 0) {
+          for (const cp of candlePatterns) {
+            result.signals.push(`🕯 ${cp.name}`);
+          }
+          result.formasyonPuan = Math.min(20, result.formasyonPuan + Math.max(0, cpScore));
+          result.score = Math.min(100, result.hacimPuan + result.trendPuan + result.momentumPuan + result.formasyonPuan + result.riskOdulPuan);
+        }
+
         let quality = 'İşlem Yok';
         if (result.score >= 85) quality = 'Elite Kurulum';
         else if (result.score >= 70) quality = 'Güçlü Fırsat';
@@ -374,6 +391,7 @@ export async function GET(request: NextRequest) {
           score: Math.round(result.score),
           quality,
           signals: result.signals,
+          candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
           passesFilter: result.passesFilter,
           hacimPuan: result.hacimPuan,
           trendPuan: result.trendPuan,

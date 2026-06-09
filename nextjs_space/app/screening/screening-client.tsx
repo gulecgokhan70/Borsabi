@@ -70,7 +70,7 @@ export function ScreeningClient() {
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-[#3B82F6] mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">Hisseler taranıyor...</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Tüm teknik göstergeler, Sapan/Dip-Bip ve formasyonlar hesaplanıyor</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Teknik göstergeler, mum formasyonları, Sapan/Dip-Bip ve grafik formasyonları hesaplanıyor</p>
           </div>
         </div>
       ) : (
@@ -155,6 +155,20 @@ export function ScreeningClient() {
                         {(stock.formations ?? []).map((f: string, fIdx: number) => (
                           <span key={fIdx} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/30">
                             📐 {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Mum Formasyonları */}
+                    {(stock?.candlePatterns?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {(stock.candlePatterns ?? []).map((cp: any, cpIdx: number) => (
+                          <span key={cpIdx} className={`text-[9px] px-1.5 py-0.5 rounded-full border ${
+                            cp.type === 'bullish' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30'
+                            : cp.type === 'bearish' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30'
+                            : 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                          }`}>
+                            🕯️ {cp.name}
                           </span>
                         ))}
                       </div>

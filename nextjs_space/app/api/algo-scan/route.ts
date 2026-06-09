@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -86,6 +87,14 @@ export async function POST(req: NextRequest) {
 
         const closes = (chart.quotes || []).map((q: any) => q.close).filter(Boolean) as number[];
         const volumes = (chart.quotes || []).map((q: any) => q.volume).filter(Boolean) as number[];
+
+        // Mum formasyonları
+        const candleData = (chart.quotes || [])
+          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
+          .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
+        const candlePatterns = detectCandlePatterns(candleData);
+        const cpScore = candlePatternScore(candlePatterns);
+
         if (closes.length < 30) return null;
 
         const lastClose = closes[closes.length - 1] ?? 0;
@@ -131,6 +140,9 @@ export async function POST(req: NextRequest) {
         if (change > 0) score += 5;
         score = Math.min(100, Math.max(0, score));
 
+        // Mum formasyonları skoru ekle
+        if (cpScore > 0) score = Math.min(100, score + cpScore);
+
         return {
           symbol: stock.symbol,
           name: stock.name,
@@ -144,6 +156,7 @@ export async function POST(req: NextRequest) {
           ema: Math.round(currentEma * 100) / 100,
           emaPeriod,
           score,
+          candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
         };
       } catch {
         return null;

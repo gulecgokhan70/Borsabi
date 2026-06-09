@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
@@ -194,6 +195,11 @@ interface SwingTradeScore {
   dipBipDetected: boolean;
   formations: string[];
   passesFilter: boolean;
+  hacimPuan: number;
+  trendPuan: number;
+  momentumPuan: number;
+  formasyonPuan: number;
+  riskOdulPuan: number;
 }
 
 function scoreSwingTrade(
@@ -218,38 +224,41 @@ function scoreSwingTrade(
   const passesFilter = aboveEma20 && ema20AboveEma50 && rsiOk && macdPositive && volumeAboveAvg;
 
   let score = 0;
+  let hacimPuan = 0, trendPuan = 0, momentumPuan = 0, formasyonPuan = 0, riskOdulPuan = 0;
 
   // === TREND (25 Puan) ===
-  if (aboveEma20) { score += 8; signals.push('EMA20 üzerinde ✓'); }
-  if (ema20AboveEma50) { score += 8; signals.push('EMA20 > EMA50 ✓'); }
+  if (aboveEma20) { trendPuan += 8; signals.push('EMA20 üzerinde ✓'); }
+  if (ema20AboveEma50) { trendPuan += 8; signals.push('EMA20 > EMA50 ✓'); }
 
   // EMA200 kontrolü
   const ema200Arr = calculateEMA(closes, Math.min(200, len - 1));
   const lastEma200 = ema200Arr[ema200Arr.length - 1] ?? 0;
-  if (price > lastEma200) { score += 5; signals.push('EMA200 üzerinde'); }
+  if (price > lastEma200) { trendPuan += 5; signals.push('EMA200 üzerinde'); }
 
   // Son 20 günü trend
   const recent20 = closes.slice(-20);
   const first10Avg = recent20.slice(0, 10).reduce((s: number, v: number) => s + v, 0) / 10;
   const last10Avg = recent20.slice(-10).reduce((s: number, v: number) => s + v, 0) / 10;
-  if (last10Avg > first10Avg) { score += 4; signals.push('Yükselen trend'); }
+  if (last10Avg > first10Avg) { trendPuan += 4; signals.push('Yükselen trend'); }
+  trendPuan = Math.min(25, trendPuan);
 
   // === MOMENTUM (20 Puan) ===
-  if (rsiOk) { score += 8; signals.push(`RSI(14): ${rsi.toFixed(0)} - Trend bölgesi ✓`); }
+  if (rsiOk) { momentumPuan += 8; signals.push(`RSI(14): ${rsi.toFixed(0)} - Trend bölgesi ✓`); }
   else if (rsi > 70) { signals.push(`⚠️ RSI(14): ${rsi.toFixed(0)} - Aşırı alım`); }
-  else if (rsi < 50 && rsi > 30) { score += 3; signals.push(`RSI(14): ${rsi.toFixed(0)}`); }
+  else if (rsi < 50 && rsi > 30) { momentumPuan += 3; signals.push(`RSI(14): ${rsi.toFixed(0)}`); }
 
-  if (macdPositive) { score += 6; signals.push('MACD pozitif ✓'); }
+  if (macdPositive) { momentumPuan += 6; signals.push('MACD pozitif ✓'); }
   if ((macd?.histogram ?? 0) > 0 && (macd?.macd ?? 0) > (macd?.signal ?? 0)) {
-    score += 6; signals.push('MACD alış sinyali');
+    momentumPuan += 6; signals.push('MACD alış sinyali');
   }
+  momentumPuan = Math.min(20, momentumPuan);
 
   // === HACİM (15 Puan) ===
   if (volumeAboveAvg) {
     const vRatio = avgVolume > 0 ? volume / avgVolume : 0;
-    if (vRatio >= 2) { score += 15; signals.push('Güçlü hacim patlaması (2x+)'); }
-    else if (vRatio >= 1.5) { score += 10; signals.push('Hacim artışı (1.5x)'); }
-    else { score += 6; signals.push('Ortalama üstü hacim ✓'); }
+    if (vRatio >= 2) { hacimPuan += 15; signals.push('Güçlü hacim patlaması (2x+)'); }
+    else if (vRatio >= 1.5) { hacimPuan += 10; signals.push('Hacim artışı (1.5x)'); }
+    else { hacimPuan += 6; signals.push('Ortalama üstü hacim ✓'); }
   }
 
   // === SAPAN SİSTEMİ (10 Puan) ===
@@ -257,36 +266,44 @@ function scoreSwingTrade(
   const prevRsi = prevRsiCloses.length > 14 ? calculateRSI(prevRsiCloses) : rsi;
   const sapan = detectSapan(closes, volumes, ema20Arr, ema50Arr, rsi, price);
   if (sapan.detected) {
-    score += 10;
+    formasyonPuan += 10;
     signals.push(`🎯 Sapan Sinyali (Güç: %${sapan.strength})`);
   } else if (sapan.strength >= 50) {
-    score += 4;
+    formasyonPuan += 4;
     signals.push(`Sapan oluşumu başlıyor (%${sapan.strength})`);
   }
 
   // === DİP-BİP SİSTEMİ (10 Puan) ===
   const dipBip = detectDipBip(closes, volumes, rsi, prevRsi, macd, price, lows);
   if (dipBip.detected) {
-    score += 10;
+    formasyonPuan += 10;
     signals.push(`🟢 Dip-Bip Sinyali (Güç: %${dipBip.strength})`);
   } else if (dipBip.strength >= 40) {
-    score += 3;
+    formasyonPuan += 3;
     signals.push(`Dip-Bip oluşumu (%${dipBip.strength})`);
   }
 
   // === FORMASYON (10 Puan) ===
   const formations = detectFormations(closes, highs, lows, volumes);
   if (formations.length > 0) {
-    score += Math.min(10, formations.length * 5);
+    formasyonPuan += Math.min(10, formations.length * 5);
     formations.forEach((f: string) => signals.push(`📊 ${f}`));
   }
+  formasyonPuan = Math.min(20, formasyonPuan);
 
-  // 20 günlük zirve kırılımı
+  // === RİSK/ÖDÜL (10 Puan) ===
   const high20 = Math.max(...closes.slice(-20));
   if (price >= high20 * 0.98) {
-    score += 3;
+    riskOdulPuan += 5;
     signals.push('20 günlük zirveye yakın');
   }
+  if (atr > 0 && price > 0) {
+    const rr = (atr * 2) / (atr * 2); // swing R:R genelde 1:2+
+    riskOdulPuan += 5;
+  }
+  riskOdulPuan = Math.min(15, riskOdulPuan);
+
+  score = hacimPuan + trendPuan + momentumPuan + formasyonPuan + riskOdulPuan;
 
   return {
     score: Math.min(100, Math.max(0, score)),
@@ -295,6 +312,11 @@ function scoreSwingTrade(
     dipBipDetected: dipBip.detected,
     formations,
     passesFilter,
+    hacimPuan,
+    trendPuan,
+    momentumPuan,
+    formasyonPuan,
+    riskOdulPuan,
   };
 }
 
@@ -333,6 +355,13 @@ export async function GET(request: NextRequest) {
         const highs = quotes.map((q: any) => q?.high ?? 0);
         const lows = quotes.map((q: any) => q?.low ?? 0);
         const volumes = quotes.map((q: any) => q?.volume ?? 0);
+
+        // Mum formasyonları tespiti
+        const candleData = quotes
+          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
+          .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
+        const candlePatterns = detectCandlePatterns(candleData);
+        const cpScore = candlePatternScore(candlePatterns);
 
         if (closes.length < 50) return null;
 
@@ -382,6 +411,15 @@ export async function GET(request: NextRequest) {
         // Minimum R:R 1:2 altındaki hisseleri ele
         if (riskReward < 1.5) return null;
 
+        // Mum formasyonlarını sinyallere ve skora ekle
+        if (candlePatterns.length > 0) {
+          for (const cp of candlePatterns) {
+            result.signals.push(`🕯 ${cp.name}`);
+          }
+          result.formasyonPuan = Math.min(20, result.formasyonPuan + Math.max(0, cpScore));
+          result.score = Math.min(100, result.hacimPuan + result.trendPuan + result.momentumPuan + result.formasyonPuan + result.riskOdulPuan);
+        }
+
         let quality = 'İşlem Yok';
         if (result.score >= 80) quality = 'Elite Kurulum';
         else if (result.score >= 65) quality = 'Güçlü Kurulum';
@@ -404,6 +442,7 @@ export async function GET(request: NextRequest) {
           score: Math.round(result.score),
           quality,
           signals: result.signals,
+          candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
           passesFilter: result.passesFilter,
           sapanDetected: result.sapanDetected,
           dipBipDetected: result.dipBipDetected,

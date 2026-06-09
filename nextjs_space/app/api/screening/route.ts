@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { detectCandlePatterns, candlePatternScore, type CandlePattern } from '@/lib/candle-patterns';
 
 function calculateRSI(closes: number[], period = 14): number {
   if ((closes?.length ?? 0) < period + 1) return 50;
@@ -304,9 +305,17 @@ export async function GET(request: NextRequest) {
 
         const quotes = chart?.quotes ?? [];
         const closes = quotes.map((q: any) => q?.close ?? 0).filter((c: number) => c > 0);
+        const opens = quotes.map((q: any) => q?.open ?? 0);
         const highs = quotes.map((q: any) => q?.high ?? 0);
         const lows = quotes.map((q: any) => q?.low ?? 0);
         const volumes = quotes.map((q: any) => q?.volume ?? 0);
+
+        // Mum formasyonları tespiti
+        const candleData = quotes
+          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
+          .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
+        const candlePatterns = detectCandlePatterns(candleData);
+        const cpScore = candlePatternScore(candlePatterns);
         if (closes.length < 30) return null;
 
         // Midas primary, Yahoo fallback
@@ -369,6 +378,16 @@ export async function GET(request: NextRequest) {
         const target2 = price + atr * 3;
         const riskReward = price > stopLevel ? (target1 - price) / (price - stopLevel) : 0;
 
+        // Mum formasyonlarını sinyallere ve skora ekle
+        if (candlePatterns.length > 0) {
+          for (const cp of candlePatterns) {
+            result.signals.push(`🕯 ${cp.name}`);
+          }
+          // Boğa formasyonları formasyon puanına ekle
+          result.formasyonPuan = Math.min(20, result.formasyonPuan + Math.max(0, cpScore));
+          result.totalScore = Math.min(100, result.hacimPuan + result.trendPuan + result.momentumPuan + result.formasyonPuan + result.riskOdulPuan);
+        }
+
         const quality = result.totalScore >= 80 ? 'Elite' : result.totalScore >= 65 ? 'Güçlü' : result.totalScore >= 50 ? 'İzleme' : 'Zayıf';
 
         return {
@@ -387,6 +406,8 @@ export async function GET(request: NextRequest) {
           sapanDetected: result.sapanDetected,
           dipBipDetected: result.dipBipDetected,
           formations: result.formations,
+          candlePatterns: candlePatterns.map((cp: CandlePattern) => ({ name: cp.name, type: cp.type, strength: cp.strength })),
+          candleScore: cpScore,
           hacimPuan: result.hacimPuan,
           trendPuan: result.trendPuan,
           momentumPuan: result.momentumPuan,
