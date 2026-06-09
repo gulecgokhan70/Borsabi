@@ -125,10 +125,10 @@ export default function AlertsClient() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="glass-card rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
-          <span className="text-sm font-semibold text-[#F1F5F9]">Aktif Alarmlar ({activeAlerts.length})</span>
+          <span className="text-sm font-semibold text-foreground">Aktif Alarmlar ({activeAlerts.length})</span>
         </div>
         {activeAlerts.length === 0 ? (
-          <div className="p-10 text-center text-sm text-[#CBD5E1]">Henüz aktif alarmınız yok.</div>
+          <div className="p-10 text-center text-sm text-muted-foreground">Henüz aktif alarmınız yok.</div>
         ) : (
           <div className="divide-y divide-black/[0.08] dark:divide-white/[0.08]">
             {activeAlerts.map((alert: any) => (

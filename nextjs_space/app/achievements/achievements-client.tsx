@@ -121,7 +121,7 @@ export default function AchievementsClient() {
             {locked.map((badge: any) => (
               <div key={badge.id} className="glass-card rounded-xl p-4 text-center opacity-70">
                 <div className="text-3xl mb-2 grayscale">{badge.icon}</div>
-                <p className="text-sm font-bold text-[#CBD5E1]">{badge.name}</p>
+                <p className="text-sm font-bold text-foreground">{badge.name}</p>
                 <p className="text-xs text-muted-foreground mt-1">{badge.desc}</p>
               </div>
             ))}

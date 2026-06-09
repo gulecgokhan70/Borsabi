@@ -233,7 +233,7 @@ export function RiskCenterClient() {
           {warnings.map((w, idx) => (
             <div key={idx} className={`${getWarningBg(w.type)} border rounded-xl p-4 flex items-start gap-3`}>
               {getWarningIcon(w.type)}
-              <p className="text-sm text-[#CBD5E1]">{w.message}</p>
+              <p className="text-sm text-foreground">{w.message}</p>
             </div>
           ))}
         </motion.div>

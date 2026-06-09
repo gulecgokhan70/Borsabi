@@ -137,7 +137,7 @@ export function AiAssistantClient() {
               <div className={`max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-xl ${
                 msg?.role === 'user'
                   ? 'bg-[#3B82F6] text-white'
-                  : 'glass-card text-[#E2E8F0]'
+                  : 'glass-card text-foreground'
               }`}>
                 {msg?.role === 'assistant' && (
                   <div className="flex items-center gap-1.5 mb-1.5">

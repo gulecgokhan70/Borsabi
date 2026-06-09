@@ -320,7 +320,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           <div className="flex flex-wrap gap-1">
             {PERIODS.map((p: any) => (
               <button key={p.value} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-[#3B82F6] text-white' : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground hover:text-white'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-[#3B82F6] text-white' : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground hover:text-foreground'}`}>
                 {p.label}
               </button>
             ))}
