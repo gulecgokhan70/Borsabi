@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { BIST_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
+import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
 import { yf } from '@/lib/yahoo-finance';
 
 function calculateRSI(closes: number[], period = 14): number {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       sortBy = 'score', // score, rsi, change, volume
     } = body;
 
-    const stocks = market === 'CRYPTO' ? CRYPTO_ASSETS : BIST_STOCKS;
+    const stocks = market === 'CRYPTO' ? CRYPTO_ASSETS : BIST_TOP_STOCKS;
     const results: any[] = [];
 
     const promises = stocks.map(async (stock: any) => {

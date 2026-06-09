@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { yf } from '@/lib/yahoo-finance';
-import { BIST_STOCKS } from '@/lib/constants';
+import { BIST_TOP_STOCKS } from '@/lib/constants';
 
 function calculateRSI(closes: number[], period = 14): number {
   if ((closes?.length ?? 0) < period + 1) return 50;
@@ -271,7 +271,7 @@ export async function GET(request: NextRequest) {
     const results: any[] = [];
 
     // Tüm BIST hisselerini tara
-    const screenPromises = BIST_STOCKS.map(async (stock: any) => {
+    const screenPromises = BIST_TOP_STOCKS.map(async (stock: any) => {
       try {
         const endDate = new Date();
         const startDate = new Date();

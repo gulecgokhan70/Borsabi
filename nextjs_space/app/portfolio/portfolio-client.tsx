@@ -115,13 +115,13 @@ export function PortfolioClient() {
                         {formatCurrency(pnl)}<br /><span className="text-xs">{formatPercent(pnlPct)}</span>
                       </td>
                       <td className="text-right px-4 py-2.5 text-xs">
-                        {p?.stopLoss ? <span className="text-[#EF4444]">SL: {formatNumber(p.stopLoss)}</span> : <span className="text-[#64748B]">-</span>}
+                        {p?.stopLoss ? <span className="text-[#F87171]">SL: {formatNumber(p.stopLoss)}</span> : <span className="text-[#64748B]">-</span>}
                         {p?.takeProfit && <><br /><span className="text-[#22C55E]">TP: {formatNumber(p.takeProfit)}</span></>}
                       </td>
                       <td className="text-right px-4 py-2.5">
                         <button
                           onClick={() => setTradeModal({ symbol: p?.symbol, name: p?.name, price: p?.currentPrice ?? p?.entryPrice, marketType: p?.type, side: 'SELL', maxQty: p?.quantity })}
-                          className="px-3 py-1 text-xs font-semibold bg-[#EF4444]/10 text-[#EF4444] rounded-md hover:bg-[#EF4444]/20 transition-colors"
+                          className="px-3 py-1 text-xs font-semibold bg-[#EF4444]/20 text-[#F87171] rounded-md hover:bg-[#EF4444]/30 transition-colors"
                         >Sat</button>
                       </td>
                     </tr>

@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { Wrench, Plus, Trash2, Play, TrendingUp, TrendingDown, BarChart3, AlertTriangle } from 'lucide-react';
-import { formatCurrency, formatPercent, BIST_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
+import { formatCurrency, formatPercent, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
+import { SymbolSearch } from '@/components/symbol-search';
 
 const EquityChart = dynamic(() => import('../backtest/equity-chart'), { ssr: false });
 
@@ -75,7 +76,12 @@ export default function StrategyBuilderClient() {
     setLoading(false);
   };
 
-  const allSymbols = [...BIST_STOCKS, ...CRYPTO_ASSETS];
+  const symbolGroups = [
+    { label: 'BIST Hisseleri', items: BIST_STOCKS },
+    { label: 'Fonlar', items: BIST_FUNDS },
+    { label: 'Kripto', items: CRYPTO_ASSETS },
+  ];
+  const allSymbols = symbolGroups.flatMap(g => g.items);
 
   return (
     <div className="space-y-6">
@@ -102,10 +108,7 @@ export default function StrategyBuilderClient() {
           </div>
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Sembol</label>
-            <select value={symbol} onChange={e => setSymbol(e.target.value)}
-              className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
-              {allSymbols.map(s => <option key={s.symbol} value={s.symbol}>{s.shortName} - {s.name}</option>)}
-            </select>
+            <SymbolSearch value={symbol} onChange={setSymbol} groups={symbolGroups} placeholder="Sembol ara..." />
           </div>
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Dönem</label>

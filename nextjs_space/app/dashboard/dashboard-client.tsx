@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, Wallet, BarChart3, Activity, RefreshCw, Loader2,
   ArrowUpRight, ArrowDownRight, DollarSign, PieChart, Zap
 } from 'lucide-react';
-import { BIST_INDICES, BIST_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { PriceChart } from '@/components/price-chart';
 import { TradeModal } from '@/components/trade-modal';
 
@@ -30,7 +30,7 @@ export function DashboardClient() {
     try {
       const [indRes, stockRes, cryptoRes, portRes] = await Promise.allSettled([
         fetch(`/api/market?symbols=${BIST_INDICES.map((i: any) => i?.symbol).join(',')}`).then((r: any) => r?.json?.()),
-        fetch(`/api/market?symbols=${BIST_STOCKS.slice(0, 10).map((s: any) => s?.symbol).join(',')}`).then((r: any) => r?.json?.()),
+        fetch(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 10).map((s: any) => s?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch(`/api/market?symbols=${CRYPTO_ASSETS.slice(0, 8).map((c: any) => c?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch('/api/portfolio').then((r: any) => r?.json?.()),
       ]);

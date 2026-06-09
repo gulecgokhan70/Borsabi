@@ -3,13 +3,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Eye, Plus, Loader2, TrendingUp, TrendingDown, RefreshCw, Search, X, Star } from 'lucide-react';
-import { BIST_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import { BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 import { PriceChart } from '@/components/price-chart';
 import { toast } from 'sonner';
 
 const ALL_ASSETS = [
   ...BIST_STOCKS.map((s: any) => ({ ...s, type: 'BIST' })),
+  ...BIST_FUNDS.map((s: any) => ({ ...s, type: 'BIST' })),
   ...CRYPTO_ASSETS.map((c: any) => ({ ...c, type: 'CRYPTO' })),
 ];
 

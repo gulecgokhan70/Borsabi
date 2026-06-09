@@ -6,7 +6,8 @@ import {
   FlaskConical, Play, TrendingUp, TrendingDown, Target,
   BarChart3, Clock, Shield, AlertTriangle, Activity
 } from 'lucide-react';
-import { formatCurrency, formatNumber, formatPercent, BIST_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
+import { formatCurrency, formatNumber, formatPercent, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
+import { SymbolSearch } from '@/components/symbol-search';
 
 const EquityChart = dynamic(() => import('./equity-chart'), { ssr: false });
 
@@ -56,7 +57,12 @@ interface BacktestResult {
 }
 
 export function BacktestClient() {
-  const allSymbols = [...BIST_STOCKS, ...CRYPTO_ASSETS.slice(0, 5)];
+  const symbolGroups = [
+    { label: 'BIST Hisseleri', items: BIST_STOCKS },
+    { label: 'Borsa Yatırım Fonları', items: BIST_FUNDS },
+    { label: 'Kripto', items: CRYPTO_ASSETS.slice(0, 5) },
+  ];
+  const allSymbols = symbolGroups.flatMap(g => g.items);
   const [symbol, setSymbol] = useState(BIST_STOCKS[0].symbol);
   const [strategy, setStrategy] = useState('ema-crossover');
   const [period, setPeriod] = useState('1y');
@@ -109,18 +115,12 @@ export function BacktestClient() {
           {/* Symbol */}
           <div>
             <label className="text-xs text-[#64748B] mb-1.5 block">Sembol</label>
-            <select
+            <SymbolSearch
               value={symbol}
-              onChange={e => setSymbol(e.target.value)}
-              className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
-            >
-              <optgroup label="BIST Hisseleri">
-                {BIST_STOCKS.map(s => <option key={s.symbol} value={s.symbol}>{s.shortName} - {s.name}</option>)}
-              </optgroup>
-              <optgroup label="Kripto">
-                {CRYPTO_ASSETS.slice(0, 5).map(s => <option key={s.symbol} value={s.symbol}>{s.shortName} - {s.name}</option>)}
-              </optgroup>
-            </select>
+              onChange={setSymbol}
+              groups={symbolGroups}
+              placeholder="Hisse veya fon ara..."
+            />
           </div>
 
           {/* Strategy */}

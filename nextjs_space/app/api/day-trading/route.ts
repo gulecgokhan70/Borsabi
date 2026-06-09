@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { yf } from '@/lib/yahoo-finance';
-import { BIST_STOCKS } from '@/lib/constants';
+import { BIST_TOP_STOCKS } from '@/lib/constants';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
@@ -242,7 +242,7 @@ export async function GET(request: NextRequest) {
     const results: any[] = [];
 
     // Tüm BIST hisselerini tara
-    const promises = BIST_STOCKS.map(async (stock: any) => {
+    const promises = BIST_TOP_STOCKS.map(async (stock: any) => {
       try {
         const endDate = new Date();
         const startDate = new Date();

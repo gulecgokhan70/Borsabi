@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { yf } from '@/lib/yahoo-finance';
-import { BIST_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
+import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -38,7 +38,7 @@ export async function GET(
     const interval = searchParams.get('interval') ?? '1d';
 
     // Find stock info
-    const allAssets = [...BIST_STOCKS, ...CRYPTO_ASSETS];
+    const allAssets = [...BIST_ALL_ASSETS, ...CRYPTO_ASSETS];
     const assetInfo = allAssets.find((a: any) => a.symbol === symbol);
 
     // Fetch quote

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { BIST_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
+import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 import { yf } from '@/lib/yahoo-finance';
 
 function calculateEMA(data: number[], period: number): number[] {

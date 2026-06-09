@@ -1,26 +1,10 @@
-// BIST popular stocks
-export const BIST_STOCKS = [
-  { symbol: 'THYAO.IS', name: 'Türk Hava Yolları', shortName: 'THYAO' },
-  { symbol: 'GARAN.IS', name: 'Garanti BBVA', shortName: 'GARAN' },
-  { symbol: 'AKBNK.IS', name: 'Akbank', shortName: 'AKBNK' },
-  { symbol: 'EREGL.IS', name: 'Ereğli Demir Çelik', shortName: 'EREGL' },
-  { symbol: 'BIMAS.IS', name: 'BİM Mağazaları', shortName: 'BIMAS' },
-  { symbol: 'SISE.IS', name: 'Şişecam', shortName: 'SISE' },
-  { symbol: 'KCHOL.IS', name: 'Koç Holding', shortName: 'KCHOL' },
-  { symbol: 'SAHOL.IS', name: 'Sabancı Holding', shortName: 'SAHOL' },
-  { symbol: 'TUPRS.IS', name: 'Tüpraş', shortName: 'TUPRS' },
-  { symbol: 'ASELS.IS', name: 'Aselsan', shortName: 'ASELS' },
-  { symbol: 'SASA.IS', name: 'SASA Polyester', shortName: 'SASA' },
-  { symbol: 'PGSUS.IS', name: 'Pegasus', shortName: 'PGSUS' },
-  { symbol: 'TAVHL.IS', name: 'TAV Havalimanları', shortName: 'TAVHL' },
-  { symbol: 'FROTO.IS', name: 'Ford Otosan', shortName: 'FROTO' },
-  { symbol: 'TOASO.IS', name: 'Tofaş', shortName: 'TOASO' },
-  { symbol: 'YKBNK.IS', name: 'Yapı Kredi', shortName: 'YKBNK' },
-  { symbol: 'HALKB.IS', name: 'Halkbank', shortName: 'HALKB' },
-  { symbol: 'ISCTR.IS', name: 'İş Bankası C', shortName: 'ISCTR' },
-  { symbol: 'KOZAL.IS', name: 'Koza Altın', shortName: 'KOZAL' },
-  { symbol: 'PETKM.IS', name: 'Petkim', shortName: 'PETKM' },
-];
+// BIST Varlıkları - tüm hisseler, fonlar ve en likit hisseler
+export { BIST_ALL_STOCKS, BIST_TOP_STOCKS, BIST_FUNDS, BIST_ALL_ASSETS } from './bist-data';
+export type { BistAsset } from './bist-data';
+
+// Geriye dönük uyumluluk: BIST_STOCKS = tüm hisseler
+import { BIST_ALL_STOCKS as _ALL } from './bist-data';
+export const BIST_STOCKS = _ALL;
 
 // BIST Index
 export const BIST_INDICES = [

@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, Plus, Trash2, TrendingUp, TrendingDown, Check, AlertTriangle } from 'lucide-react';
-import { formatCurrency, BIST_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
+import { formatCurrency, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
+import { SymbolSearch } from '@/components/symbol-search';
 import { toast } from 'sonner';
 
 export default function AlertsClient() {
@@ -14,7 +15,12 @@ export default function AlertsClient() {
   const [targetPrice, setTargetPrice] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const allSymbols = [...BIST_STOCKS, ...CRYPTO_ASSETS];
+  const symbolGroups = [
+    { label: 'BIST Hisseleri', items: BIST_STOCKS },
+    { label: 'Fonlar', items: BIST_FUNDS },
+    { label: 'Kripto', items: CRYPTO_ASSETS },
+  ];
+  const allSymbols = symbolGroups.flatMap(g => g.items);
 
   const fetchAlerts = () => {
     fetch('/api/alerts').then(r => r.json()).then(d => {
@@ -88,10 +94,7 @@ export default function AlertsClient() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="text-xs text-[#94A3B8] mb-1 block">Sembol</label>
-              <select value={symbol} onChange={e => setSymbol(e.target.value)}
-                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
-                {allSymbols.map(s => <option key={s.symbol} value={s.symbol}>{s.shortName} - {s.name}</option>)}
-              </select>
+              <SymbolSearch value={symbol} onChange={setSymbol} groups={symbolGroups} placeholder="Sembol ara..." />
             </div>
             <div>
               <label className="text-xs text-[#94A3B8] mb-1 block">Koşul</label>
