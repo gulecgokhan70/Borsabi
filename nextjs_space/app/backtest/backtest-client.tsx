@@ -20,6 +20,9 @@ const STRATEGIES = [
 ];
 
 const PERIODS = [
+  { id: '1d', name: 'Günlük' },
+  { id: '1w', name: 'Haftalık' },
+  { id: '15d', name: '15 Gün' },
   { id: '1m', name: '1 Ay' },
   { id: '3m', name: '3 Ay' },
   { id: '6m', name: '6 Ay' },

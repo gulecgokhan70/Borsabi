@@ -172,8 +172,12 @@ export async function POST(request: NextRequest) {
 
     const endDate = new Date();
     const startDate = new Date();
+    let interval = '1d';
     switch (period || '1y') {
-      case '1m': startDate.setMonth(endDate.getMonth() - 1); break;
+      case '1d': startDate.setDate(endDate.getDate() - 5); interval = '5m'; break;
+      case '1w': startDate.setDate(endDate.getDate() - 10); interval = '15m'; break;
+      case '15d': startDate.setDate(endDate.getDate() - 20); interval = '30m'; break;
+      case '1m': startDate.setMonth(endDate.getMonth() - 1); interval = '1h'; break;
       case '3m': startDate.setMonth(endDate.getMonth() - 3); break;
       case '6m': startDate.setMonth(endDate.getMonth() - 6); break;
       case '1y': startDate.setFullYear(endDate.getFullYear() - 1); break;
@@ -185,11 +189,12 @@ export async function POST(request: NextRequest) {
     const chart = await cachedChart(symbol, {
       period1: startDate,
       period2: endDate,
-      interval: '1d' as any,
+      interval: interval as any,
     });
 
-    if (!chart || !chart.quotes || chart.quotes.length < 50) {
-      return NextResponse.json({ error: 'Yeterli veri bulunamadı' }, { status: 400 });
+    const minBars = ['1d', '1w', '15d', '1m'].includes(period) ? 20 : 50;
+    if (!chart || !chart.quotes || chart.quotes.length < minBars) {
+      return NextResponse.json({ error: 'Yeterli veri bulunamadı. Daha uzun bir dönem seçin.' }, { status: 400 });
     }
 
     const validQuotes = chart.quotes.filter((q: any) => q?.close > 0 && q?.date);

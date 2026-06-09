@@ -44,20 +44,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch data
-    const periodMap: Record<string, number> = { '6m': 180, '1y': 365, '2y': 730, '3y': 1095 };
-    const days = periodMap[period] || 365;
-    const startDate = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-    const endDate = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    const startDate = new Date();
+    let interval = '1d';
+    let minBars = 50;
+    switch (period) {
+      case '1d': startDate.setDate(endDate.getDate() - 5); interval = '5m'; minBars = 20; break;
+      case '1w': startDate.setDate(endDate.getDate() - 10); interval = '15m'; minBars = 20; break;
+      case '15d': startDate.setDate(endDate.getDate() - 20); interval = '30m'; minBars = 20; break;
+      case '1m': startDate.setMonth(endDate.getMonth() - 1); interval = '1h'; minBars = 20; break;
+      case '3m': startDate.setMonth(endDate.getMonth() - 3); interval = '1d'; minBars = 30; break;
+      case '6m': startDate.setMonth(endDate.getMonth() - 6); interval = '1d'; break;
+      case '1y': startDate.setFullYear(endDate.getFullYear() - 1); interval = '1d'; break;
+      case '2y': startDate.setFullYear(endDate.getFullYear() - 2); interval = '1d'; break;
+      case '3y': startDate.setFullYear(endDate.getFullYear() - 3); interval = '1d'; break;
+      default: startDate.setFullYear(endDate.getFullYear() - 1); interval = '1d'; break;
+    }
 
     let chart: any;
     try {
-      chart = await cachedChart(symbol, { period1: startDate, period2: endDate, interval: '1d' as any });
+      chart = await cachedChart(symbol, { period1: startDate, period2: endDate, interval: interval as any });
     } catch {
       return NextResponse.json({ error: 'Veri alınamadı' }, { status: 400 });
     }
 
     const quotes = (chart?.quotes || []).filter((q: any) => q.close && q.high && q.low && q.open) as any[];
-    if (quotes.length < 50) return NextResponse.json({ error: 'Yeterli veri yok' }, { status: 400 });
+    if (quotes.length < minBars) return NextResponse.json({ error: 'Yeterli veri yok. Daha uzun bir dönem seçin.' }, { status: 400 });
 
     const closes = quotes.map((q: any) => q.close as number);
     const highs = quotes.map((q: any) => q.high as number);
@@ -78,8 +90,10 @@ export async function POST(req: NextRequest) {
     let entryPrice = 0;
     const trades: any[] = [];
     const equity: number[] = [];
+    const lookback = Math.min(50, Math.floor(closes.length * 0.2));
+    const startIdx = Math.max(lookback, 10);
 
-    for (let i = 50; i < closes.length; i++) {
+    for (let i = startIdx; i < closes.length; i++) {
       const ctx: Record<string, number> = {
         price: closes[i],
         prevPrice: closes[i - 1],
