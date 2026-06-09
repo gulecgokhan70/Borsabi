@@ -1,10 +1,11 @@
 'use client';
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Moon, Sun, RefreshCw, TrendingUp, TrendingDown, Target, Shield,
   BarChart3, Activity, Zap, Waves, AlertTriangle, Clock, ArrowRight,
-  ChevronDown, ChevronUp, Star, DollarSign
+  ChevronDown, ChevronUp, Star, DollarSign, ExternalLink
 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 
@@ -53,6 +54,7 @@ interface AnalysisData {
 }
 
 export default function AksamAnaliziClient() {
+  const router = useRouter();
   const [data, setData] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -123,7 +125,10 @@ export default function AksamAnaliziClient() {
                   </div>
                 </td>
                 <td className="py-3 px-3">
-                  <div className="font-bold text-white">{t.symbol}</div>
+                  <div className="font-bold text-[#3B82F6] hover:text-[#60A5FA] cursor-pointer flex items-center gap-1 transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(t.symbol + '.IS')}`)}>
+                    {t.symbol}
+                    <ExternalLink className="w-3 h-3 opacity-50" />
+                  </div>
                   <div className="text-xs text-[#64748B] truncate max-w-[120px]">{t.name}</div>
                 </td>
                 <td className="py-3 px-3 text-right">
@@ -170,7 +175,9 @@ export default function AksamAnaliziClient() {
                     <span className={`text-sm font-bold ${getScoreColor(t.score)}`}>{t.score}</span>
                   </div>
                   <div>
-                    <div className="font-bold text-white text-base">{t.symbol}</div>
+                    <div className="font-bold text-[#3B82F6] text-base cursor-pointer" onClick={() => router.push(`/stock/${encodeURIComponent(t.symbol + '.IS')}`)}>
+                      {t.symbol} <ExternalLink className="w-3 h-3 inline opacity-50" />
+                    </div>
                     <div className="text-xs text-[#64748B]">{t.name}</div>
                   </div>
                 </div>

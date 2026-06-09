@@ -28,6 +28,43 @@ function calculateEMA(data: number[], period: number): number[] {
   return ema;
 }
 
+function calculateMACD(closes: number[]): { macd: number[]; signal: number[]; histogram: number[] } {
+  if (closes.length < 26) return { macd: [], signal: [], histogram: [] };
+  const ema12 = calculateEMA(closes, 12);
+  const ema26 = calculateEMA(closes, 26);
+  const macdLine = ema12.map((v, i) => v - ema26[i]);
+  const signalLine = calculateEMA(macdLine.slice(25), 9);
+  // Align signal with macd
+  const startIdx = 25 + 8; // 26-1 + 9-1
+  const histogram: number[] = [];
+  const macdOut: number[] = [];
+  const signalOut: number[] = [];
+  for (let i = 0; i < signalLine.length; i++) {
+    const mIdx = startIdx - 8 + i;
+    macdOut.push(macdLine[mIdx]);
+    signalOut.push(signalLine[i]);
+    histogram.push(macdLine[mIdx] - signalLine[i]);
+  }
+  return { macd: macdOut, signal: signalOut, histogram };
+}
+
+function calculateBollingerBands(closes: number[], period = 20, stdDev = 2) {
+  if (closes.length < period) return { upper: [], middle: [], lower: [] };
+  const upper: number[] = [];
+  const middle: number[] = [];
+  const lower: number[] = [];
+  for (let i = period - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - period + 1, i + 1);
+    const avg = slice.reduce((a, b) => a + b, 0) / period;
+    const variance = slice.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / period;
+    const std = Math.sqrt(variance);
+    middle.push(avg);
+    upper.push(avg + stdDev * std);
+    lower.push(avg - stdDev * std);
+  }
+  return { upper, middle, lower };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { symbol: string } }
@@ -104,6 +141,48 @@ export async function GET(
     const totalVolume = ohlc.reduce((s: number, q: any) => s + (q.volume || 0), 0);
     const avgVolume = ohlc.length > 0 ? Math.round(totalVolume / ohlc.length) : 0;
 
+    // MACD
+    const macdData = closes.length > 33 ? calculateMACD(closes) : { macd: [], signal: [], histogram: [] };
+    const lastMacd = macdData.macd.length > 0 ? macdData.macd[macdData.macd.length - 1] : null;
+    const lastSignal = macdData.signal.length > 0 ? macdData.signal[macdData.signal.length - 1] : null;
+    const lastHistogram = macdData.histogram.length > 0 ? macdData.histogram[macdData.histogram.length - 1] : null;
+
+    // Bollinger Bands
+    const bb = calculateBollingerBands(closes);
+    const lastBBUpper = bb.upper.length > 0 ? bb.upper[bb.upper.length - 1] : null;
+    const lastBBMiddle = bb.middle.length > 0 ? bb.middle[bb.middle.length - 1] : null;
+    const lastBBLower = bb.lower.length > 0 ? bb.lower[bb.lower.length - 1] : null;
+
+    // EMA200
+    const ema200 = closes.length > 200 ? calculateEMA(closes, 200) : [];
+    const lastEma200 = ema200.length > 0 ? ema200[ema200.length - 1] : null;
+
+    // Attach MACD, BB series to OHLC for chart overlay
+    const macdLen = macdData.macd.length;
+    const bbLen = bb.upper.length;
+    const ema20Arr = ema20;
+    const ema50Arr = ema50;
+    const enrichedOhlc = ohlc.map((item: any, i: number) => {
+      const ohlcLen = ohlc.length;
+      const macdIdx = i - (ohlcLen - macdLen);
+      const bbIdx = i - (ohlcLen - bbLen);
+      const e20 = ema20Arr.length > 0 ? ema20Arr[i] : undefined;
+      const e50 = ema50Arr.length > 0 ? ema50Arr[i] : undefined;
+      const e200Val = ema200.length > 0 ? ema200[i] : undefined;
+      return {
+        ...item,
+        ema20: e20 && i >= 19 ? Math.round(e20 * 100) / 100 : undefined,
+        ema50: e50 && i >= 49 ? Math.round(e50 * 100) / 100 : undefined,
+        ema200: e200Val && i >= 199 ? Math.round(e200Val * 100) / 100 : undefined,
+        macd: macdIdx >= 0 ? Math.round(macdData.macd[macdIdx] * 1000) / 1000 : undefined,
+        macdSignal: macdIdx >= 0 ? Math.round(macdData.signal[macdIdx] * 1000) / 1000 : undefined,
+        macdHistogram: macdIdx >= 0 ? Math.round(macdData.histogram[macdIdx] * 1000) / 1000 : undefined,
+        bbUpper: bbIdx >= 0 ? Math.round(bb.upper[bbIdx] * 100) / 100 : undefined,
+        bbMiddle: bbIdx >= 0 ? Math.round(bb.middle[bbIdx] * 100) / 100 : undefined,
+        bbLower: bbIdx >= 0 ? Math.round(bb.lower[bbIdx] * 100) / 100 : undefined,
+      };
+    });
+
     // Midas verisinden veya Yahoo'dan response oluştur
     const m = midasData;
     return NextResponse.json({
@@ -122,8 +201,20 @@ export async function GET(
       fiftyTwoWeekHigh: quote?.fiftyTwoWeekHigh ?? 0,
       fiftyTwoWeekLow: quote?.fiftyTwoWeekLow ?? 0,
       currency: quote?.currency ?? 'TRY',
-      indicators: { rsi, ema20: lastEma20, ema50: lastEma50, avgVolume },
-      ohlc,
+      indicators: {
+        rsi,
+        ema20: lastEma20,
+        ema50: lastEma50,
+        ema200: lastEma200,
+        avgVolume,
+        macd: lastMacd,
+        macdSignal: lastSignal,
+        macdHistogram: lastHistogram,
+        bbUpper: lastBBUpper,
+        bbMiddle: lastBBMiddle,
+        bbLower: lastBBLower,
+      },
+      ohlc: enrichedOhlc,
       // Midas ekstra verileri
       ...(m ? {
         vwap: m.VWAP,
