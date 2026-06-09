@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
+import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
@@ -301,6 +302,15 @@ export async function GET(request: NextRequest) {
   try {
     const results: any[] = [];
 
+    // Midas'tan tüm BIST verilerini al (primary source)
+    let midasMap = new Map<string, MidasStock>();
+    try {
+      midasMap = await getMidasStockMap();
+      if (midasMap.size > 0) console.log(`[SwingTrade] Midas: ${midasMap.size} hisse`);
+    } catch (e) {
+      console.warn('[SwingTrade] Midas başarısız, tam Yahoo fallback');
+    }
+
     // Tüm BIST hisselerini tara
     const promises = BIST_TOP_STOCKS.map(async (stock: any) => {
       try {
@@ -308,8 +318,11 @@ export async function GET(request: NextRequest) {
         const startDate = new Date();
         startDate.setFullYear(endDate.getFullYear() - 1);
 
+        const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
+        const midasData = midasMap.get(cleanSym) || null;
+
         const [quote, chart] = await Promise.all([
-          cachedQuote(stock.symbol).catch(() => null),
+          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
           cachedChart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
@@ -329,14 +342,25 @@ export async function GET(request: NextRequest) {
         const ema50Arr = calculateEMA(closes, 50);
         const ema200Arr = calculateEMA(closes, Math.min(200, closes.length - 1));
         const atr = calculateATR(highs, lows, closes);
-        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+
+        // Midas primary, Yahoo fallback
         const lastClose = closes[closes.length - 1] ?? 0;
-        const rawPrice = quote?.regularMarketPrice ?? 0;
-        const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+        let price = 0, volume = 0, avgVolume = 0, changePercent = 0;
+
+        if (midasData) {
+          price = midasData.Last || midasData.Close || lastClose;
+          volume = midasData.TotalVolume || (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+          avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
+          changePercent = midasData.DailyChangePercent ?? 0;
+        } else {
+          const rawPrice = quote?.regularMarketPrice ?? 0;
+          price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+          const rawVolume = quote?.regularMarketVolume ?? 0;
+          volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+          avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
+          changePercent = quote?.regularMarketChangePercent ?? 0;
+        }
         if (price <= 0) return null;
-        const rawVolume = quote?.regularMarketVolume ?? 0;
-        const volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
-        const avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
 
         const lastEma20 = ema20Arr[(ema20Arr.length ?? 1) - 1] ?? 0;
         const lastEma50 = ema50Arr[(ema50Arr.length ?? 1) - 1] ?? 0;
@@ -374,7 +398,7 @@ export async function GET(request: NextRequest) {
           yahooSymbol: stock.symbol,
           name: stock.name,
           price,
-          change: quote?.regularMarketChangePercent ?? 0,
+          change: changePercent,
           volume,
           avgVolume,
           score: Math.round(result.score),

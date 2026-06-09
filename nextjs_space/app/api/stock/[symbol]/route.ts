@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
+import { getMidasStock } from '@/lib/midas-api';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -41,12 +42,25 @@ export async function GET(
     const allAssets = [...BIST_ALL_ASSETS, ...CRYPTO_ASSETS];
     const assetInfo = allAssets.find((a: any) => a.symbol === symbol);
 
-    // Fetch quote
+    // Midas primary (BIST only), Yahoo fallback
+    const isBist = symbol.endsWith('.IS');
+    let midasData: any = null;
     let quote: any = null;
-    try {
-      quote = await cachedQuote(symbol);
-    } catch (e: any) {
-      console.error('Quote fetch error:', e?.message);
+
+    if (isBist) {
+      try {
+        midasData = await getMidasStock(symbol);
+      } catch (e) {
+        console.warn('[StockDetail] Midas başarısız');
+      }
+    }
+
+    if (!midasData) {
+      try {
+        quote = await cachedQuote(symbol);
+      } catch (e: any) {
+        console.error('Quote fetch error:', e?.message);
+      }
     }
 
     // Fetch chart data
@@ -90,24 +104,36 @@ export async function GET(
     const totalVolume = ohlc.reduce((s: number, q: any) => s + (q.volume || 0), 0);
     const avgVolume = ohlc.length > 0 ? Math.round(totalVolume / ohlc.length) : 0;
 
+    // Midas verisinden veya Yahoo'dan response oluştur
+    const m = midasData;
     return NextResponse.json({
       symbol,
       name: assetInfo?.name ?? quote?.shortName ?? symbol,
       shortName: assetInfo?.shortName ?? symbol.replace('.IS', '').replace('-USD', ''),
-      price: quote?.regularMarketPrice ?? (closes.length > 0 ? closes[closes.length - 1] : 0),
-      change: quote?.regularMarketChange ?? 0,
-      changePercent: quote?.regularMarketChangePercent ?? 0,
-      high: quote?.regularMarketDayHigh ?? 0,
-      low: quote?.regularMarketDayLow ?? 0,
-      open: quote?.regularMarketOpen ?? 0,
-      prevClose: quote?.regularMarketPreviousClose ?? 0,
-      volume: quote?.regularMarketVolume ?? 0,
-      marketCap: quote?.marketCap ?? 0,
+      price: m ? (m.Last || m.Close) : (quote?.regularMarketPrice ?? (closes.length > 0 ? closes[closes.length - 1] : 0)),
+      change: m ? m.DailyChange : (quote?.regularMarketChange ?? 0),
+      changePercent: m ? m.DailyChangePercent : (quote?.regularMarketChangePercent ?? 0),
+      high: m ? m.High : (quote?.regularMarketDayHigh ?? 0),
+      low: m ? m.Low : (quote?.regularMarketDayLow ?? 0),
+      open: m ? m.Open : (quote?.regularMarketOpen ?? 0),
+      prevClose: m ? m.PreviousClose : (quote?.regularMarketPreviousClose ?? 0),
+      volume: m ? m.TotalVolume : (quote?.regularMarketVolume ?? 0),
+      marketCap: m ? m.MarketValue : (quote?.marketCap ?? 0),
       fiftyTwoWeekHigh: quote?.fiftyTwoWeekHigh ?? 0,
       fiftyTwoWeekLow: quote?.fiftyTwoWeekLow ?? 0,
       currency: quote?.currency ?? 'TRY',
       indicators: { rsi, ema20: lastEma20, ema50: lastEma50, avgVolume },
       ohlc,
+      // Midas ekstra verileri
+      ...(m ? {
+        vwap: m.VWAP,
+        tavan: m.UpperLimit,
+        taban: m.LowerLimit,
+        fk: m.PriceEarning,
+        pddd: m.PriceBookValue,
+        freeFloat: m.FreeFloatRate,
+        volatility: m.Volatility,
+      } : {}),
     });
   } catch (error: any) {
     console.error('Stock detail API error:', error);

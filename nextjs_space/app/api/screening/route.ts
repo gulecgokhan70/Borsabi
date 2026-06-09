@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
+import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 
 function calculateRSI(closes: number[], period = 14): number {
   if ((closes?.length ?? 0) < period + 1) return 50;
@@ -273,6 +274,15 @@ export async function GET(request: NextRequest) {
   try {
     const results: any[] = [];
 
+    // Midas'tan tüm BIST verilerini al (primary source)
+    let midasMap = new Map<string, MidasStock>();
+    try {
+      midasMap = await getMidasStockMap();
+      if (midasMap.size > 0) console.log(`[Screening] Midas: ${midasMap.size} hisse`);
+    } catch (e) {
+      console.warn('[Screening] Midas başarısız, tam Yahoo fallback');
+    }
+
     // Tüm BIST hisselerini tara
     const screenPromises = BIST_TOP_STOCKS.map(async (stock: any) => {
       try {
@@ -280,8 +290,13 @@ export async function GET(request: NextRequest) {
         const startDate = new Date();
         startDate.setFullYear(endDate.getFullYear() - 1);
 
+        const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
+        const midasData = midasMap.get(cleanSym) || null;
+
+        // Chart verisi her zaman Yahoo'dan (teknik göstergeler için tarihsel veri gerekli)
+        // Quote: Midas varsa onu kullan, yoksa Yahoo fallback
         const [quote, chart] = await Promise.all([
-          cachedQuote(stock.symbol).catch(() => null),
+          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
           cachedChart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
@@ -294,13 +309,35 @@ export async function GET(request: NextRequest) {
         const volumes = quotes.map((q: any) => q?.volume ?? 0);
         if (closes.length < 30) return null;
 
-        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+        // Midas primary, Yahoo fallback
         const lastClose = closes[closes.length - 1] ?? 0;
-        const rawPrice = quote?.regularMarketPrice ?? 0;
-        const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
-        const rawVolume = quote?.regularMarketVolume ?? 0;
-        const volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
-        const avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
+        let price = 0, volume = 0, avgVolume = 0, changePercent = 0;
+        let effectiveQuote: any = quote; // screenStock'a gidecek quote
+
+        if (midasData) {
+          price = midasData.Last || midasData.Close || lastClose;
+          volume = midasData.TotalVolume || (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+          avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
+          changePercent = midasData.DailyChangePercent ?? 0;
+          // Midas verisini Yahoo quote formatına çevir
+          effectiveQuote = {
+            regularMarketPrice: price,
+            regularMarketPreviousClose: midasData.PreviousClose,
+            regularMarketVolume: volume,
+            averageDailyVolume3Month: avgVolume,
+            regularMarketChangePercent: changePercent,
+            regularMarketOpen: midasData.Open,
+            regularMarketDayHigh: midasData.High,
+            regularMarketDayLow: midasData.Low,
+          };
+        } else {
+          const rawPrice = quote?.regularMarketPrice ?? 0;
+          price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+          const rawVolume = quote?.regularMarketVolume ?? 0;
+          volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+          avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
+          changePercent = quote?.regularMarketChangePercent ?? 0;
+        }
         if (price <= 0) return null;
 
         const rsi14 = calculateRSI(closes, 14);
@@ -321,7 +358,7 @@ export async function GET(request: NextRequest) {
         const ema200Last = ema200[(ema200.length ?? 1) - 1] ?? 0;
 
         const result = screenStock(
-          quote, closes, highs, lows, volumes,
+          effectiveQuote, closes, highs, lows, volumes,
           rsi14, rsi5, macd,
           ema9Last, ema20Last, ema21Last, ema50Last, ema200Last,
           vwap, atr
@@ -339,7 +376,7 @@ export async function GET(request: NextRequest) {
           yahooSymbol: stock.symbol,
           name: stock.name,
           price,
-          change: quote?.regularMarketChangePercent ?? 0,
+          change: changePercent,
           volume,
           avgVolume,
           score: Math.round(result.totalScore),

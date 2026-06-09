@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
+import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -55,11 +56,25 @@ export async function POST(req: NextRequest) {
 
     const stocks = market === 'CRYPTO' ? CRYPTO_ASSETS : BIST_TOP_STOCKS;
     const results: any[] = [];
+    const isBist = market !== 'CRYPTO';
+
+    // Midas'tan BIST verileri
+    let midasMap = new Map<string, MidasStock>();
+    if (isBist) {
+      try {
+        midasMap = await getMidasStockMap();
+      } catch (e) {
+        console.warn('[AlgoScan] Midas başarısız');
+      }
+    }
 
     const promises = stocks.map(async (stock: any) => {
       try {
+        const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
+        const midasData = isBist ? (midasMap.get(cleanSym) || null) : null;
+
         const [quote, chart] = await Promise.all([
-          cachedQuote(stock.symbol).catch(() => null),
+          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
           cachedChart(stock.symbol, {
             period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0],
             period2: new Date().toISOString().split('T')[0],
@@ -73,14 +88,21 @@ export async function POST(req: NextRequest) {
         const volumes = (chart.quotes || []).map((q: any) => q.volume).filter(Boolean) as number[];
         if (closes.length < 30) return null;
 
-        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
         const lastClose = closes[closes.length - 1] ?? 0;
-        const rawPrice = (quote as any)?.regularMarketPrice || 0;
-        const price = rawPrice > 0 ? rawPrice : ((quote as any)?.regularMarketPreviousClose || lastClose);
+        let price = 0, change = 0, volume = 0;
+
+        if (midasData) {
+          price = midasData.Last || midasData.Close || lastClose;
+          change = midasData.DailyChangePercent ?? 0;
+          volume = midasData.TotalVolume || (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+        } else {
+          const rawPrice = (quote as any)?.regularMarketPrice || 0;
+          price = rawPrice > 0 ? rawPrice : ((quote as any)?.regularMarketPreviousClose || lastClose);
+          change = (quote as any)?.regularMarketChangePercent || 0;
+          const rawVol = (quote as any)?.regularMarketVolume || 0;
+          volume = rawVol > 0 ? rawVol : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+        }
         if (price <= 0) return null;
-        const change = (quote as any)?.regularMarketChangePercent || 0;
-        const rawVol = (quote as any)?.regularMarketVolume || 0;
-        const volume = rawVol > 0 ? rawVol : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
         const avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
         const volRatio = avgVolume > 0 ? volume / avgVolume : 1;
 

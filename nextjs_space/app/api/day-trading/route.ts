@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
+import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
@@ -251,6 +252,15 @@ export async function GET(request: NextRequest) {
   try {
     const results: any[] = [];
 
+    // Midas'tan tüm BIST verilerini al (primary source)
+    let midasMap = new Map<string, MidasStock>();
+    try {
+      midasMap = await getMidasStockMap();
+      if (midasMap.size > 0) console.log(`[DayTrade] Midas: ${midasMap.size} hisse`);
+    } catch (e) {
+      console.warn('[DayTrade] Midas başarısız, tam Yahoo fallback');
+    }
+
     // Tüm BIST hisselerini tara
     const promises = BIST_TOP_STOCKS.map(async (stock: any) => {
       try {
@@ -258,8 +268,11 @@ export async function GET(request: NextRequest) {
         const startDate = new Date();
         startDate.setMonth(endDate.getMonth() - 3);
 
+        const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
+        const midasData = midasMap.get(cleanSym) || null;
+
         const [quote, chart] = await Promise.all([
-          cachedQuote(stock.symbol).catch(() => null),
+          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
           cachedChart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
@@ -280,33 +293,54 @@ export async function GET(request: NextRequest) {
         const ema9 = calculateEMA(closes, 9);
         const ema21 = calculateEMA(closes, 21);
         const atr = calculateATR(highs, lows, closes);
-        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+
+        // Midas primary, Yahoo fallback
         const lastClose = closes[closes.length - 1] ?? 0;
-        const rawPrice = quote?.regularMarketPrice ?? 0;
-        const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
-        if (price <= 0) return null;
-        // quote fallback'leri
-        if (!quote) {
-          (quote as any) = { regularMarketPrice: price, regularMarketPreviousClose: closes[closes.length - 2] ?? price, regularMarketOpen: lastClose, regularMarketVolume: volumes[volumes.length - 1] ?? 0, averageDailyVolume3Month: volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : 0, regularMarketChangePercent: 0 };
-        } else if (rawPrice <= 0) {
-          (quote as any).regularMarketPrice = price;
-          if (!quote.regularMarketOpen || quote.regularMarketOpen <= 0) (quote as any).regularMarketOpen = lastClose;
-          if (!quote.regularMarketVolume || quote.regularMarketVolume <= 0) (quote as any).regularMarketVolume = volumes[volumes.length - 1] ?? 0;
+        let price = 0;
+        let effectiveQuote: any = quote;
+
+        if (midasData) {
+          price = midasData.Last || midasData.Close || lastClose;
+          effectiveQuote = {
+            regularMarketPrice: price,
+            regularMarketPreviousClose: midasData.PreviousClose,
+            regularMarketOpen: midasData.Open,
+            regularMarketDayHigh: midasData.High,
+            regularMarketDayLow: midasData.Low,
+            regularMarketVolume: midasData.TotalVolume || (volumes[volumes.length - 1] ?? 0),
+            averageDailyVolume3Month: volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : 0,
+            regularMarketChangePercent: midasData.DailyChangePercent ?? 0,
+          };
+        } else {
+          const rawPrice = quote?.regularMarketPrice ?? 0;
+          price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+          if (!quote) {
+            effectiveQuote = { regularMarketPrice: price, regularMarketPreviousClose: closes[closes.length - 2] ?? price, regularMarketOpen: lastClose, regularMarketVolume: volumes[volumes.length - 1] ?? 0, averageDailyVolume3Month: volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : 0, regularMarketChangePercent: 0 };
+          } else if (rawPrice <= 0) {
+            effectiveQuote = { ...quote };
+            effectiveQuote.regularMarketPrice = price;
+            if (!quote.regularMarketOpen || quote.regularMarketOpen <= 0) effectiveQuote.regularMarketOpen = lastClose;
+            if (!quote.regularMarketVolume || quote.regularMarketVolume <= 0) effectiveQuote.regularMarketVolume = volumes[volumes.length - 1] ?? 0;
+          }
         }
+        if (price <= 0) return null;
 
         const lastEma9 = ema9?.[(ema9?.length ?? 1) - 1] ?? 0;
         const lastEma21 = ema21?.[(ema21?.length ?? 1) - 1] ?? 0;
 
         const result = scoreDayTrade(
-          quote, closes, highs, lows, volumes,
+          effectiveQuote, closes, highs, lows, volumes,
           rsi5, rsi14, macd, vwap, lastEma9, lastEma21, atr
         );
 
         // Minimum R:R 1:2 altındaki hisseleri ele (prompttaki kural)
-        // BIST günlük tavan/taban limiti: %10
-        const prevClose = quote?.regularMarketPreviousClose ?? price;
-        const tavanFiyat = prevClose * 1.10;
-        const tabanFiyat = prevClose * 0.90;
+        // BIST günlük tavan/taban limiti: %10 (Midas'tan gelen UpperLimit/LowerLimit daha doğru)
+        const prevClose = effectiveQuote?.regularMarketPreviousClose ?? price;
+        // Midas'tan gerçek tavan/taban limitleri
+        const midasTavan = midasData?.UpperLimit;
+        const midasTaban = midasData?.LowerLimit;
+        const tavanFiyat = midasTavan && midasTavan > 0 ? midasTavan : prevClose * 1.10;
+        const tabanFiyat = midasTaban && midasTaban > 0 ? midasTaban : prevClose * 0.90;
         const stopDistance = atr > 0 ? Math.min(atr * 1.5, price - tabanFiyat) : price * 0.015;
         const stopLevel = Math.max(price - stopDistance, tabanFiyat);
         let target1 = Math.min(price + (stopDistance * 2), tavanFiyat);
@@ -331,12 +365,12 @@ export async function GET(request: NextRequest) {
           yahooSymbol: stock.symbol,
           name: stock.name,
           price,
-          change: quote?.regularMarketChangePercent ?? 0,
-          volume: quote?.regularMarketVolume ?? 0,
-          avgVolume: quote?.averageDailyVolume3Month ?? 0,
-          open: quote?.regularMarketOpen ?? 0,
-          high: quote?.regularMarketDayHigh ?? 0,
-          low: quote?.regularMarketDayLow ?? 0,
+          change: effectiveQuote?.regularMarketChangePercent ?? 0,
+          volume: effectiveQuote?.regularMarketVolume ?? 0,
+          avgVolume: effectiveQuote?.averageDailyVolume3Month ?? 0,
+          open: effectiveQuote?.regularMarketOpen ?? 0,
+          high: effectiveQuote?.regularMarketDayHigh ?? 0,
+          low: effectiveQuote?.regularMarketDayLow ?? 0,
           score: Math.round(result.score),
           quality,
           signals: result.signals,
@@ -356,7 +390,7 @@ export async function GET(request: NextRequest) {
           riskReward: Math.round(riskReward * 100) / 100,
           rsi: Math.round(rsi5 * 10) / 10,
           rsi14: Math.round(rsi14 * 10) / 10,
-          vwap: Math.round(vwap * 100) / 100,
+          vwap: Math.round((midasData?.VWAP || vwap) * 100) / 100,
           macd: {
             macd: Math.round((macd?.macd ?? 0) * 100) / 100,
             signal: Math.round((macd?.signal ?? 0) * 100) / 100,
