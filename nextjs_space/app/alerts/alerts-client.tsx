@@ -75,11 +75,11 @@ export default function AlertsClient() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#EF4444] to-[#F59E0B] flex items-center justify-center">
-            <Bell className="w-5 h-5 text-white" />
+            <Bell className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Fiyat Alarmları</h1>
-            <p className="text-xs text-[#94A3B8]">Hedef fiyata ulaşıldığında bildirim alın</p>
+            <h1 className="text-xl font-bold text-foreground">Fiyat Alarmları</h1>
+            <p className="text-xs text-muted-foreground">Hedef fiyata ulaşıldığında bildirim alın</p>
           </div>
         </div>
         <button onClick={() => setShowForm(!showForm)}
@@ -92,24 +92,24 @@ export default function AlertsClient() {
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="glass-card rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-3">Yeni Alarm Oluştur</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Yeni Alarm Oluştur</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Sembol</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Sembol</label>
               <SymbolSearch value={symbol} onChange={setSymbol} groups={symbolGroups} placeholder="Sembol ara..." />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Koşul</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Koşul</label>
               <select value={condition} onChange={e => setCondition(e.target.value)}
-                className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]">
                 <option value="above">↑ Üstüne Çıktığında</option>
                 <option value="below">↓ Altına Düştüğünde</option>
               </select>
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Hedef Fiyat</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Hedef Fiyat</label>
               <input type="number" value={targetPrice} onChange={e => setTargetPrice(e.target.value)} placeholder="0.00"
-                className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
+                className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]" />
             </div>
             <div className="flex items-end">
               <button onClick={createAlert} disabled={creating || !targetPrice}
@@ -124,21 +124,21 @@ export default function AlertsClient() {
       {/* Active Alerts */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="glass-card rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/[0.08]">
+        <div className="px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
           <span className="text-sm font-semibold text-[#F1F5F9]">Aktif Alarmlar ({activeAlerts.length})</span>
         </div>
         {activeAlerts.length === 0 ? (
           <div className="p-10 text-center text-sm text-[#CBD5E1]">Henüz aktif alarmınız yok.</div>
         ) : (
-          <div className="divide-y divide-white/[0.08]">
+          <div className="divide-y divide-black/[0.08] dark:divide-white/[0.08]">
             {activeAlerts.map((alert: any) => (
-              <div key={alert.id} className="px-5 py-3 flex items-center gap-3 hover:bg-white/[0.04] transition">
+              <div key={alert.id} className="px-5 py-3 flex items-center gap-3 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${alert.condition === 'above' ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
                   {alert.condition === 'above' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
-                  <p className="text-xs text-[#94A3B8]">
+                  <p className="text-sm font-medium text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
+                  <p className="text-xs text-muted-foreground">
                     {alert.condition === 'above' ? 'Fiyat üstüne çıktığında' : 'Fiyat altına düştüğünde'}: {formatCurrency(alert.targetPrice)}
                   </p>
                 </div>
@@ -155,20 +155,20 @@ export default function AlertsClient() {
       {triggeredAlerts.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="glass-card rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/[0.08]">
-            <span className="text-sm font-semibold text-white">Tetiklenen Alarmlar ({triggeredAlerts.length})</span>
+          <div className="px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <span className="text-sm font-semibold text-foreground">Tetiklenen Alarmlar ({triggeredAlerts.length})</span>
           </div>
-          <div className="divide-y divide-white/[0.08]">
+          <div className="divide-y divide-black/[0.08] dark:divide-white/[0.08]">
             {triggeredAlerts.map((alert: any) => (
               <div key={alert.id} className="px-5 py-3 flex items-center gap-3 opacity-60">
                 <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 flex items-center justify-center">
                   <Check className="w-4 h-4 text-[#22C55E]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
-                  <p className="text-xs text-[#94A3B8]">{formatCurrency(alert.targetPrice)} - Tetiklendi</p>
+                  <p className="text-sm font-medium text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(alert.targetPrice)} - Tetiklendi</p>
                 </div>
-                <button onClick={() => deleteAlert(alert.id)} className="p-2 text-[#64748B] hover:text-[#EF4444] rounded-lg">
+                <button onClick={() => deleteAlert(alert.id)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-[#EF4444] rounded-lg">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

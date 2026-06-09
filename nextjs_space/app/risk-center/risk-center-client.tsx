@@ -113,7 +113,7 @@ export function RiskCenterClient() {
     return (
       <div className="flex flex-col items-center justify-center py-32">
         <RefreshCw className="w-8 h-8 text-[#3B82F6] animate-spin mb-4" />
-        <p className="text-[#94A3B8]">Risk analizi yapılıyor...</p>
+        <p className="text-muted-foreground">Risk analizi yapılıyor...</p>
       </div>
     );
   }
@@ -121,8 +121,8 @@ export function RiskCenterClient() {
   if (!data) {
     return (
       <div className="text-center py-32">
-        <Shield className="w-12 h-12 text-[#64748B] mx-auto mb-3" />
-        <p className="text-[#94A3B8]">Risk verileri yüklenemedi</p>
+        <Shield className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+        <p className="text-muted-foreground">Risk verileri yüklenemedi</p>
         <button onClick={fetchData} className="mt-4 px-4 py-2 bg-[#3B82F6] text-white rounded-lg text-sm">
           Tekrar Dene
         </button>
@@ -137,17 +137,17 @@ export function RiskCenterClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#EF4444]/10 flex items-center justify-center">
               <Shield className="w-5 h-5 text-[#EF4444]" />
             </div>
             Risk Merkezi
           </h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Portföy riskinizi kontrol altında tutun</p>
+          <p className="text-muted-foreground text-sm mt-1">Portföy riskinizi kontrol altında tutun</p>
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-foreground rounded-lg text-sm font-medium transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Güncelle
@@ -174,15 +174,15 @@ export function RiskCenterClient() {
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-white">{summary.riskScore}</span>
+                <span className="text-2xl font-bold text-foreground">{summary.riskScore}</span>
                 <span className="text-[10px] uppercase" style={{ color: getRiskColor(summary.riskLevel) }}>
                   {getRiskLabel(summary.riskLevel)}
                 </span>
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">Risk Skoru</h3>
-              <p className="text-sm text-[#94A3B8] mt-1">
+              <h3 className="text-lg font-semibold text-foreground">Risk Skoru</h3>
+              <p className="text-sm text-muted-foreground mt-1">
                 {summary.riskScore < 50 ? 'Portföyünüz güvenli bölgede.' :
                  summary.riskScore < 65 ? 'Orta seviye risk. Dikkatli olun.' :
                  summary.riskScore < 80 ? 'Yüksek risk! Pozisyonlarınızı gözden geçirin.' :
@@ -194,11 +194,11 @@ export function RiskCenterClient() {
           {/* Quick stats */}
           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="glass-inner rounded-lg p-3">
-              <p className="text-xs text-[#64748B]">Portföy Değeri</p>
-              <p className="text-lg font-bold text-white">{formatCurrency(summary.portfolioValue)}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Portföy Değeri</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(summary.portfolioValue)}</p>
             </div>
             <div className="glass-inner rounded-lg p-3">
-              <p className="text-xs text-[#64748B]">Toplam K/Z</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Toplam K/Z</p>
               <p className={`text-lg font-bold ${summary.totalPnL >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                 {formatCurrency(summary.totalPnL)}
               </p>
@@ -207,12 +207,12 @@ export function RiskCenterClient() {
               </p>
             </div>
             <div className="glass-inner rounded-lg p-3">
-              <p className="text-xs text-[#64748B]">Nakit Oranı</p>
-              <p className="text-lg font-bold text-white">%{formatNumber(summary.cashRatio, 1)}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Nakit Oranı</p>
+              <p className="text-lg font-bold text-foreground">%{formatNumber(summary.cashRatio, 1)}</p>
             </div>
             <div className="glass-inner rounded-lg p-3">
-              <p className="text-xs text-[#64748B]">Açık Pozisyon</p>
-              <p className="text-lg font-bold text-white">{summary.openPositionCount}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Açık Pozisyon</p>
+              <p className="text-lg font-bold text-foreground">{summary.openPositionCount}</p>
             </div>
           </div>
         </div>
@@ -226,7 +226,7 @@ export function RiskCenterClient() {
           transition={{ delay: 0.1 }}
           className="space-y-3"
         >
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
             Uyarılar ({warnings.length})
           </h3>
@@ -249,7 +249,7 @@ export function RiskCenterClient() {
         <div className="glass-card rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="w-4 h-4 text-[#3B82F6]" />
-            <span className="text-sm font-medium text-[#94A3B8]">Günlük K/Z</span>
+            <span className="text-sm font-medium text-muted-foreground">Günlük K/Z</span>
           </div>
           <p className={`text-2xl font-bold ${summary.todayPnL >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
             {formatCurrency(summary.todayPnL)}
@@ -266,13 +266,13 @@ export function RiskCenterClient() {
               }}
             />
           </div>
-          <p className="text-[10px] text-[#64748B] mt-1">Günlük limit: %3</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Günlük limit: %3</p>
         </div>
 
         <div className="glass-card rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-[#F59E0B]" />
-            <span className="text-sm font-medium text-[#94A3B8]">Haftalık K/Z</span>
+            <span className="text-sm font-medium text-muted-foreground">Haftalık K/Z</span>
           </div>
           <p className={`text-2xl font-bold ${summary.weekPnL >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
             {formatCurrency(summary.weekPnL)}
@@ -289,35 +289,35 @@ export function RiskCenterClient() {
               }}
             />
           </div>
-          <p className="text-[10px] text-[#64748B] mt-1">Haftalık limit: %6</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Haftalık limit: %6</p>
         </div>
 
         <div className="glass-card rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <PieChart className="w-4 h-4 text-[#22C55E]" />
-            <span className="text-sm font-medium text-[#94A3B8]">İşlem İstatistikleri</span>
+            <span className="text-sm font-medium text-muted-foreground">İşlem İstatistikleri</span>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-xs text-[#64748B]">Toplam İşlem</span>
-              <span className="text-sm font-medium text-white">{stats.totalTrades}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Toplam İşlem</span>
+              <span className="text-sm font-medium text-foreground">{stats.totalTrades}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-xs text-[#64748B]">Kazanç Oranı</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Kazanç Oranı</span>
               <span className={`text-sm font-medium ${stats.winRate >= 50 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                 %{formatNumber(stats.winRate, 1)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-xs text-[#64748B]">Ort. Kazanç</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Ort. Kazanç</span>
               <span className="text-sm font-medium text-[#22C55E]">{formatCurrency(stats.avgWin)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-xs text-[#64748B]">Ort. Kayıp</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Ort. Kayıp</span>
               <span className="text-sm font-medium text-[#EF4444]">{formatCurrency(stats.avgLoss)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-xs text-[#64748B]">Kâr Faktörü</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Kâr Faktörü</span>
               <span className={`text-sm font-medium ${stats.profitFactor >= 1.5 ? 'text-[#22C55E]' : stats.profitFactor >= 1 ? 'text-[#F59E0B]' : 'text-[#EF4444]'}`}>
                 {formatNumber(stats.profitFactor, 2)}
               </span>
@@ -334,8 +334,8 @@ export function RiskCenterClient() {
           transition={{ delay: 0.2 }}
           className="glass-card rounded-xl overflow-hidden"
         >
-          <div className="p-5 border-b border-white/[0.08]">
-            <h3 className="text-base font-semibold text-white flex items-center gap-2">
+          <div className="p-5 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
               <Target className="w-4 h-4 text-[#3B82F6]" />
               Pozisyon Risk Analizi
             </h3>
@@ -343,21 +343,21 @@ export function RiskCenterClient() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/[0.08]">
+                <tr className="border-b border-black/[0.08] dark:border-white/[0.08]">
                   {['Hisse', 'Değer', 'K/Z', 'Ağırlık', 'Stop Loss', 'Risk'].map((h) => (
-                    <th key={h} className="text-left text-[10px] uppercase text-[#94A3B8] px-4 py-3 font-medium">{h}</th>
+                    <th key={h} className="text-left text-[10px] uppercase text-muted-foreground px-4 py-3 font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {positions.map((pos) => (
-                  <tr key={pos.id} className="border-b border-white/[0.06] hover:bg-white/[0.04]">
+                  <tr key={pos.id} className="border-b border-black/[0.06] dark:border-white/[0.06] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]">
                     <td className="px-4 py-3">
-                      <p className="text-sm font-semibold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(pos.symbol)}`)}>{pos.symbol}</p>
-                      <p className="text-xs text-[#64748B]">{pos.quantity} adet</p>
+                      <p className="text-sm font-semibold text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(pos.symbol)}`)}>{pos.symbol}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{pos.quantity} adet</p>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-white">{formatCurrency(pos.positionValue)}</p>
+                      <p className="text-sm font-medium text-foreground">{formatCurrency(pos.positionValue)}</p>
                     </td>
                     <td className="px-4 py-3">
                       <p className={`text-sm font-medium ${pos.unrealizedPnL >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
@@ -378,7 +378,7 @@ export function RiskCenterClient() {
                             }}
                           />
                         </div>
-                        <span className="text-xs text-[#94A3B8]">%{formatNumber(pos.portfolioWeight, 1)}</span>
+                        <span className="text-xs text-muted-foreground">%{formatNumber(pos.portfolioWeight, 1)}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -420,7 +420,7 @@ export function RiskCenterClient() {
         transition={{ delay: 0.25 }}
         className="glass-card rounded-xl p-5"
       >
-        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Shield className="w-4 h-4 text-[#F59E0B]" />
           Risk Yönetimi Kuralları
         </h3>
@@ -436,8 +436,8 @@ export function RiskCenterClient() {
             <div key={idx} className="flex items-center gap-3 glass-inner rounded-lg p-3">
               <item.icon className="w-4 h-4 text-[#F59E0B] flex-shrink-0" />
               <div>
-                <p className="text-xs text-[#94A3B8]">{item.rule}</p>
-                <p className="text-sm font-medium text-white">{item.value}</p>
+                <p className="text-xs text-muted-foreground">{item.rule}</p>
+                <p className="text-sm font-medium text-foreground">{item.value}</p>
               </div>
             </div>
           ))}
@@ -449,7 +449,7 @@ export function RiskCenterClient() {
         <p className="text-sm text-[#F59E0B] font-medium">
           "İşlem açmak zorunda değilsin. En iyi işlem bazen işlem yapmamaktır."
         </p>
-        <p className="text-xs text-[#64748B]">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           ⚠️ Bu platform eğitim ve simülasyon amaçlıdır. Yatırım tavsiyesi içermez.
         </p>
       </div>

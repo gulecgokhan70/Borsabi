@@ -38,11 +38,11 @@ export default function LeaderboardClient() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#F59E0B] to-[#22C55E] flex items-center justify-center">
-          <Trophy className="w-5 h-5 text-white" />
+          <Trophy className="w-5 h-5 text-foreground" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Liderlik Tablosu</h1>
-          <p className="text-xs text-[#94A3B8]">En başarılı traderlar</p>
+          <h1 className="text-xl font-bold text-foreground">Liderlik Tablosu</h1>
+          <p className="text-xs text-muted-foreground">En başarılı traderlar</p>
         </div>
       </motion.div>
 
@@ -57,14 +57,14 @@ export default function LeaderboardClient() {
             return (
               <div key={idx} className={`glass-card rounded-xl p-4 text-center ${idx === 0 ? 'ring-2 ring-[#F59E0B]/30' : ''}`}>
                 <div className={`w-12 h-12 mx-auto rounded-full bg-gradient-to-br ${style.bg} flex items-center justify-center mb-2`}>
-                  <Icon className="w-6 h-6 text-white" />
+                  <Icon className="w-6 h-6 text-foreground" />
                 </div>
-                <p className="text-sm font-bold text-white truncate">{user.name}</p>
+                <p className="text-sm font-bold text-foreground truncate">{user.name}</p>
                 <p className="text-lg font-bold mt-1" style={{ color: style.color }}>#{user.rank}</p>
                 <p className={`text-sm font-medium ${user.totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                   {formatPercent(user.totalReturn)}
                 </p>
-                <p className="text-xs text-[#94A3B8] mt-1">{formatCurrency(user.balance)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatCurrency(user.balance)}</p>
               </div>
             );
           })}
@@ -74,30 +74,30 @@ export default function LeaderboardClient() {
       {/* Full List */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="glass-card rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/[0.08]">
-          <span className="text-sm font-semibold text-white">Tüm Traderlar ({data.length})</span>
+        <div className="px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
+          <span className="text-sm font-semibold text-foreground">Tüm Traderlar ({data.length})</span>
         </div>
-        <div className="divide-y divide-white/[0.08]">
+        <div className="divide-y divide-black/[0.08] dark:divide-white/[0.08]">
           {data.map((user: any, idx: number) => {
             const tier = TIER_COLORS[user.tier] || TIER_COLORS.free;
             return (
               <motion.div key={idx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.03 }}
-                className="px-5 py-3 flex items-center gap-4 hover:bg-white/[0.04] transition">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : idx === 1 ? 'bg-[#94A3B8]/20 text-[#C0C0C0]' : idx === 2 ? 'bg-[#B45309]/20 text-[#CD7F32]' : 'bg-[#0F172A] text-[#94A3B8]'}`}>
+                className="px-5 py-3 flex items-center gap-4 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : idx === 1 ? 'bg-[#94A3B8]/20 text-[#C0C0C0]' : idx === 2 ? 'bg-[#B45309]/20 text-[#CD7F32]' : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground'}`}>
                   {user.rank}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: tier.bg, color: tier.text }}>{tier.label}</span>
                   </div>
-                  <p className="text-xs text-[#64748B]">{user.totalTrades} işlem · {user.achievements} rozet</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{user.totalTrades} işlem · {user.achievements} rozet</p>
                 </div>
                 <div className="text-right">
                   <p className={`text-sm font-bold ${user.totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                     {formatPercent(user.totalReturn)}
                   </p>
-                  <p className="text-xs text-[#94A3B8]">{formatCurrency(user.balance)}</p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(user.balance)}</p>
                 </div>
               </motion.div>
             );

@@ -46,7 +46,7 @@ export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) 
   }
 
   if (data.length < 2) {
-    return <div className={`${height} flex items-center justify-center text-xs text-[#64748B]`}>Veri yok</div>;
+    return <div className={`${height} flex items-center justify-center text-xs text-slate-400 dark:text-slate-500`}>Veri yok</div>;
   }
 
   const chartColor = color || (positive ? '#22C55E' : '#EF4444');

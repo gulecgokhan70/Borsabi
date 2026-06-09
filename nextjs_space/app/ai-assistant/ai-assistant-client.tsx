@@ -102,12 +102,12 @@ export function AiAssistantClient() {
             <Bot className="w-5 h-5 text-[#3B82F6]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Master AI Asistan</h1>
-            <p className="text-xs text-[#94A3B8]">Gerçek verilerle teknik analiz, piyasa önerileri ve risk yönetimi</p>
+            <h1 className="text-xl font-bold text-foreground">Master AI Asistan</h1>
+            <p className="text-xs text-muted-foreground">Gerçek verilerle teknik analiz, piyasa önerileri ve risk yönetimi</p>
           </div>
         </div>
         {(messages?.length ?? 0) > 0 && (
-          <button onClick={() => setMessages([])} className="p-2 rounded-lg text-[#94A3B8] hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sohbeti temizle">
+          <button onClick={() => setMessages([])} className="p-2 rounded-lg text-muted-foreground hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sohbeti temizle">
             <Trash2 className="w-4 h-4" />
           </button>
         )}
@@ -120,11 +120,11 @@ export function AiAssistantClient() {
             <div className="w-16 h-16 rounded-2xl bg-[#3B82F6]/10 flex items-center justify-center mb-4">
               <Sparkles className="w-8 h-8 text-[#3B82F6]" />
             </div>
-            <h2 className="text-lg font-semibold text-white mb-1">Nasıl yardımcı olabilirim?</h2>
-            <p className="text-sm text-[#94A3B8] mb-6 text-center max-w-md">Gerçek piyasa verileriyle hisse analizi, teknik göstergeler, portföy değerlendirmesi ve risk yönetimi konularında sorabilirsiniz.</p>
+            <h2 className="text-lg font-semibold text-foreground mb-1">Nasıl yardımcı olabilirim?</h2>
+            <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">Gerçek piyasa verileriyle hisse analizi, teknik göstergeler, portföy değerlendirmesi ve risk yönetimi konularında sorabilirsiniz.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
               {SUGGESTIONS.map((s: string, i: number) => (
-                <button key={i} onClick={() => sendMessage(s)} className="flex items-center gap-2 px-4 py-2.5 glass-card rounded-lg text-sm text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all text-left">
+                <button key={i} onClick={() => sendMessage(s)} className="flex items-center gap-2 px-4 py-2.5 glass-card rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-[#3B82F6]/50 transition-all text-left">
                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-[#3B82F6]" />
                   {s}
                 </button>
@@ -145,7 +145,7 @@ export function AiAssistantClient() {
                     <span className="text-[10px] font-semibold text-[#3B82F6]">Master AI</span>
                   </div>
                 )}
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-[#94A3B8]">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>
+                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>
               </div>
             </motion.div>
           ))
@@ -153,7 +153,7 @@ export function AiAssistantClient() {
       </div>
 
       {/* Input */}
-      <div className="mt-auto pt-3 border-t border-white/[0.06]">
+      <div className="mt-auto pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -162,7 +162,7 @@ export function AiAssistantClient() {
             onKeyDown={(e: any) => { if (e?.key === 'Enter' && !e?.shiftKey) { e?.preventDefault?.(); sendMessage(); } }}
             placeholder="Bir soru sorun... Örn: THYAO teknik analizi"
             disabled={loading}
-            className="flex-1 px-4 py-3 glass-card rounded-xl text-white text-sm placeholder-[#64748B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none disabled:opacity-50"
+            className="flex-1 px-4 py-3 glass-card rounded-xl text-foreground text-sm placeholder-[#64748B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none disabled:opacity-50"
           />
           <button
             onClick={() => sendMessage()}
@@ -172,7 +172,7 @@ export function AiAssistantClient() {
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
-        <p className="text-[10px] text-[#64748B] mt-2 text-center">⚠️ Bu analiz yatırım tavsiyesi değildir. Eğitim ve simülasyon amaçlıdır.</p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 text-center">⚠️ Bu analiz yatırım tavsiyesi değildir. Eğitim ve simülasyon amaçlıdır.</p>
       </div>
     </div>
   );

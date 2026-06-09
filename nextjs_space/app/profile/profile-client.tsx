@@ -67,7 +67,7 @@ export default function ProfileClient() {
     </div>
   );
 
-  if (!profile) return <div className="text-center text-[#94A3B8] py-20">Profil yüklenemedi.</div>;
+  if (!profile) return <div className="text-center text-muted-foreground py-20">Profil yüklenemedi.</div>;
 
   const effectiveTier = profile.tier === 'elite' ? 'pro' : profile.tier;
   const currentTier = TIERS.find(t => t.id === effectiveTier) || TIERS[0];
@@ -78,11 +78,11 @@ export default function ProfileClient() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center">
-          <User className="w-5 h-5 text-white" />
+          <User className="w-5 h-5 text-foreground" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">Profil</h1>
-          <p className="text-xs text-[#94A3B8]">Hesap bilgileri ve paket yönetimi</p>
+          <h1 className="text-xl font-bold text-foreground">Profil</h1>
+          <p className="text-xs text-muted-foreground">Hesap bilgileri ve paket yönetimi</p>
         </div>
       </motion.div>
 
@@ -98,23 +98,23 @@ export default function ProfileClient() {
               {editingName ? (
                 <div className="flex items-center gap-2">
                   <input value={newName} onChange={e => setNewName(e.target.value)}
-                    className="glass-inner border border-white/[0.08] rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-[#3B82F6]" />
+                    className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-1 text-foreground text-sm focus:outline-none focus:border-[#3B82F6]" />
                   <button onClick={handleNameSave} className="p-1 text-[#22C55E] hover:bg-[#22C55E]/10 rounded"><Check className="w-4 h-4" /></button>
                   <button onClick={() => setEditingName(false)} className="p-1 text-[#EF4444] hover:bg-[#EF4444]/10 rounded"><X className="w-4 h-4" /></button>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-lg font-bold text-white">{profile.name || 'Trader'}</h2>
-                  <button onClick={() => setEditingName(true)} className="p-1 text-[#94A3B8] hover:text-white"><Edit3 className="w-3.5 h-3.5" /></button>
+                  <h2 className="text-lg font-bold text-foreground">{profile.name || 'Trader'}</h2>
+                  <button onClick={() => setEditingName(true)} className="p-1 text-muted-foreground hover:text-foreground"><Edit3 className="w-3.5 h-3.5" /></button>
                 </>
               )}
             </div>
-            <p className="text-sm text-[#94A3B8]">{profile.email}</p>
+            <p className="text-sm text-muted-foreground">{profile.email}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: `${currentTier.color}20`, color: currentTier.color }}>
                 {currentTier.name}
               </span>
-              <span className="text-xs text-[#64748B] flex items-center gap-1">
+              <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                 <Calendar className="w-3 h-3" /> Üye: {new Date(profile.memberSince).toLocaleDateString('tr-TR')}
               </span>
             </div>
@@ -132,7 +132,7 @@ export default function ProfileClient() {
             <div key={i} className="glass-inner rounded-lg p-3">
               <div className="flex items-center gap-1.5 mb-1">
                 <s.icon className="w-3.5 h-3.5" style={{ color: s.color }} />
-                <span className="text-xs text-[#94A3B8]">{s.label}</span>
+                <span className="text-xs text-muted-foreground">{s.label}</span>
               </div>
               <p className="text-sm font-bold" style={{ color: s.color }}>{s.value}</p>
             </div>
@@ -142,7 +142,7 @@ export default function ProfileClient() {
 
       {/* Tier Selection */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Crown className="w-4 h-4 text-[#F59E0B]" /> Paket Seçimi
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -152,24 +152,24 @@ export default function ProfileClient() {
             return (
               <div key={tier.id}
                 className={`glass-card rounded-xl p-5 transition-all ${
-                  isActive ? 'border-2' : 'hover:border-white/[0.12]'
+                  isActive ? 'border-2' : 'hover:border-black/[0.1] dark:border-white/[0.12]'
                 }`}
                 style={isActive ? { borderColor: tier.color } : {}}>
                 <div className="flex items-center gap-2 mb-3">
                   <Icon className="w-5 h-5" style={{ color: tier.color }} />
-                  <span className="font-bold text-white">{tier.name}</span>
+                  <span className="font-bold text-foreground">{tier.name}</span>
                   {isActive && <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E]">Aktif</span>}
                 </div>
                 <ul className="space-y-1.5 mb-4">
                   {tier.features.map((f, i) => (
-                    <li key={i} className="text-xs text-[#94A3B8] flex items-center gap-1.5">
+                    <li key={i} className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <Check className="w-3 h-3" style={{ color: tier.color }} /> {f}
                     </li>
                   ))}
                 </ul>
                 {!isActive && (
                   <button onClick={() => handleUpgrade(tier.id)} disabled={upgrading}
-                    className="w-full py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
+                    className="w-full py-2 rounded-lg text-sm font-medium text-foreground transition-all hover:opacity-90 disabled:opacity-50"
                     style={{ background: tier.color }}>
                     {upgrading ? 'Yükleniyor...' : tier.id === 'free' ? 'Geç' : 'Seç'}
                   </button>
@@ -178,20 +178,20 @@ export default function ProfileClient() {
             );
           })}
         </div>
-        <p className="text-xs text-[#64748B] mt-2 text-center">* Bu bir simülasyon platformudur. Paket değişikliği özellik erişimini değiştirir.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">* Bu bir simülasyon platformudur. Paket değişikliği özellik erişimini değiştirir.</p>
       </motion.div>
 
       {/* Achievements Summary */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
         className="glass-card rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Award className="w-4 h-4 text-[#F59E0B]" /> Başarılar
         </h3>
         <div className="flex items-center gap-2">
           <span className="text-2xl font-bold text-[#F59E0B]">{profile.achievements?.length || 0}</span>
-          <span className="text-sm text-[#94A3B8]">rozet kazanıldı</span>
+          <span className="text-sm text-muted-foreground">rozet kazanıldı</span>
         </div>
-        <p className="text-xs text-[#64748B] mt-1">Detaylar için Başarılar sayfasını ziyaret edin.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Detaylar için Başarılar sayfasını ziyaret edin.</p>
       </motion.div>
 
       <p className="text-xs text-center text-[#F59E0B]/70 pb-4">⚠️ Bu platform eğitim ve simülasyon amaçlıdır, yatırım tavsiyesi değildir.</p>

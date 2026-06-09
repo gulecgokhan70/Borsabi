@@ -26,8 +26,8 @@ function MarkdownRenderer({ content }: { content: string }) {
       const match = [boldMatch, codeMatch].filter(Boolean).sort((a, b) => (a?.index ?? 999) - (b?.index ?? 999))[0];
       if (match && match.index !== undefined) {
         if (match.index > 0) parts.push(<span key={key++}>{remaining.slice(0, match.index)}</span>);
-        if (match === boldMatch) parts.push(<strong key={key++} className="text-white font-semibold">{match[1]}</strong>);
-        else parts.push(<code key={key++} className="bg-[#0F172A] px-1.5 py-0.5 rounded text-[#3B82F6] text-xs">{match[1]}</code>);
+        if (match === boldMatch) parts.push(<strong key={key++} className="text-foreground font-semibold">{match[1]}</strong>);
+        else parts.push(<code key={key++} className="bg-slate-100 dark:bg-[#0F172A] px-1.5 py-0.5 rounded text-[#3B82F6] text-xs">{match[1]}</code>);
         remaining = remaining.slice(match.index + match[0].length);
       } else {
         parts.push(<span key={key++}>{remaining}</span>);
@@ -50,8 +50,8 @@ function MarkdownRenderer({ content }: { content: string }) {
         elements.push(
           <div key={i} className="overflow-x-auto my-3">
             <table className="w-full text-sm">
-              <thead><tr>{tableHeaders.map((h, hi) => <th key={hi} className="text-left text-[10px] uppercase text-[#64748B] px-3 py-2 border-b border-white/[0.08] font-medium">{h}</th>)}</tr></thead>
-              <tbody>{tableRows.map((row, ri) => <tr key={ri} className="border-b border-white/[0.06]">{row.map((cell, ci) => <td key={ci} className="px-3 py-2 text-[#94A3B8]">{cell}</td>)}</tr>)}</tbody>
+              <thead><tr>{tableHeaders.map((h, hi) => <th key={hi} className="text-left text-[10px] uppercase text-slate-400 dark:text-slate-500 px-3 py-2 border-b border-black/[0.08] dark:border-white/[0.08] font-medium">{h}</th>)}</tr></thead>
+              <tbody>{tableRows.map((row, ri) => <tr key={ri} className="border-b border-black/[0.06] dark:border-white/[0.06]">{row.map((cell, ci) => <td key={ci} className="px-3 py-2 text-muted-foreground">{cell}</td>)}</tr>)}</tbody>
             </table>
           </div>
         );
@@ -62,9 +62,9 @@ function MarkdownRenderer({ content }: { content: string }) {
     inTable = false;
 
     if (trimmed.startsWith('# ')) {
-      elements.push(<h2 key={i} className="text-xl font-bold text-white mt-6 mb-3">{trimmed.slice(2)}</h2>);
+      elements.push(<h2 key={i} className="text-xl font-bold text-foreground mt-6 mb-3">{trimmed.slice(2)}</h2>);
     } else if (trimmed.startsWith('## ')) {
-      elements.push(<h3 key={i} className="text-lg font-semibold text-white mt-5 mb-2">{trimmed.slice(3)}</h3>);
+      elements.push(<h3 key={i} className="text-lg font-semibold text-foreground mt-5 mb-2">{trimmed.slice(3)}</h3>);
     } else if (trimmed.startsWith('### ')) {
       elements.push(<h4 key={i} className="text-base font-semibold text-[#3B82F6] mt-4 mb-2">{trimmed.slice(4)}</h4>);
     } else if (trimmed.startsWith('> ')) {
@@ -87,7 +87,7 @@ function MarkdownRenderer({ content }: { content: string }) {
       elements.push(
         <div key={i} className={`flex items-start gap-2 my-1 ${isCheck ? '' : 'ml-2'}`}>
           {!isCheck && <span className="text-[#3B82F6] mt-1.5">•</span>}
-          <p className="text-sm text-[#94A3B8] leading-relaxed">{processInline(trimmed.slice(2))}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{processInline(trimmed.slice(2))}</p>
         </div>
       );
     } else if (/^\d+\.\s/.test(trimmed)) {
@@ -96,13 +96,13 @@ function MarkdownRenderer({ content }: { content: string }) {
       elements.push(
         <div key={i} className="flex items-start gap-2 my-1 ml-2">
           <span className="text-[#3B82F6] font-medium text-sm min-w-[20px]">{num}.</span>
-          <p className="text-sm text-[#94A3B8] leading-relaxed">{processInline(text)}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{processInline(text)}</p>
         </div>
       );
     } else if (trimmed === '') {
       elements.push(<div key={i} className="h-2" />);
     } else {
-      elements.push(<p key={i} className="text-sm text-[#94A3B8] leading-relaxed my-1">{processInline(trimmed)}</p>);
+      elements.push(<p key={i} className="text-sm text-muted-foreground leading-relaxed my-1">{processInline(trimmed)}</p>);
     }
   }
   return <div>{elements}</div>;
@@ -143,14 +143,14 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
         className="glass-card rounded-xl p-6 text-center"
       >
         <Award className={`w-12 h-12 mx-auto mb-3 ${percent >= 70 ? 'text-[#22C55E]' : 'text-[#F59E0B]'}`} />
-        <h3 className="text-xl font-bold text-white mb-1">Quiz Tamamlandı!</h3>
+        <h3 className="text-xl font-bold text-foreground mb-1">Quiz Tamamlandı!</h3>
         <p className="text-3xl font-bold mt-3" style={{ color: percent >= 70 ? '#22C55E' : '#F59E0B' }}>
           %{percent}
         </p>
-        <p className="text-sm text-[#94A3B8] mt-2">
+        <p className="text-sm text-muted-foreground mt-2">
           {questions.length} sorudan {score} doğru
         </p>
-        <p className="text-sm text-[#94A3B8] mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {percent >= 70 ? '🎉 Harika! Dersi başarıyla tamamladınız.' : '📚 Tekrar çalışmanızı öneririz.'}
         </p>
         <button onClick={onComplete} className="mt-4 px-6 py-2 bg-[#3B82F6] text-white rounded-lg text-sm font-medium">
@@ -163,7 +163,7 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
   return (
     <div className="glass-card rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-[#64748B]">
+        <span className="text-xs text-slate-400 dark:text-slate-500">
           Soru {currentQ + 1}/{questions.length}
         </span>
         <div className="flex gap-1">
@@ -172,17 +172,17 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
           ))}
         </div>
       </div>
-      <h4 className="text-base font-semibold text-white mb-4">
+      <h4 className="text-base font-semibold text-foreground mb-4">
         <HelpCircle className="w-4 h-4 inline mr-2 text-[#3B82F6]" />
         {q.question}
       </h4>
       <div className="space-y-2">
         {q.options.map((opt, oi) => {
-          let bg = 'bg-[#0F172A] border-white/[0.08] hover:border-[#3B82F6]/50';
+          let bg = 'bg-slate-100 dark:bg-[#0F172A] border-black/[0.08] dark:border-white/[0.08] hover:border-[#3B82F6]/50';
           if (showResult) {
             if (oi === q.correctIndex) bg = 'bg-[#22C55E]/10 border-[#22C55E]';
             else if (oi === selected) bg = 'bg-[#EF4444]/10 border-[#EF4444]';
-            else bg = 'bg-[#0F172A] border-white/[0.08] opacity-50';
+            else bg = 'bg-slate-100 dark:bg-[#0F172A] border-black/[0.08] dark:border-white/[0.08] opacity-50';
           } else if (oi === selected) {
             bg = 'bg-[#3B82F6]/10 border-[#3B82F6]';
           }
@@ -193,8 +193,8 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
               disabled={showResult}
               className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${bg}`}
             >
-              <span className="text-[#94A3B8]">{String.fromCharCode(65 + oi)}.</span>{' '}
-              <span className="text-white">{opt}</span>
+              <span className="text-muted-foreground">{String.fromCharCode(65 + oi)}.</span>{' '}
+              <span className="text-foreground">{opt}</span>
             </button>
           );
         })}
@@ -205,7 +205,7 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
             <p className={selected === q.correctIndex ? 'text-[#22C55E]' : 'text-[#EF4444]'}>
               {selected === q.correctIndex ? '✅ Doğru!' : '❌ Yanlış!'}
             </p>
-            <p className="text-[#94A3B8] mt-1">{q.explanation}</p>
+            <p className="text-muted-foreground mt-1">{q.explanation}</p>
           </div>
           <button onClick={handleNext} className="mt-3 px-4 py-2 bg-[#3B82F6] text-white rounded-lg text-sm font-medium">
             {currentQ < questions.length - 1 ? 'Sonraki Soru' : 'Sonuçları Gör'}
@@ -225,8 +225,8 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
   if (!course) {
     return (
       <div className="text-center py-20">
-        <BookOpen className="w-12 h-12 text-[#64748B] mx-auto mb-3" />
-        <p className="text-[#94A3B8]">Kurs bulunamadı</p>
+        <BookOpen className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+        <p className="text-muted-foreground">Kurs bulunamadı</p>
         <Link href="/academy" className="text-[#3B82F6] text-sm mt-2 inline-block">Geri Dön</Link>
       </div>
     );
@@ -249,15 +249,15 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/academy" className="p-2 rounded-lg glass-card hover:bg-white/[0.06] text-[#94A3B8] transition-colors">
+        <Link href="/academy" className="p-2 rounded-lg glass-card hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-muted-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <span className="text-2xl">{course.icon}</span>
             <div>
-              <h1 className="text-xl font-bold text-white">{course.title}</h1>
-              <p className="text-sm text-[#94A3B8]">{course.lessons.length} ders • {course.estimatedTime}</p>
+              <h1 className="text-xl font-bold text-foreground">{course.title}</h1>
+              <p className="text-sm text-muted-foreground">{course.lessons.length} ders • {course.estimatedTime}</p>
             </div>
           </div>
         </div>
@@ -266,8 +266,8 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
       {/* Progress */}
       <div className="glass-card rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-[#94A3B8]">İlerleme</span>
-          <span className="text-sm font-medium text-white">%{progress}</span>
+          <span className="text-sm text-muted-foreground">İlerleme</span>
+          <span className="text-sm font-medium text-foreground">%{progress}</span>
         </div>
         <div className="h-2 glass-inner rounded-full overflow-hidden">
           <motion.div
@@ -283,10 +283,10 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
         {/* Sidebar - lesson list */}
         <div className="lg:col-span-1">
           <div className="glass-card rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-white/[0.08]">
-              <h3 className="text-sm font-semibold text-white">Dersler</h3>
+            <div className="p-4 border-b border-black/[0.08] dark:border-white/[0.08]">
+              <h3 className="text-sm font-semibold text-foreground">Dersler</h3>
             </div>
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
               {course.lessons.map((l, idx) => (
                 <button
                   key={l.id}
@@ -299,14 +299,14 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                     <CheckCircle2 className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
                   ) : (
                     <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                      idx === activeLesson ? 'border-[#3B82F6]' : 'border-white/[0.08]'
+                      idx === activeLesson ? 'border-[#3B82F6]' : 'border-black/[0.08] dark:border-white/[0.08]'
                     }`} />
                   )}
                   <div className="min-w-0">
                     <p className={`text-sm font-medium truncate ${
-                      idx === activeLesson ? 'text-[#3B82F6]' : 'text-white'
+                      idx === activeLesson ? 'text-[#3B82F6]' : 'text-foreground'
                     }`}>{l.title}</p>
-                    <p className="text-[10px] text-[#64748B]">{l.duration}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{l.duration}</p>
                   </div>
                 </button>
               ))}
@@ -324,7 +324,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                   <HelpCircle className="w-5 h-5 text-[#F59E0B]" />
                   Quiz: {lesson.title}
                 </h3>
@@ -340,7 +340,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
               >
                 <MarkdownRenderer content={lesson.content} />
 
-                <div className="mt-6 pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row gap-3">
+                <div className="mt-6 pt-4 border-t border-black/[0.08] dark:border-white/[0.08] flex flex-col sm:flex-row gap-3">
                   {lesson.quiz && lesson.quiz.length > 0 ? (
                     <button
                       onClick={() => setShowQuiz(true)}
@@ -361,7 +361,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                   {activeLesson < course.lessons.length - 1 && (
                     <button
                       onClick={() => { setActiveLesson(activeLesson + 1); setShowQuiz(false); }}
-                      className="flex items-center gap-2 px-4 py-2.5 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors border border-white/[0.08]"
+                      className="flex items-center gap-2 px-4 py-2.5 glass-card hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-foreground rounded-lg text-sm font-medium transition-colors border border-black/[0.08] dark:border-white/[0.08]"
                     >
                       Sonraki Ders
                       <ChevronRight className="w-4 h-4" />
@@ -375,7 +375,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
       </div>
 
       <div className="text-center py-4">
-        <p className="text-xs text-[#64748B]">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           ⚠️ Tüm eğitim içerikleri bilgilendirme amaçlıdır. Yatırım tavsiyesi değildir.
         </p>
       </div>

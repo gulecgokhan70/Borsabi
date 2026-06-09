@@ -60,38 +60,38 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full bg-[#0F172A] border border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#475569] focus:border-[#3B82F6] focus:outline-none transition-colors"
+        className="w-full bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#475569] focus:border-[#3B82F6] focus:outline-none transition-colors"
       >
-        <span className={selected ? 'text-white' : 'text-[#64748B]'}>
+        <span className={selected ? 'text-foreground' : 'text-slate-400 dark:text-slate-500'}>
           {selected ? `${selected.shortName} - ${selected.name}` : 'Sembol seçin'}
         </span>
-        <ChevronDown className={`w-4 h-4 text-[#64748B] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
         <div className="absolute z-50 mt-1 w-full glass-card rounded-xl shadow-xl overflow-hidden">
           {/* Search input */}
-          <div className="p-2 border-b border-white/[0.08]">
+          <div className="p-2 border-b border-black/[0.08] dark:border-white/[0.08]">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748B]" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
               <input
                 ref={inputRef}
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-[#0F172A] border border-white/[0.08] text-white rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-[#64748B]"
+                className="w-full bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] text-white rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-[#64748B]"
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
-            <p className="text-[10px] text-[#64748B] mt-1 px-1">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 px-1">
               {totalFiltered} sonuç
             </p>
           </div>
@@ -99,13 +99,13 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
           {/* Results */}
           <div className="max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#334155]">
             {filteredGroups.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-[#64748B]">
+              <div className="px-3 py-4 text-center text-xs text-slate-400 dark:text-slate-500">
                 Sonuç bulunamadı
               </div>
             ) : (
               filteredGroups.map(group => (
                 <div key={group.label}>
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider glass-inner sticky top-0">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider glass-inner sticky top-0">
                     {group.label} ({group.items.length})
                   </div>
                   {group.items.slice(0, q ? 50 : 30).map(item => (
@@ -116,16 +116,16 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
                         setOpen(false);
                         setSearch('');
                       }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06]/50 flex items-center gap-2 transition-colors ${
-                        item.symbol === value ? 'bg-[#3B82F6]/10 text-[#3B82F6]' : 'text-white'
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-black/[0.05] dark:hover:bg-white/[0.06]/50 flex items-center gap-2 transition-colors ${
+                        item.symbol === value ? 'bg-[#3B82F6]/10 text-[#3B82F6]' : 'text-foreground'
                       }`}
                     >
                       <span className="font-mono text-xs w-10 flex-shrink-0">{item.shortName}</span>
-                      <span className="text-xs text-[#94A3B8] truncate">{item.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">{item.name}</span>
                     </button>
                   ))}
                   {group.items.length > (q ? 50 : 30) && (
-                    <div className="px-3 py-1.5 text-[10px] text-[#64748B] text-center">
+                    <div className="px-3 py-1.5 text-[10px] text-slate-400 dark:text-slate-500 text-center">
                       +{group.items.length - (q ? 50 : 30)} daha... Arama yaparak daraltın
                     </div>
                   )}

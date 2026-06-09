@@ -93,13 +93,13 @@ export function SwingTradingClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/10 flex items-center justify-center">
               <Waves className="w-5 h-5 text-[#3B82F6]" />
             </div>
             Swing Trading Motoru
           </h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Sapan & Dip-Bip Sistemleri ile Orta Vadeli Fırsat Analizi</p>
+          <p className="text-muted-foreground text-sm mt-1">Sapan & Dip-Bip Sistemleri ile Orta Vadeli Fırsat Analizi</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex glass-card rounded-lg p-1 gap-1">
@@ -115,7 +115,7 @@ export function SwingTradingClient() {
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                   filter === f.key
                     ? 'bg-[#3B82F6] text-white'
-                    : 'text-[#94A3B8] hover:text-white'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {f.label}
@@ -125,7 +125,7 @@ export function SwingTradingClient() {
           <button
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-black/[0.05] dark:hover:bg-white/[0.06] text-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Tara
@@ -146,7 +146,7 @@ export function SwingTradingClient() {
           <Clock className="w-5 h-5 text-[#3B82F6] mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-[#3B82F6]">Swing Trading Stratejisi</p>
-            <p className="text-xs text-[#94A3B8] mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Filtre: EMA20 üstü | EMA20 {'>'} EMA50 | RSI(14) 50-70 | MACD pozitif | Hacim {'>'} ort. 
               Sapan Sistemi (pullback to EMA20) ve Dip-Bip Sistemi (dip dönüşü) tespit edilir. Minimum R:R 1:2.
             </p>
@@ -162,12 +162,12 @@ export function SwingTradingClient() {
           { label: 'Dip-Bip Sinyali', value: data.filter((d: SwingTradeResult) => d.dipBipDetected).length, icon: Zap, color: '#22C55E' },
           { label: 'Formasyon', value: data.filter((d: SwingTradeResult) => (d.formations?.length ?? 0) > 0).length, icon: Activity, color: '#8B5CF6' },
         ].map((stat: any, idx: number) => (
-          <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
+          <div key={idx} className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
-              <span className="text-xs text-[#94A3B8]">{stat.label}</span>
+              <span className="text-xs text-muted-foreground">{stat.label}</span>
             </div>
-            <p className="text-xl font-bold text-white">{stat.value}</p>
+            <p className="text-xl font-bold text-foreground">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -176,13 +176,13 @@ export function SwingTradingClient() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <RefreshCw className="w-8 h-8 text-[#3B82F6] animate-spin mb-4" />
-          <p className="text-[#94A3B8]">BIST hisseleri taranıyor...</p>
-          <p className="text-xs text-[#64748B] mt-1">Sapan, Dip-Bip, formasyon ve EMA dizilimi analiz ediliyor</p>
+          <p className="text-muted-foreground">BIST hisseleri taranıyor...</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Sapan, Dip-Bip, formasyon ve EMA dizilimi analiz ediliyor</p>
         </div>
       ) : filteredData.length === 0 ? (
         <div className="text-center py-16">
-          <Waves className="w-12 h-12 text-[#64748B] mx-auto mb-3" />
-          <p className="text-[#94A3B8]">Bu filtrede swing trade fırsatı bulunamadı</p>
+          <Waves className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+          <p className="text-muted-foreground">Bu filtrede swing trade fırsatı bulunamadı</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -200,11 +200,11 @@ export function SwingTradingClient() {
                   <div className="flex items-center gap-4">
                     <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center ${getScoreBg(item.score)}`}>
                       <span className={`text-lg font-bold ${getScoreColor(item.score)}`}>{item.score}</span>
-                      <span className="text-[8px] text-[#94A3B8] uppercase">Puan</span>
+                      <span className="text-[8px] text-muted-foreground uppercase">Puan</span>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-lg font-bold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={(e) => { e.stopPropagation(); router.push(`/stock/${encodeURIComponent(item.yahooSymbol || (item.symbol + '.IS'))}`); }}>{item.symbol}</h3>
+                        <h3 className="text-lg font-bold text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={(e) => { e.stopPropagation(); router.push(`/stock/${encodeURIComponent(item.yahooSymbol || (item.symbol + '.IS'))}`); }}>{item.symbol}</h3>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getScoreBg(item.score)} ${getScoreColor(item.score)}`}>
                           {item.quality}
                         </span>
@@ -224,12 +224,12 @@ export function SwingTradingClient() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-[#94A3B8]">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">{item.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-lg font-bold text-white">{formatCurrency(item.price)}</p>
+                      <p className="text-lg font-bold text-foreground">{formatCurrency(item.price)}</p>
                       <p className={`text-sm font-medium ${item.change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                         {formatPercent(item.change)}
                       </p>
@@ -246,7 +246,7 @@ export function SwingTradingClient() {
                 {/* Signals + Formations */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(item.signals ?? []).map((signal: string, sIdx: number) => (
-                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-white/[0.08]">
+                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#0F172A] text-muted-foreground border border-black/[0.08] dark:border-white/[0.08]">
                       {signal}
                     </span>
                   ))}
@@ -272,19 +272,19 @@ export function SwingTradingClient() {
                     <div key={fIdx} className="glass-inner rounded-lg p-2.5">
                       <div className="flex items-center gap-1 mb-1">
                         <field.icon className="w-3 h-3" style={{ color: field.color }} />
-                        <span className="text-[10px] text-[#64748B] uppercase">{field.label}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">{field.label}</span>
                       </div>
-                      <p className="text-sm font-semibold text-white">{field.value}</p>
+                      <p className="text-sm font-semibold text-foreground">{field.value}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* EMA levels */}
                 <div className="mt-3 flex flex-wrap gap-4 text-xs">
-                  <span className="text-[#94A3B8]">EMA20: <span className={item.price > item.ema20 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema20)}</span></span>
-                  <span className="text-[#94A3B8]">EMA50: <span className={item.price > item.ema50 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema50)}</span></span>
-                  <span className="text-[#94A3B8]">EMA200: <span className={item.price > item.ema200 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema200)}</span></span>
-                  <span className="text-[#94A3B8]">MACD: <span className={(item.macd?.histogram ?? 0) > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.macd?.histogram ?? 0)}</span></span>
+                  <span className="text-muted-foreground">EMA20: <span className={item.price > item.ema20 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema20)}</span></span>
+                  <span className="text-muted-foreground">EMA50: <span className={item.price > item.ema50 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema50)}</span></span>
+                  <span className="text-muted-foreground">EMA200: <span className={item.price > item.ema200 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema200)}</span></span>
+                  <span className="text-muted-foreground">MACD: <span className={(item.macd?.histogram ?? 0) > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.macd?.histogram ?? 0)}</span></span>
                 </div>
               </div>
             </motion.div>
@@ -294,7 +294,7 @@ export function SwingTradingClient() {
 
       {/* Disclaimer */}
       <div className="text-center py-4">
-        <p className="text-xs text-[#64748B]">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           ⚠️ Bu analiz yatırım tavsiyesi değildir. Eğitim ve simülasyon amaçlıdır.
         </p>
       </div>

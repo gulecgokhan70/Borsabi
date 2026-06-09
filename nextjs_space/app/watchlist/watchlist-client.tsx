@@ -76,14 +76,14 @@ export function WatchlistClient() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">İzleme Listesi</h1>
-          <p className="text-sm text-[#94A3B8]">Favori hisselerinizi takip edin ve hızlı işlem yapın</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">İzleme Listesi</h1>
+          <p className="text-sm text-muted-foreground">Favori hisselerinizi takip edin ve hızlı işlem yapın</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors">
             <Plus className="w-4 h-4" /> Ekle
           </button>
-          <button onClick={fetchWatchlist} disabled={loading} className="p-2 rounded-lg glass-card text-[#94A3B8] hover:text-white transition-colors">
+          <button onClick={fetchWatchlist} disabled={loading} className="p-2 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -93,25 +93,25 @@ export function WatchlistClient() {
       {showAdd && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">Hisse / Kripto Ekle</h3>
-            <button onClick={() => setShowAdd(false)} className="text-[#94A3B8] hover:text-white"><X className="w-4 h-4" /></button>
+            <h3 className="text-sm font-semibold text-foreground">Hisse / Kripto Ekle</h3>
+            <button onClick={() => setShowAdd(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
           </div>
           <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input type="text" value={searchQ} onChange={(e: any) => setSearchQ(e?.target?.value ?? '')} placeholder="Ara..." className="w-full pl-10 pr-3 py-2 glass-inner border border-white/[0.08] rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input type="text" value={searchQ} onChange={(e: any) => setSearchQ(e?.target?.value ?? '')} placeholder="Ara..." className="w-full pl-10 pr-3 py-2 glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-foreground text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]" />
           </div>
           <div className="max-h-64 overflow-y-auto space-y-1 scrollbar-none">
             {filteredAssets.map((a: any) => {
               const isInList = watchlistSymbols.has(a?.symbol);
               return (
                 <button key={a?.symbol} onClick={() => toggleWatchlist(a?.symbol, a?.name, a?.type)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${isInList ? 'bg-[#3B82F6]/10' : 'hover:bg-white/[0.06]'}`}>
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${isInList ? 'bg-[#3B82F6]/10' : 'hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-1.5 py-0.5 rounded ${a?.type === 'CRYPTO' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'}`}>{a?.type}</span>
-                    <span className="text-sm text-white">{a?.shortName ?? a?.symbol}</span>
-                    <span className="text-xs text-[#94A3B8]">{a?.name}</span>
+                    <span className="text-sm text-foreground">{a?.shortName ?? a?.symbol}</span>
+                    <span className="text-xs text-muted-foreground">{a?.name}</span>
                   </div>
-                  <Star className={`w-4 h-4 ${isInList ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-[#64748B]'}`} />
+                  <Star className={`w-4 h-4 ${isInList ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-slate-400 dark:text-slate-500'}`} />
                 </button>
               );
             })}
@@ -124,9 +124,9 @@ export function WatchlistClient() {
         <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
       ) : (watchlist?.length ?? 0) === 0 ? (
         <div className="text-center py-16">
-          <Eye className="w-10 h-10 text-[#64748B] mx-auto mb-3" />
-          <p className="text-sm text-[#94A3B8]">Henüz izleme listeniz boş</p>
-          <p className="text-xs text-[#64748B] mt-1">"Ekle" butonuyla favori hisselerinizi ekleyin</p>
+          <Eye className="w-10 h-10 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Henüz izleme listeniz boş</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">"Ekle" butonuyla favori hisselerinizi ekleyin</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -142,16 +142,16 @@ export function WatchlistClient() {
                       {change >= 0 ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white hover:text-[#3B82F6] transition-colors">{w?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
-                      <p className="text-[10px] text-[#94A3B8]">{w?.name}</p>
+                      <p className="text-sm font-semibold text-foreground hover:text-[#3B82F6] transition-colors">{w?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
+                      <p className="text-[10px] text-muted-foreground">{w?.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <p className="text-sm font-mono font-semibold text-white">{formatNumber(priceData?.price ?? 0)}</p>
+                      <p className="text-sm font-mono font-semibold text-foreground">{formatNumber(priceData?.price ?? 0)}</p>
                       <p className={`text-xs font-mono ${change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatPercent(change)}</p>
                     </div>
-                    <button onClick={() => toggleWatchlist(w?.symbol, w?.name, w?.type)} className="p-1.5 rounded-lg hover:bg-[#EF4444]/10 text-[#64748B] hover:text-[#EF4444] transition-colors" title="Kaldır">
+                    <button onClick={() => toggleWatchlist(w?.symbol, w?.name, w?.type)} className="p-1.5 rounded-lg hover:bg-[#EF4444]/10 text-slate-400 dark:text-slate-500 hover:text-[#EF4444] transition-colors" title="Kaldır">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>

@@ -15,7 +15,7 @@ export function AcademyClient() {
       case 'Başlangıç': return 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30';
       case 'Orta': return 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/30';
       case 'İleri': return 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30';
-      default: return 'bg-[#94A3B8]/10 text-[#94A3B8]';
+      default: return 'bg-[#94A3B8]/10 text-muted-foreground';
     }
   };
 
@@ -24,13 +24,13 @@ export function AcademyClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-[#8B5CF6]" />
             </div>
             Master Academy
           </h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Profesyonel trader olmak için gereken tüm bilgiler</p>
+          <p className="text-muted-foreground text-sm mt-1">Profesyonel trader olmak için gereken tüm bilgiler</p>
         </div>
       </div>
 
@@ -42,12 +42,12 @@ export function AcademyClient() {
           { label: 'Toplam Süre', value: '4+ saat', icon: Clock, color: '#F59E0B' },
           { label: 'Sertifika', value: 'Yakında', icon: Award, color: '#8B5CF6' },
         ].map((stat, idx) => (
-          <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
+          <div key={idx} className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
-              <span className="text-xs text-[#94A3B8]">{stat.label}</span>
+              <span className="text-xs text-muted-foreground">{stat.label}</span>
             </div>
-            <p className="text-xl font-bold text-white">{stat.value}</p>
+            <p className="text-xl font-bold text-foreground">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -66,7 +66,7 @@ export function AcademyClient() {
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               filter === f.key
                 ? 'bg-[#3B82F6] text-white'
-                : 'text-[#94A3B8] hover:text-white'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {f.label}
@@ -98,17 +98,17 @@ export function AcademyClient() {
                       {course.level}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-white group-hover:text-[#3B82F6] transition-colors">
+                  <h3 className="text-lg font-bold text-foreground group-hover:text-[#3B82F6] transition-colors">
                     {course.title}
                   </h3>
-                  <p className="text-sm text-[#94A3B8] mt-2 line-clamp-2">
+                  <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                     {course.description}
                   </p>
                 </div>
 
                 {/* Footer */}
                 <div className="px-6 pb-5 pt-3 flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-xs text-[#64748B]">
+                  <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
                     <span className="flex items-center gap-1">
                       <BookOpen className="w-3.5 h-3.5" />
                       {course.totalLessons} ders
@@ -118,7 +118,7 @@ export function AcademyClient() {
                       {course.estimatedTime}
                     </span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[#64748B] group-hover:text-[#3B82F6] transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-[#3B82F6] transition-colors" />
                 </div>
               </div>
             </Link>
@@ -127,7 +127,7 @@ export function AcademyClient() {
       </div>
 
       <div className="text-center py-4">
-        <p className="text-xs text-[#64748B]">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           ⚠️ Tüm eğitim içerikleri bilgilendirme amaçlıdır. Yatırım tavsiyesi değildir.
         </p>
       </div>

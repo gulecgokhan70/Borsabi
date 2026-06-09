@@ -197,20 +197,20 @@ export default function StrategyBuilderClient() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#F59E0B] to-[#EF4444] flex items-center justify-center">
-            <Wrench className="w-5 h-5 text-white" />
+            <Wrench className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Strateji Oluşturucu</h1>
-            <p className="text-xs text-[#94A3B8]">Kendi stratejinizi oluşturun ve backtest edin</p>
+            <h1 className="text-xl font-bold text-foreground">Strateji Oluşturucu</h1>
+            <p className="text-xs text-muted-foreground">Kendi stratejinizi oluşturun ve backtest edin</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowTemplates(!showTemplates)}
-            className="flex items-center gap-1.5 px-3 py-2 glass-card rounded-lg text-xs text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all">
+            className="flex items-center gap-1.5 px-3 py-2 glass-card rounded-lg text-xs text-muted-foreground hover:text-foreground hover:border-[#3B82F6]/50 transition-all">
             <Lightbulb className="w-3.5 h-3.5 text-[#F59E0B]" /> Şablonlar
           </button>
           <button onClick={resetAll}
-            className="flex items-center gap-1.5 px-3 py-2 glass-card rounded-lg text-xs text-[#64748B] hover:text-[#F87171] hover:border-[#EF4444]/30 transition-all">
+            className="flex items-center gap-1.5 px-3 py-2 glass-card rounded-lg text-xs text-slate-400 dark:text-slate-500 hover:text-[#F87171] hover:border-[#EF4444]/30 transition-all">
             <RotateCcw className="w-3.5 h-3.5" /> Sıfırla
           </button>
         </div>
@@ -227,12 +227,12 @@ export default function StrategyBuilderClient() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {TEMPLATES.map(tpl => (
                   <button key={tpl.id} onClick={() => applyTemplate(tpl)}
-                    className="text-left glass-inner rounded-lg p-3 border border-white/[0.08] hover:border-[#F59E0B]/40 transition-all group">
+                    className="text-left glass-inner rounded-lg p-3 border border-black/[0.08] dark:border-white/[0.08] hover:border-[#F59E0B]/40 transition-all group">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">{tpl.icon}</span>
-                      <span className="text-sm font-semibold text-white group-hover:text-[#F59E0B] transition-colors">{tpl.name}</span>
+                      <span className="text-sm font-semibold text-foreground group-hover:text-[#F59E0B] transition-colors">{tpl.name}</span>
                     </div>
-                    <p className="text-[10px] text-[#64748B] leading-relaxed">{tpl.desc}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed">{tpl.desc}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#EF4444]/10 text-[#F87171]">SL: %{tpl.stopLoss}</span>
                       <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#22C55E]/10 text-[#22C55E]">TP: %{tpl.takeProfit}</span>
@@ -249,34 +249,34 @@ export default function StrategyBuilderClient() {
       {/* Config */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="glass-card rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Activity className="w-4 h-4 text-[#3B82F6]" /> Temel Ayarlar
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Strateji Adı</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Strateji Adı</label>
             <input value={name} onChange={e => setName(e.target.value)}
-              className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
+              className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]" />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Sembol</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Sembol</label>
             <SymbolSearch value={symbol} onChange={setSymbol} groups={symbolGroups} placeholder="Sembol ara..." />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Stop Loss %</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Stop Loss %</label>
             <input type="number" value={stopLoss} onChange={e => setStopLoss(Number(e.target.value))}
-              className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={1} max={50} />
+              className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]" min={1} max={50} />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Take Profit %</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Take Profit %</label>
             <input type="number" value={takeProfit} onChange={e => setTakeProfit(Number(e.target.value))}
-              className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={1} max={100} />
+              className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]" min={1} max={100} />
           </div>
         </div>
 
         {/* Period Selector */}
         <div className="mt-4">
-          <label className="text-xs text-[#94A3B8] mb-2 block flex items-center gap-1">
+          <label className="text-xs text-muted-foreground mb-2 block flex items-center gap-1">
             <Clock className="w-3 h-3" /> Test Dönemi
           </label>
           <div className="flex flex-wrap gap-1.5">
@@ -285,7 +285,7 @@ export default function StrategyBuilderClient() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   period === p.id
                     ? 'bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/20'
-                    : 'bg-[#0F172A] text-[#94A3B8] hover:text-white border border-white/[0.08] hover:border-[#3B82F6]/30'
+                    : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground hover:text-white border border-black/[0.08] dark:border-white/[0.08] hover:border-[#3B82F6]/30'
                 }`}>
                 <span className="mr-1">{p.icon}</span> {p.name}
               </button>
@@ -298,14 +298,14 @@ export default function StrategyBuilderClient() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="glass-card rounded-xl p-5">
         <button onClick={() => setShowRules(!showRules)} className="w-full flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Target className="w-4 h-4 text-[#F59E0B]" /> Kurallar ({rules.length})
           </h3>
           <div className="flex items-center gap-2">
             <button onClick={(e) => { e.stopPropagation(); addRule(); }} className="flex items-center gap-1 text-xs text-[#3B82F6] hover:text-[#60A5FA] transition">
               <Plus className="w-3.5 h-3.5" /> Kural Ekle
             </button>
-            {showRules ? <ChevronUp className="w-4 h-4 text-[#64748B]" /> : <ChevronDown className="w-4 h-4 text-[#64748B]" />}
+            {showRules ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
           </div>
         </button>
 
@@ -335,7 +335,7 @@ export default function StrategyBuilderClient() {
                 </div>
               )}
               {rules.length === 0 && (
-                <p className="text-sm text-[#94A3B8] text-center py-4">Henüz kural eklenmedi. "Kural Ekle" veya bir şablon seçin.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Henüz kural eklenmedi. "Kural Ekle" veya bir şablon seçin.</p>
               )}
             </motion.div>
           )}
@@ -361,7 +361,7 @@ export default function StrategyBuilderClient() {
             {/* Score Card */}
             <div className="glass-card rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Award className="w-4 h-4 text-[#F59E0B]" /> "{result.name}" Sonuçları
                 </h3>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black ${getGrade(result.summary.totalReturn).bg}`}
@@ -372,33 +372,33 @@ export default function StrategyBuilderClient() {
 
               {/* Key Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
+                <div className="glass-inner rounded-lg p-3 border border-black/[0.06] dark:border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Percent className="w-3 h-3 text-[#3B82F6]" />
-                    <p className="text-[10px] text-[#64748B] uppercase">Toplam Getiri</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Toplam Getiri</p>
                   </div>
                   <p className={`text-lg font-bold font-mono ${result.summary.totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                     {result.summary.totalReturn >= 0 ? '+' : ''}{result.summary.totalReturn.toFixed(2)}%
                   </p>
                 </div>
-                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
+                <div className="glass-inner rounded-lg p-3 border border-black/[0.06] dark:border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Target className="w-3 h-3 text-[#8B5CF6]" />
-                    <p className="text-[10px] text-[#64748B] uppercase">Kazanç Oranı</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Kazanç Oranı</p>
                   </div>
-                  <p className="text-lg font-bold font-mono text-white">%{result.summary.winRate}</p>
+                  <p className="text-lg font-bold font-mono text-foreground">%{result.summary.winRate}</p>
                 </div>
-                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
+                <div className="glass-inner rounded-lg p-3 border border-black/[0.06] dark:border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <BarChart3 className="w-3 h-3 text-[#F59E0B]" />
-                    <p className="text-[10px] text-[#64748B] uppercase">İşlem Sayısı</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">İşlem Sayısı</p>
                   </div>
-                  <p className="text-lg font-bold font-mono text-white">{result.summary.totalTrades}</p>
+                  <p className="text-lg font-bold font-mono text-foreground">{result.summary.totalTrades}</p>
                 </div>
-                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
+                <div className="glass-inner rounded-lg p-3 border border-black/[0.06] dark:border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Shield className="w-3 h-3 text-[#EF4444]" />
-                    <p className="text-[10px] text-[#64748B] uppercase">Max Drawdown</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Max Drawdown</p>
                   </div>
                   <p className="text-lg font-bold font-mono text-[#F87171]">%{result.summary.maxDrawdown}</p>
                 </div>
@@ -406,20 +406,20 @@ export default function StrategyBuilderClient() {
 
               {/* Secondary metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="bg-white/[0.03] rounded-lg p-2.5">
-                  <p className="text-[10px] text-[#64748B]">Son Sermaye</p>
-                  <p className="text-sm font-bold text-white font-mono">{formatCurrency(result.summary.finalCapital)}</p>
+                <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Son Sermaye</p>
+                  <p className="text-sm font-bold text-foreground font-mono">{formatCurrency(result.summary.finalCapital)}</p>
                 </div>
-                <div className="bg-white/[0.03] rounded-lg p-2.5">
-                  <p className="text-[10px] text-[#64748B]">Başlangıç</p>
-                  <p className="text-sm font-bold text-[#94A3B8] font-mono">{formatCurrency(result.summary.initialCapital)}</p>
+                <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Başlangıç</p>
+                  <p className="text-sm font-bold text-muted-foreground font-mono">{formatCurrency(result.summary.initialCapital)}</p>
                 </div>
-                <div className="bg-white/[0.03] rounded-lg p-2.5">
-                  <p className="text-[10px] text-[#64748B]">Ort. Kazanç</p>
+                <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Ort. Kazanç</p>
                   <p className="text-sm font-bold text-[#22C55E] font-mono">{formatPercent(result.summary.avgWin)}</p>
                 </div>
-                <div className="bg-white/[0.03] rounded-lg p-2.5">
-                  <p className="text-[10px] text-[#64748B]">Ort. Kayıp</p>
+                <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">Ort. Kayıp</p>
                   <p className="text-sm font-bold text-[#F87171] font-mono">{formatPercent(result.summary.avgLoss)}</p>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export default function StrategyBuilderClient() {
             {/* Equity Chart */}
             {result.equity?.length > 0 && (
               <div className="glass-card rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[#3B82F6]" /> Sermaye Eğrisi
                 </h3>
                 <div className="h-[280px]">
@@ -440,8 +440,8 @@ export default function StrategyBuilderClient() {
             {/* Trades Table */}
             {result.trades?.length > 0 && (
               <div className="glass-card rounded-xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-white/[0.08] flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                <div className="px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.08] flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <Zap className="w-4 h-4 text-[#F59E0B]" /> İşlem Geçmişi ({result.trades.length})
                   </h3>
                   <div className="flex items-center gap-3 text-[10px]">
@@ -451,7 +451,7 @@ export default function StrategyBuilderClient() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
-                    <thead><tr className="text-[#94A3B8] border-b border-white/[0.08]">
+                    <thead><tr className="text-muted-foreground border-b border-black/[0.08] dark:border-white/[0.08]">
                       <th className="px-4 py-2 text-left">#</th>
                       <th className="px-4 py-2 text-left">Tarih</th>
                       <th className="px-4 py-2 text-right">Giriş</th>
@@ -462,11 +462,11 @@ export default function StrategyBuilderClient() {
                     </tr></thead>
                     <tbody>
                       {result.trades.map((t: any, i: number) => (
-                        <tr key={i} className="border-b border-white/[0.06] hover:bg-white/[0.04]">
-                          <td className="px-4 py-2 text-[#64748B]">{i + 1}</td>
-                          <td className="px-4 py-2 text-[#94A3B8]">{t.date}</td>
-                          <td className="px-4 py-2 text-right text-white font-mono">{formatCurrency(t.entry)}</td>
-                          <td className="px-4 py-2 text-right text-white font-mono">{formatCurrency(t.exit)}</td>
+                        <tr key={i} className="border-b border-black/[0.06] dark:border-white/[0.06] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]">
+                          <td className="px-4 py-2 text-slate-400 dark:text-slate-500">{i + 1}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{t.date}</td>
+                          <td className="px-4 py-2 text-right text-foreground font-mono">{formatCurrency(t.entry)}</td>
+                          <td className="px-4 py-2 text-right text-foreground font-mono">{formatCurrency(t.exit)}</td>
                           <td className={`px-4 py-2 text-right font-mono font-medium ${t.pnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                             {t.pnlPercent >= 0 ? '+' : ''}{t.pnlPercent.toFixed(2)}%
                           </td>
@@ -505,31 +505,31 @@ function renderRule(
   return (
     <div key={rule.id} className={`flex flex-wrap items-center gap-2 glass-inner rounded-lg p-3 border ${dirColor}`}>
       <select value={rule.direction} onChange={e => updateRule(rule.id, 'direction', e.target.value)}
-        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none">
         <option value="buy">🟢 AL</option>
         <option value="sell">🔴 SAT</option>
       </select>
       <select value={rule.indicator} onChange={e => updateRule(rule.id, 'indicator', e.target.value)}
-        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none">
         {INDICATORS.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
       </select>
       <select value={rule.operator} onChange={e => updateRule(rule.id, 'operator', e.target.value)}
-        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none">
         {OPERATORS.map(op => <option key={op.id} value={op.id}>{op.name}</option>)}
       </select>
       <select value={rule.compareWith} onChange={e => updateRule(rule.id, 'compareWith', e.target.value)}
-        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none">
         <option value="indicator">Gösterge</option>
         <option value="value">Değer</option>
       </select>
       {rule.compareWith === 'indicator' ? (
         <select value={rule.compareIndicator} onChange={e => updateRule(rule.id, 'compareIndicator', e.target.value)}
-          className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+          className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none">
           {INDICATORS.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
         </select>
       ) : (
         <input type="number" value={rule.value} onChange={e => updateRule(rule.id, 'value', Number(e.target.value))}
-          className="w-20 glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none" />
+          className="w-20 glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none" />
       )}
       <button onClick={() => removeRule(rule.id)} className="ml-auto p-1.5 text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-colors">
         <Trash2 className="w-3.5 h-3.5" />
