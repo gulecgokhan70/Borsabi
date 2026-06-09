@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ScrollText, Loader2, TrendingUp, TrendingDown, Target, Award, BarChart3, DollarSign } from 'lucide-react';
+import { ScrollText, Loader2, TrendingUp, TrendingDown, Target, Award, BarChart3, DollarSign, ArrowRight, Clock } from 'lucide-react';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import Link from 'next/link';
 
 export function TradeLogClient() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'buy' | 'sell'>('all');
 
   useEffect(() => {
     fetch('/api/transactions')
@@ -20,6 +22,33 @@ export function TradeLogClient() {
       .finally(() => setLoading(false));
   }, []);
 
+  const filteredTx = transactions.filter((t: any) => {
+    if (filter === 'all') return true;
+    return t?.type === filter.toUpperCase();
+  });
+
+  const getPnlDisplay = (t: any) => {
+    // SELL transactions have realized pnl
+    if (t?.type === 'SELL' && t?.pnl != null) {
+      return {
+        value: t.pnl,
+        percent: t.pnlPercent,
+        label: 'Gerçekleşen',
+        isRealized: true,
+      };
+    }
+    // BUY transactions may have unrealized pnl from open positions
+    if (t?.type === 'BUY' && t?.unrealizedPnl != null) {
+      return {
+        value: t.unrealizedPnl,
+        percent: t.unrealizedPnlPercent,
+        label: 'Açık Pozisyon',
+        isRealized: false,
+      };
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,7 +58,7 @@ export function TradeLogClient() {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
             <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-[#94A3B8]">Toplam İşlem</span></div>
             <p className="text-lg font-bold font-mono text-white">{stats?.totalTrades ?? 0}</p>
@@ -40,20 +69,42 @@ export function TradeLogClient() {
             <p className="text-xs text-[#94A3B8]">{stats?.winCount ?? 0}K / {stats?.lossCount ?? 0}Z</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
-            <div className="flex items-center gap-2 mb-2"><DollarSign className={`w-4 h-4 ${(stats?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`} /><span className="text-xs text-[#94A3B8]">Toplam K/Z</span></div>
-            <p className={`text-lg font-bold font-mono ${(stats?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatCurrency(stats?.totalPnl)}</p>
+            <div className="flex items-center gap-2 mb-2"><DollarSign className={`w-4 h-4 ${(stats?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`} /><span className="text-xs text-[#94A3B8]">Toplam K/Z</span></div>
+            <p className={`text-lg font-bold font-mono ${(stats?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatCurrency(stats?.totalPnl)}</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
-            <div className="flex items-center gap-2 mb-2"><Target className="w-4 h-4 text-[#F59E0B]" /><span className="text-xs text-[#94A3B8]">Ort. K/Z</span></div>
-            <div className="flex gap-3">
-              <span className="text-xs"><span className="text-[#22C55E] font-mono">{formatCurrency(stats?.avgWin)}</span></span>
-              <span className="text-xs"><span className="text-[#EF4444] font-mono">{formatCurrency(stats?.avgLoss)}</span></span>
-            </div>
+            <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-4 h-4 text-[#22C55E]" /><span className="text-xs text-[#94A3B8]">Ort. Kazanç</span></div>
+            <p className="text-sm font-bold font-mono text-[#22C55E]">{formatCurrency(stats?.avgWin)}</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+            <div className="flex items-center gap-2 mb-2"><TrendingDown className="w-4 h-4 text-[#F87171]" /><span className="text-xs text-[#94A3B8]">Ort. Kayıp</span></div>
+            <p className="text-sm font-bold font-mono text-[#F87171]">{formatCurrency(stats?.avgLoss)}</p>
           </motion.div>
         </div>
       )}
 
-      {/* Transactions table */}
+      {/* Filter tabs */}
+      <div className="flex items-center gap-2">
+        {[
+          { key: 'all', label: 'Tümü', count: transactions.length },
+          { key: 'buy', label: 'Alış', count: transactions.filter((t: any) => t?.type === 'BUY').length },
+          { key: 'sell', label: 'Satış', count: transactions.filter((t: any) => t?.type === 'SELL').length },
+        ].map((f: any) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key as any)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              filter === f.key
+                ? 'bg-[#3B82F6] text-white'
+                : 'bg-[#1E293B] text-[#94A3B8] hover:text-white border border-[#334155]'
+            }`}
+          >
+            {f.label} ({f.count})
+          </button>
+        ))}
+      </div>
+
+      {/* Transactions */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
           <ScrollText className="w-4 h-4 text-[#3B82F6]" />
@@ -61,54 +112,93 @@ export function TradeLogClient() {
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
-        ) : (transactions?.length ?? 0) === 0 ? (
+        ) : (filteredTx?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
             <ScrollText className="w-8 h-8 text-[#64748B] mx-auto mb-2" />
             <p className="text-sm text-[#94A3B8]">Henüz işlem yapılmamış</p>
             <p className="text-xs text-[#64748B] mt-1">Dashboard'dan hisse seçerek ilk işleminizi yapın</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-xs text-[#94A3B8] border-b border-[#334155]">
-                <th className="text-left px-4 py-2">Tarih</th>
-                <th className="text-left px-4 py-2">Sembol</th>
-                <th className="text-center px-4 py-2">Tür</th>
-                <th className="text-right px-4 py-2">Miktar</th>
-                <th className="text-right px-4 py-2">Fiyat</th>
-                <th className="text-right px-4 py-2">Toplam</th>
-                <th className="text-right px-4 py-2">Komisyon</th>
-                <th className="text-right px-4 py-2">K/Z</th>
-                <th className="text-left px-4 py-2">Not</th>
-              </tr></thead>
-              <tbody className="divide-y divide-[#334155]/50">
-                {transactions.map((t: any) => (
-                  <tr key={t?.id} className="hover:bg-[#334155]/20">
-                    <td className="px-4 py-2.5 text-xs text-[#94A3B8]">{t?.createdAt ? new Date(t.createdAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                    <td className="px-4 py-2.5">
-                      <p className="font-medium text-white">{t?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
-                      <p className="text-[10px] text-[#64748B]">{t?.name}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        t?.type === 'BUY' ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
+          <div className="divide-y divide-[#334155]/50">
+            {filteredTx.map((t: any) => {
+              const pnlInfo = getPnlDisplay(t);
+              return (
+                <div key={t?.id} className="px-4 py-3 hover:bg-[#334155]/20 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    {/* Left: Type badge + Symbol + Date */}
+                    <div className="flex items-center gap-3 sm:w-[280px]">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        t?.type === 'BUY' ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'
                       }`}>
-                        {t?.type === 'BUY' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                        {t?.type === 'BUY' ? 'Alış' : 'Satış'}
-                      </span>
-                    </td>
-                    <td className="text-right px-4 py-2.5 font-mono text-white">{t?.quantity}</td>
-                    <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(t?.price)}</td>
-                    <td className="text-right px-4 py-2.5 font-mono text-white">{formatCurrency(t?.total)}</td>
-                    <td className="text-right px-4 py-2.5 font-mono text-xs text-[#F59E0B]">{formatCurrency(t?.commission)}</td>
-                    <td className={`text-right px-4 py-2.5 font-mono font-semibold ${t?.pnl != null ? ((t?.pnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]') : 'text-[#64748B]'}`}>
-                      {t?.pnl != null ? formatCurrency(t?.pnl) : '-'}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-[#94A3B8] max-w-[120px] truncate">{t?.note ?? '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        {t?.type === 'BUY' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/stock/${encodeURIComponent(t?.symbol ?? '')}`} className="font-semibold text-white hover:text-[#3B82F6] transition-colors">
+                            {t?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}
+                          </Link>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                            t?.type === 'BUY' ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
+                          }`}>
+                            {t?.type === 'BUY' ? 'ALIŞ' : 'SATIŞ'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-[#64748B]">
+                          <Clock className="w-3 h-3" />
+                          <span>{t?.createdAt ? new Date(t.createdAt).toLocaleString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Middle: Quantity x Price = Total */}
+                    <div className="flex items-center gap-2 sm:flex-1">
+                      <div className="bg-[#0F172A] rounded-lg px-3 py-1.5 flex items-center gap-2">
+                        <span className="text-xs text-[#94A3B8]">{t?.quantity} adet</span>
+                        <span className="text-[#64748B]">×</span>
+                        <span className="text-xs font-mono text-white">{formatCurrency(t?.price)}</span>
+                        <span className="text-[#64748B]">=</span>
+                        <span className="text-xs font-mono font-semibold text-white">{formatCurrency(t?.total)}</span>
+                      </div>
+                      {t?.commission > 0 && (
+                        <span className="text-[10px] text-[#F59E0B]">Kom: {formatCurrency(t?.commission)}</span>
+                      )}
+                    </div>
+
+                    {/* Right: PnL */}
+                    <div className="sm:w-[180px] sm:text-right">
+                      {pnlInfo ? (
+                        <div>
+                          <div className="flex items-center sm:justify-end gap-1.5">
+                            <span className={`text-sm font-bold font-mono ${
+                              pnlInfo.value >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'
+                            }`}>
+                              {pnlInfo.value >= 0 ? '+' : ''}{formatCurrency(pnlInfo.value)}
+                            </span>
+                            {pnlInfo.percent != null && (
+                              <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
+                                pnlInfo.value >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#F87171]'
+                              }`}>
+                                {pnlInfo.percent >= 0 ? '+' : ''}{formatNumber(pnlInfo.percent, 1)}%
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-[10px] ${
+                            pnlInfo.isRealized ? 'text-[#64748B]' : 'text-[#F59E0B]'
+                          }`}>
+                            {pnlInfo.isRealized ? '✓ Gerçekleşen K/Z' : '◌ Açık Pozisyon'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[#64748B]">—</span>
+                      )}
+                    </div>
+                  </div>
+                  {t?.note && (
+                    <p className="text-xs text-[#94A3B8] mt-1.5 ml-12 italic">"{t.note}"</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </motion.div>

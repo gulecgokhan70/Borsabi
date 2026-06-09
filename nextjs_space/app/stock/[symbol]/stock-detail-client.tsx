@@ -391,12 +391,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
       {/* ===== QUICK STATS ROW ===== */}
       {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
             { label: 'Açılış', value: formatCurrency(data.open), icon: DollarSign, color: 'text-[#3B82F6]' },
             { label: 'Önceki Kapanış', value: formatCurrency(data.prevClose), icon: ArrowUpDown, color: 'text-[#94A3B8]' },
             { label: 'Gün Yüksek', value: formatCurrency(data.high), icon: TrendingUp, color: 'text-[#22C55E]' },
             { label: 'Gün Düşük', value: formatCurrency(data.low), icon: TrendingDown, color: 'text-[#F87171]' },
+            ...(data.tavan ? [{ label: 'Tavan', value: formatCurrency(data.tavan), icon: TrendingUp, color: 'text-[#F97316]' }] : []),
+            ...(data.taban ? [{ label: 'Taban', value: formatCurrency(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
             { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2, color: 'text-[#8B5CF6]' },
             { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-[#64748B]' },
           ].map((item: any, i: number) => (
