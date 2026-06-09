@@ -43,6 +43,12 @@ export function WatchlistClient() {
 
   useEffect(() => { fetchWatchlist(); }, [fetchWatchlist]);
 
+  // Otomatik yenileme - 30 saniye
+  useEffect(() => {
+    const interval = setInterval(() => { fetchWatchlist(); }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchWatchlist]);
+
   const toggleWatchlist = async (symbol: string, name: string, type: string) => {
     try {
       const res = await fetch('/api/watchlist', {

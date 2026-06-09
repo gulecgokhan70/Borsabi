@@ -24,6 +24,12 @@ export function PortfolioClient() {
 
   useEffect(() => { fetchPortfolio(); }, [fetchPortfolio]);
 
+  // Otomatik yenileme - 30 saniye
+  useEffect(() => {
+    const interval = setInterval(() => { fetchPortfolio(); }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchPortfolio]);
+
   if (loading && !portfolio) return (
     <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
   );

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, RefreshCw, Target, Shield, Clock,
@@ -39,8 +39,7 @@ export function SwingTradingClient() {
   const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/swing-trading');
       const json = await res.json();
@@ -50,9 +49,13 @@ export function SwingTradingClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(() => { fetchData(); }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const filteredData = data.filter((item) => {
     if (filter === 'all') return true;

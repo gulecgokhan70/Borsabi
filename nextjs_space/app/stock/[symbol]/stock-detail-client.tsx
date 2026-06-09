@@ -31,7 +31,6 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=1mo`);
       const json = await res.json();
@@ -45,6 +44,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => { fetchData(); }, 30000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   // TradingView Advanced Chart Widget

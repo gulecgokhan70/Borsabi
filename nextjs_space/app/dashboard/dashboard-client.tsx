@@ -23,6 +23,8 @@ export function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
 
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -36,6 +38,7 @@ export function DashboardClient() {
       if (stockRes?.status === 'fulfilled') setStocks(stockRes?.value?.data ?? []);
       if (cryptoRes?.status === 'fulfilled') setCryptos(cryptoRes?.value?.data ?? []);
       if (portRes?.status === 'fulfilled') setPortfolio(portRes?.value ?? null);
+      setLastUpdate(new Date().toLocaleTimeString('tr-TR'));
     } catch (e: any) {
       console.error('Dashboard fetch error:', e);
     } finally {
@@ -44,6 +47,12 @@ export function DashboardClient() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Otomatik yenileme - 30 saniye
+  useEffect(() => {
+    const interval = setInterval(() => { fetchData(); }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const gainers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) > 0).sort((a: any, b: any) => (b?.changePercent ?? 0) - (a?.changePercent ?? 0)).slice(0, 5);
   const losers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) < 0).sort((a: any, b: any) => (a?.changePercent ?? 0) - (b?.changePercent ?? 0)).slice(0, 5);
@@ -56,9 +65,15 @@ export function DashboardClient() {
           <h1 className="text-2xl font-bold text-white tracking-tight">Merhaba, {session?.user?.name ?? 'Trader'} 👋</h1>
           <p className="text-sm text-[#94A3B8] mt-0.5">Piyasa özeti ve portföy durumunuz</p>
         </div>
-        <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg bg-[#1E293B] border border-[#334155] text-[#94A3B8] hover:text-white hover:bg-[#334155] transition-colors">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-[#64748B]">
+            <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+            <span>Canlı{lastUpdate ? ` • ${lastUpdate}` : ''}</span>
+          </div>
+          <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg bg-[#1E293B] border border-[#334155] text-[#94A3B8] hover:text-white hover:bg-[#334155] transition-colors">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Portfolio summary cards */}
