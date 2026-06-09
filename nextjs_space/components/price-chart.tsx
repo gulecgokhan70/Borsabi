@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
+const PERIOD_OPTIONS = [
+  { id: '1w', label: '1H' },
+  { id: '1mo', label: '1A' },
+  { id: '3mo', label: '3A' },
+];
+
 const AreaChartComp = dynamic(
   () => import('recharts').then((mod: any) => {
     const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } = mod;
@@ -37,16 +43,18 @@ interface PriceChartProps {
   period?: string;
   height?: string;
   color?: string;
+  showPeriodSelector?: boolean;
 }
 
-export function PriceChart({ symbol, period = '1mo', height = 'h-48', color = '#3B82F6' }: PriceChartProps) {
+export function PriceChart({ symbol, period: defaultPeriod = '1mo', height = 'h-48', color = '#3B82F6', showPeriodSelector = true }: PriceChartProps) {
+  const [activePeriod, setActivePeriod] = useState(defaultPeriod);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!symbol) return;
     setLoading(true);
-    fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&period=${period}`)
+    fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&period=${activePeriod}`)
       .then((r: any) => r?.json?.())
       .then((res: any) => {
         const quotes = (res?.data ?? []).map((q: any) => ({
@@ -57,7 +65,7 @@ export function PriceChart({ symbol, period = '1mo', height = 'h-48', color = '#
       })
       .catch((e: any) => console.error('Chart data error:', e))
       .finally(() => setLoading(false));
-  }, [symbol, period]);
+  }, [symbol, activePeriod]);
 
   if (loading) return <div className={`${height} flex items-center justify-center`}><Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" /></div>;
   if ((data?.length ?? 0) === 0) return <div className={`${height} flex items-center justify-center text-xs text-[#94A3B8]`}>Veri yok</div>;
@@ -67,8 +75,27 @@ export function PriceChart({ symbol, period = '1mo', height = 'h-48', color = '#
   const chartColor = last >= first ? '#22C55E' : '#EF4444';
 
   return (
-    <div className={height}>
-      <AreaChartComp data={data} color={color === '#3B82F6' ? chartColor : color} />
+    <div>
+      {showPeriodSelector && (
+        <div className="flex items-center gap-1 mb-2 justify-end">
+          {PERIOD_OPTIONS.map((p: any) => (
+            <button
+              key={p.id}
+              onClick={() => setActivePeriod(p.id)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                activePeriod === p.id
+                  ? 'bg-[#3B82F6] text-white'
+                  : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155] hover:text-white'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className={height}>
+        <AreaChartComp data={data} color={color === '#3B82F6' ? chartColor : color} />
+      </div>
     </div>
   );
 }
