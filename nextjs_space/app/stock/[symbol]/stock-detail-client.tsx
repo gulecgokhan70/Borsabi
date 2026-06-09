@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
+import { TradeModal } from '@/components/trade-modal';
 import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
@@ -122,9 +123,11 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [period, setPeriod] = useState('1mo');
   const [chartInterval, setChartInterval] = useState('1d');
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
-  const [chartType, setChartType] = useState<ChartType>('candle');
+  const [chartType, setChartType] = useState<ChartType>('line');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
   const [showFundamentals, setShowFundamentals] = useState(true);
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
 
   const fetchData = useCallback(async () => {
     try {
@@ -150,7 +153,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const isIntraday = period === '1d';
 
   const chartData = useMemo(() => {
-    return (data?.ohlc ?? []).map((d: OHLCData) => ({
+    const ohlcData = (data?.ohlc ?? []).map((d: OHLCData) => ({
       date: isIntraday
         ? new Date(d.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
         : new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
@@ -168,12 +171,42 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       bbUpper: d.bbUpper,
       bbMiddle: d.bbMiddle,
       bbLower: d.bbLower,
-      // For candlestick body
       candleBody: [Math.min(d.open, d.close), Math.max(d.open, d.close)],
       candleWick: [d.low, d.high],
       isUp: d.close >= d.open,
     }));
-  }, [data?.ohlc, isIntraday]);
+    // Son fiyat verisini grafik sonuna ekle (tüm zaman dilimlerinde güncel fiyat görünsün)
+    if (data?.price && ohlcData.length > 0) {
+      const lastEntry = ohlcData[ohlcData.length - 1];
+      const nowLabel = new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
+      const intraLabel = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      const currentLabel = isIntraday ? intraLabel : nowLabel;
+      // Sadece son veri noktasından farklıysa ekle
+      if (lastEntry.date !== currentLabel && Math.abs(lastEntry.close - data.price) > 0.001) {
+        ohlcData.push({
+          date: currentLabel,
+          open: lastEntry.close,
+          high: Math.max(lastEntry.close, data.price),
+          low: Math.min(lastEntry.close, data.price),
+          close: data.price,
+          volume: data.volume || 0,
+          ema20: lastEntry.ema20,
+          ema50: lastEntry.ema50,
+          ema200: lastEntry.ema200,
+          macd: lastEntry.macd,
+          macdSignal: lastEntry.macdSignal,
+          macdHistogram: lastEntry.macdHistogram,
+          bbUpper: lastEntry.bbUpper,
+          bbMiddle: lastEntry.bbMiddle,
+          bbLower: lastEntry.bbLower,
+          candleBody: [Math.min(lastEntry.close, data.price), Math.max(lastEntry.close, data.price)],
+          candleWick: [Math.min(lastEntry.close, data.price), Math.max(lastEntry.close, data.price)],
+          isUp: data.price >= lastEntry.close,
+        });
+      }
+    }
+    return ohlcData;
+  }, [data?.ohlc, data?.price, data?.volume, isIntraday]);
 
   const chartPositive = chartData.length >= 2 ? (chartData[chartData.length - 1]?.close ?? 0) >= (chartData[0]?.close ?? 0) : true;
 
@@ -244,12 +277,24 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">{data.name}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-3xl font-bold text-foreground">{formatCurrency(data.price)}</p>
-            <p className={`text-sm font-medium ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
-              {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-              {isPositive ? '+' : ''}{formatCurrency(data.change)}
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(data.price)}</p>
+              <p className={`text-sm font-medium ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
+                {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
+                {isPositive ? '+' : ''}{formatCurrency(data.change)}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }}
+                className="px-5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4" /> Al
+              </button>
+              <button onClick={() => { setTradeSide('SELL'); setTradeOpen(true); }}
+                className="px-5 py-2 rounded-lg bg-[#EF4444] text-white text-sm font-semibold hover:bg-[#DC2626] transition-colors flex items-center gap-1.5">
+                <TrendingDown className="w-4 h-4" /> Sat
+              </button>
+            </div>
           </div>
         </motion.div>
       ) : (
@@ -664,6 +709,20 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       <p className="text-center text-xs text-[#475569] py-4">
         ⚠️ Bu sayfa yalnızca eğitim amaçlıdır. Yatırım tavsiyesi değildir.
       </p>
+
+      {/* Trade Modal */}
+      {data && (
+        <TradeModal
+          isOpen={tradeOpen}
+          onClose={() => setTradeOpen(false)}
+          symbol={data.symbol}
+          name={data.name}
+          price={data.price}
+          marketType={data.symbol.endsWith('.IS') ? 'BIST' : data.symbol.endsWith('-USD') ? 'Kripto' : 'Diğer'}
+          side={tradeSide}
+          onSuccess={() => fetchData()}
+        />
+      )}
     </div>
   );
 }
