@@ -19,5 +19,11 @@ export const config = {
     '/risk-center/:path*',
     '/academy/:path*',
     '/backtest/:path*',
+    '/algo-scan/:path*',
+    '/strategy-builder/:path*',
+    '/leaderboard/:path*',
+    '/alerts/:path*',
+    '/achievements/:path*',
+    '/profile/:path*',
   ],
 };

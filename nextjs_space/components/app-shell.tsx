@@ -4,7 +4,8 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical
+  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical,
+  User, ScanSearch, Wrench, Trophy, Bell, Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,6 +21,12 @@ const NAV_ITEMS = [
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
   { href: '/academy', label: 'Akademi', icon: GraduationCap },
   { href: '/backtest', label: 'Backtest', icon: FlaskConical },
+  { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
+  { href: '/strategy-builder', label: 'Strateji', icon: Wrench },
+  { href: '/leaderboard', label: 'Liderlik', icon: Trophy },
+  { href: '/alerts', label: 'Alarmlar', icon: Bell },
+  { href: '/achievements', label: 'Rozetler', icon: Award },
+  { href: '/profile', label: 'Profil', icon: User },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

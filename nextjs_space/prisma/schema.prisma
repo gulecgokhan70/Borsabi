@@ -15,6 +15,7 @@ model User {
   name           String?
   password       String
   role           String        @default("user")
+  tier           String        @default("free") // free, pro, elite
   balance        Float         @default(100000)
   initialBalance Float         @default(100000)
   createdAt      DateTime      @default(now())
@@ -23,6 +24,8 @@ model User {
   transactions   Transaction[]
   watchlist      Watchlist[]
   chatMessages   ChatMessage[]
+  priceAlerts    PriceAlert[]
+  achievements   Achievement[]
 
   @@index([email])
 }
@@ -97,4 +100,33 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+model PriceAlert {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  symbol      String
+  name        String
+  condition   String   // above, below
+  targetPrice Float
+  currentPrice Float   @default(0)
+  triggered   Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  triggeredAt DateTime?
+
+  @@index([userId, active])
+  @@index([symbol])
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  badge       String   // first-trade, profit-10, profit-50, win-streak-5, trader-100, risk-master, etc.
+  unlockedAt  DateTime @default(now())
+
+  @@unique([userId, badge])
+  @@index([userId])
 }
