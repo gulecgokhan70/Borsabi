@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { detectCandlePatterns, candlePatternScore, type CandleData, type CandlePattern } from '@/lib/candle-patterns';
 
 // ===== CACHE =====
 let cachedResult: any = null;
@@ -116,7 +117,8 @@ function analyzeDayTrade(
   closes: number[],
   highs: number[],
   lows: number[],
-  volumes: number[]
+  volumes: number[],
+  candles: CandleData[]
 ) {
   const price = midas.Last || midas.Close;
   const prevClose = midas.PreviousClose;
@@ -182,6 +184,12 @@ function analyzeDayTrade(
   else if (price > vwap) { score += 10; signals.push('VWAP Üstü'); }
   else if (price > sr.support1) { score += 5; signals.push('Destek Yakını'); }
 
+  // Mum formasyonları
+  const candlePatterns = detectCandlePatterns(candles);
+  const cpScore = candlePatternScore(candlePatterns);
+  if (cpScore > 0) { score += Math.min(10, cpScore); signals.push(...candlePatterns.filter(p => p.type === 'bullish').map(p => '🕯 ' + p.name)); }
+  else if (cpScore < 0) { score += Math.max(-5, cpScore); signals.push(...candlePatterns.filter(p => p.type === 'bearish').map(p => '🕯 ' + p.name)); }
+
   // Tavan/Taban limitleri
   const tavanFiyat = midas.UpperLimit > 0 ? midas.UpperLimit : prevClose * 1.10;
   const tabanFiyat = midas.LowerLimit > 0 ? midas.LowerLimit : prevClose * 0.90;
@@ -235,6 +243,7 @@ function analyzeDayTrade(
     pddd: midas.PriceBookValue,
     marketValue: midas.MarketValue,
     volatility: midas.Volatility,
+    candlePatterns,
   };
 }
 
@@ -244,7 +253,8 @@ function analyzeSwingTrade(
   closes: number[],
   highs: number[],
   lows: number[],
-  volumes: number[]
+  volumes: number[],
+  candles: CandleData[]
 ) {
   const price = midas.Last || midas.Close;
   const prevClose = midas.PreviousClose;
@@ -317,6 +327,12 @@ function analyzeSwingTrade(
     score += 5; signals.push('RSI Sağlıklı');
   }
 
+  // Mum formasyonları
+  const candlePatterns = detectCandlePatterns(candles);
+  const cpScore = candlePatternScore(candlePatterns);
+  if (cpScore > 0) { score += Math.min(10, cpScore); signals.push(...candlePatterns.filter(p => p.type === 'bullish').map(p => '🕯 ' + p.name)); }
+  else if (cpScore < 0) { score += Math.max(-5, cpScore); signals.push(...candlePatterns.filter(p => p.type === 'bearish').map(p => '🕯 ' + p.name)); }
+
   // Risk/Getiri oranı (15P) - hesapla ve puanla
   const stopDistance = atr > 0 ? atr * 2 : price * 0.03;
   const stopLoss = price - stopDistance;
@@ -369,6 +385,7 @@ function analyzeSwingTrade(
     pddd: midas.PriceBookValue,
     marketValue: midas.MarketValue,
     volatility: midas.Volatility,
+    candlePatterns,
   };
 }
 
@@ -430,8 +447,13 @@ export async function GET(request: NextRequest) {
         if (closes.length < 30) return;
         analyzed++;
 
+        // Mum verileri oluştur
+        const candles: CandleData[] = quotes.filter((q: any) => q?.open > 0 && q?.close > 0).map((q: any) => ({
+          open: q.open, high: q.high, low: q.low, close: q.close, volume: q.volume ?? 0
+        }));
+
         // Day Trade analizi
-        const dayResult = analyzeDayTrade(midasData, closes, highs, lows, volumes);
+        const dayResult = analyzeDayTrade(midasData, closes, highs, lows, volumes, candles);
         if (dayResult) {
           (dayResult as any).name = stock.name;
           dayResults.push(dayResult);
@@ -439,7 +461,7 @@ export async function GET(request: NextRequest) {
 
         // Swing Trade analizi
         if (closes.length >= 50) {
-          const swingResult = analyzeSwingTrade(midasData, closes, highs, lows, volumes);
+          const swingResult = analyzeSwingTrade(midasData, closes, highs, lows, volumes, candles);
           if (swingResult) {
             (swingResult as any).name = stock.name;
             swingResults.push(swingResult);
@@ -452,12 +474,12 @@ export async function GET(request: NextRequest) {
 
     await Promise.allSettled(promises);
 
-    // 3) Puanlara göre sırala, en iyi 5'i al
+    // 3) Puanlara göre sırala, en iyi 10'u al
     dayResults.sort((a, b) => b.score - a.score);
     swingResults.sort((a, b) => b.score - a.score);
 
-    const top5Day = dayResults.slice(0, 5);
-    const top5Swing = swingResults.slice(0, 5);
+    const top10Day = dayResults.slice(0, 10);
+    const top10Swing = swingResults.slice(0, 10);
 
     // 4) Analiz zamanı
     const now = new Date();
@@ -468,8 +490,8 @@ export async function GET(request: NextRequest) {
       tarananHisse: analyzed,
       toplamDayTrade: dayResults.length,
       toplamSwing: swingResults.length,
-      dayTrade: top5Day,
-      swingTrade: top5Swing,
+      dayTrade: top10Day,
+      swingTrade: top10Swing,
     };
 
     // Sonucu önbelleğe al

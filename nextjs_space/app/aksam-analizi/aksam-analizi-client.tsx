@@ -42,6 +42,7 @@ interface TradeResult {
   pddd?: number;
   marketValue?: number;
   volatility?: number;
+  candlePatterns?: Array<{ name: string; type: 'bullish' | 'bearish' | 'neutral'; strength: number }>;
 }
 
 interface AnalysisData {
@@ -166,9 +167,16 @@ export default function AksamAnaliziClient() {
                   </span>
                 </td>
                 <td className="py-3 px-3">
-                  <div className="flex flex-wrap gap-1 max-w-[200px]">
-                    {t.signals.slice(0, 3).map((s, i) => (
+                  <div className="flex flex-wrap gap-1 max-w-[250px]">
+                    {t.signals.filter(s => !s.startsWith('🕯')).slice(0, 3).map((s, i) => (
                       <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-[#334155] text-muted-foreground">{s}</span>
+                    ))}
+                    {t.candlePatterns && t.candlePatterns.length > 0 && t.candlePatterns.slice(0, 2).map((cp, i) => (
+                      <span key={`cp-${i}`} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                        cp.type === 'bullish' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
+                        cp.type === 'bearish' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                        'bg-[#F59E0B]/15 text-[#F59E0B]'
+                      }`}>🕯 {cp.name}</span>
                     ))}
                   </div>
                 </td>
@@ -227,9 +235,21 @@ export default function AksamAnaliziClient() {
                 </div>
               </div>
 
+              {/* Mum Formasyonları */}
+              {t.candlePatterns && t.candlePatterns.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {t.candlePatterns.map((cp, i) => (
+                    <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                      cp.type === 'bullish' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
+                      cp.type === 'bearish' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                      'bg-[#F59E0B]/15 text-[#F59E0B]'
+                    }`}>🕯 {cp.name} {'⭐'.repeat(cp.strength)}</span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div className="flex flex-wrap gap-1">
-                  {t.signals.slice(0, 2).map((s, i) => (
+                  {t.signals.filter(s => !s.startsWith('🕯')).slice(0, 2).map((s, i) => (
                     <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-[#334155] text-muted-foreground">{s}</span>
                   ))}
                 </div>
@@ -330,7 +350,7 @@ export default function AksamAnaliziClient() {
             <p className="text-sm font-medium text-[#F59E0B]">Önemli Uyarı</p>
             <p className="text-xs text-muted-foreground mt-1">
               Bu analiz yatırım tavsiyesi değildir. Tüm BIST hisseleri hacim, RSI, MACD, EMA20/50/200,
-              son 5 günlük performans, destek/direnç ve kırılım potansiyeli kriterlerine göre analiz edilir.
+              son 5 günlük performans, destek/direnç, kırılım potansiyeli ve mum formasyonları kriterlerine göre analiz edilir.
               Akşam çalıştırın, sabah işlem açın. Stop loss olmadan asla işlem açmayın.
             </p>
           </div>
@@ -385,9 +405,9 @@ export default function AksamAnaliziClient() {
                   <Zap className="w-5 h-5 text-[#F59E0B]" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">En İyi 5 Day Trading Hissesi</h2>
+                  <h2 className="text-lg font-bold text-foreground">En İyi 10 Day Trading Hissesi</h2>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    Hacim artışı • RSI • MACD • EMA20/50 • Son 5 gün performans • Destek/Direnç
+                    Hacim • RSI • MACD • EMA20/50 • Son 5G • Destek/Direnç • Mum Formasyonları
                   </p>
                 </div>
               </div>
@@ -409,9 +429,9 @@ export default function AksamAnaliziClient() {
                   <Waves className="w-5 h-5 text-[#8B5CF6]" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">En İyi 5 Swing Trading Hissesi</h2>
+                  <h2 className="text-lg font-bold text-foreground">En İyi 10 Swing Trading Hissesi</h2>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    Trend yönü • EMA50/200 • Hacim artışı • Kırılım potansiyeli • Risk/Getiri
+                    Trend • EMA50/200 • Hacim • Kırılım • Risk/Getiri • Mum Formasyonları
                   </p>
                 </div>
               </div>
@@ -433,7 +453,7 @@ export default function AksamAnaliziClient() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
               <div>
-                <p className="font-semibold text-[#F59E0B] mb-2">Day Trading Kriterleri (100P)</p>
+                <p className="font-semibold text-[#F59E0B] mb-2">Day Trading Kriterleri (110P)</p>
                 <ul className="space-y-1">
                   <li className="flex items-center gap-2"><span className="text-[#3B82F6]">25P</span> Hacim artışı (ort. üstü)</li>
                   <li className="flex items-center gap-2"><span className="text-[#3B82F6]">15P</span> RSI (14 periyot)</li>
@@ -441,16 +461,18 @@ export default function AksamAnaliziClient() {
                   <li className="flex items-center gap-2"><span className="text-[#3B82F6]">15P</span> EMA20 ve EMA50 dizilimi</li>
                   <li className="flex items-center gap-2"><span className="text-[#3B82F6]">15P</span> Son 5 günlük performans</li>
                   <li className="flex items-center gap-2"><span className="text-[#3B82F6]">15P</span> Destek/direnç + VWAP</li>
+                  <li className="flex items-center gap-2"><span className="text-[#22C55E]">10P</span> 🕯 Mum Formasyonları</li>
                 </ul>
               </div>
               <div>
-                <p className="font-semibold text-[#8B5CF6] mb-2">Swing Trading Kriterleri (100P)</p>
+                <p className="font-semibold text-[#8B5CF6] mb-2">Swing Trading Kriterleri (110P)</p>
                 <ul className="space-y-1">
                   <li className="flex items-center gap-2"><span className="text-[#8B5CF6]">25P</span> Trend yönü (EMA50/200 üstü)</li>
                   <li className="flex items-center gap-2"><span className="text-[#8B5CF6]">20P</span> 50/200 günlük ort. golden cross</li>
                   <li className="flex items-center gap-2"><span className="text-[#8B5CF6]">20P</span> Hacim artışı</li>
                   <li className="flex items-center gap-2"><span className="text-[#8B5CF6]">20P</span> Kırılım potansiyeli</li>
                   <li className="flex items-center gap-2"><span className="text-[#8B5CF6]">15P</span> Risk/Getiri oranı</li>
+                  <li className="flex items-center gap-2"><span className="text-[#22C55E]">10P</span> 🕯 Mum Formasyonları</li>
                 </ul>
               </div>
             </div>
@@ -479,14 +501,14 @@ export default function AksamAnaliziClient() {
               <Zap className="w-5 h-5 text-[#F59E0B] mb-2" />
               <p className="text-sm font-semibold text-foreground">Day Trading</p>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Hacim, RSI, MACD, EMA, momentum, VWAP kriterlerine göre en iyi 5 hisse
+                Hacim, RSI, MACD, EMA, VWAP + mum formasyonlarına göre en iyi 10 hisse
               </p>
             </div>
             <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
               <Waves className="w-5 h-5 text-[#8B5CF6] mb-2" />
               <p className="text-sm font-semibold text-foreground">Swing Trading</p>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Trend, golden cross, kırılım, hacim, risk/getiri kriterlerine göre en iyi 5 hisse
+                Trend, golden cross, kırılım, hacim, risk/getiri + mum formasyonlarına göre en iyi 10 hisse
               </p>
             </div>
           </div>
