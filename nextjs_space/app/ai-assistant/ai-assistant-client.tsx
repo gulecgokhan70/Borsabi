@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-react';
 
 const SUGGESTIONS = [
-  'Bugün hangi hisseler güçlü?',
-  'THYAO alınır mı?',
-  'Portföyüm riskli mi?',
+  'THYAO teknik analizi yap',
+  'ASELS hissesini değerlendir',
+  'Portföyüm nasıl görünüyor?',
   'Bitcoin analizi yap',
-  'RSI ne anlama gelir?',
-  'BIST 100 trend analizi',
+  'En güçlü BIST hisseleri hangileri?',
+  'SISE ve EREGL karşılaştır',
 ];
 
 interface ChatMsg {
@@ -103,7 +103,7 @@ export function AiAssistantClient() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Master AI Asistan</h1>
-            <p className="text-xs text-[#94A3B8]">Teknik analiz, piyasa önerileri ve risk yönetimi</p>
+            <p className="text-xs text-[#94A3B8]">Gerçek verilerle teknik analiz, piyasa önerileri ve risk yönetimi</p>
           </div>
         </div>
         {(messages?.length ?? 0) > 0 && (
@@ -121,7 +121,7 @@ export function AiAssistantClient() {
               <Sparkles className="w-8 h-8 text-[#3B82F6]" />
             </div>
             <h2 className="text-lg font-semibold text-white mb-1">Nasıl yardımcı olabilirim?</h2>
-            <p className="text-sm text-[#94A3B8] mb-6 text-center max-w-md">Hisse analizi, teknik göstergeler, portföy değerlendirmesi ve risk yönetimi konularında sorabilirsiniz.</p>
+            <p className="text-sm text-[#94A3B8] mb-6 text-center max-w-md">Gerçek piyasa verileriyle hisse analizi, teknik göstergeler, portföy değerlendirmesi ve risk yönetimi konularında sorabilirsiniz.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
               {SUGGESTIONS.map((s: string, i: number) => (
                 <button key={i} onClick={() => sendMessage(s)} className="flex items-center gap-2 px-4 py-2.5 bg-[#1E293B] border border-[#334155] rounded-lg text-sm text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all text-left">
@@ -145,7 +145,7 @@ export function AiAssistantClient() {
                     <span className="text-[10px] font-semibold text-[#3B82F6]">Master AI</span>
                   </div>
                 )}
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /> : '')}</div>
+                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-[#94A3B8]">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>
               </div>
             </motion.div>
           ))

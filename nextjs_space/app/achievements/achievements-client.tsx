@@ -103,7 +103,7 @@ export default function AchievementsClient() {
                 <p className="text-sm font-bold text-white">{badge.name}</p>
                 <p className="text-xs text-[#94A3B8] mt-1">{badge.desc}</p>
                 {badge.unlockedAt && (
-                  <p className="text-[10px] text-[#64748B] mt-2">{new Date(badge.unlockedAt).toLocaleDateString('tr-TR')}</p>
+                  <p className="text-[10px] text-[#94A3B8] mt-2">{new Date(badge.unlockedAt).toLocaleDateString('tr-TR')}</p>
                 )}
               </motion.div>
             ))}
