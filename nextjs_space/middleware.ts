@@ -26,5 +26,6 @@ export const config = {
     '/achievements/:path*',
     '/profile/:path*',
     '/stock/:path*',
+    '/aksam-analizi/:path*',
   ],
 };

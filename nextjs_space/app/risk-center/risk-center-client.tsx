@@ -101,9 +101,9 @@ export function RiskCenterClient() {
 
   const getWarningBg = (type: string) => {
     switch (type) {
-      case 'danger': return 'bg-[#EF4444]/5 border-[#EF4444]/20';
-      case 'warning': return 'bg-[#F59E0B]/5 border-[#F59E0B]/20';
-      default: return 'bg-[#3B82F6]/5 border-[#3B82F6]/20';
+      case 'danger': return 'bg-[#EF4444]/10 border-[#EF4444]/30';
+      case 'warning': return 'bg-[#F59E0B]/10 border-[#F59E0B]/30';
+      default: return 'bg-[#3B82F6]/10 border-[#3B82F6]/30';
     }
   };
 
@@ -231,7 +231,7 @@ export function RiskCenterClient() {
           {warnings.map((w, idx) => (
             <div key={idx} className={`${getWarningBg(w.type)} border rounded-xl p-4 flex items-start gap-3`}>
               {getWarningIcon(w.type)}
-              <p className="text-sm text-[#94A3B8]">{w.message}</p>
+              <p className="text-sm text-[#CBD5E1]">{w.message}</p>
             </div>
           ))}
         </motion.div>

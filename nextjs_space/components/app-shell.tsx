@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, ScanSearch, Wrench, Trophy, Bell, Award
+  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,6 +26,7 @@ const NAV_ITEMS = [
   { href: '/leaderboard', label: 'Liderlik', icon: Trophy },
   { href: '/alerts', label: 'Alarmlar', icon: Bell },
   { href: '/achievements', label: 'Rozetler', icon: Award },
+  { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
   { href: '/profile', label: 'Profil', icon: User },
 ];
 

@@ -61,8 +61,8 @@ export function PortfolioClient() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
           <div className="flex items-center gap-2 mb-2"><DollarSign className={`w-4 h-4 ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`} /><span className="text-xs text-[#94A3B8]">Toplam Getiri</span></div>
-          <p className={`text-lg font-bold font-mono ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatCurrency(totalReturn)}</p>
-          <p className={`text-xs font-mono font-semibold ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{totalReturn >= 0 ? '+' : ''}{formatPercent(totalReturnPct)}</p>
+          <p className={`text-lg font-bold font-mono ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatCurrency(totalReturn)}</p>
+          <p className={`text-xs font-mono font-semibold ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{totalReturn >= 0 ? '+' : ''}{formatPercent(totalReturnPct)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
           <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-4 h-4 text-[#8B5CF6]" /><span className="text-xs text-[#94A3B8]">Açık Pozisyon</span></div>
@@ -111,8 +111,8 @@ export function PortfolioClient() {
                       <td className="text-right px-4 py-2.5 font-mono text-white">{p?.quantity}</td>
                       <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(p?.entryPrice)}</td>
                       <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(p?.currentPrice)}</td>
-                      <td className={`text-right px-4 py-2.5 font-mono font-semibold ${pnl >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-                        {formatCurrency(pnl)}<br /><span className="text-xs">{formatPercent(pnlPct)}</span>
+                      <td className={`text-right px-4 py-2.5 font-mono font-semibold ${pnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
+                        {formatCurrency(pnl)}<br /><span className={`text-xs ${pnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatPercent(pnlPct)}</span>
                       </td>
                       <td className="text-right px-4 py-2.5 text-xs">
                         {p?.stopLoss ? <span className="text-[#F87171]">SL: {formatNumber(p.stopLoss)}</span> : <span className="text-[#64748B]">-</span>}
@@ -155,7 +155,7 @@ export function PortfolioClient() {
                     <td className="px-4 py-2.5 font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(p?.symbol)}`)}>{p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</td>
                     <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(p?.entryPrice)}</td>
                     <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(p?.currentPrice)}</td>
-                    <td className={`text-right px-4 py-2.5 font-mono font-semibold ${(p?.pnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+                    <td className={`text-right px-4 py-2.5 font-mono font-semibold ${(p?.pnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                       {formatCurrency(p?.pnl)}
                     </td>
                     <td className="text-right px-4 py-2.5 text-xs text-[#94A3B8]">
