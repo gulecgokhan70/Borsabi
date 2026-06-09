@@ -9,7 +9,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 import {
-  ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
 } from 'recharts';
 
@@ -83,22 +83,35 @@ const PERIODS = [
 type ChartOverlay = 'ema' | 'bb' | 'none';
 type BottomIndicator = 'volume' | 'macd';
 
-const CustomCandlestick = (props: any) => {
+const CandlestickShape = (props: any) => {
   const { x, y, width, height, payload } = props;
-  if (!payload) return null;
-  const { open, close, high, low } = payload;
-  if (!open || !close || !high || !low) return null;
+  if (!payload || !payload.open || !payload.close || !payload.high || !payload.low) return null;
 
-  const isUp = close >= open;
+  const { open, close, high, low, isUp } = payload;
   const color = isUp ? '#22C55E' : '#EF4444';
-  const bodyTop = Math.min(open, close);
-  const bodyBottom = Math.max(open, close);
 
-  // Calculate y positions from domain
-  const yScale = props.yAxis;
-  if (!yScale) return null;
+  const bodyTop = y;
+  const bodyBottom = y + Math.abs(height);
+  const barCenter = x + width / 2;
 
-  return null; // We'll use a different approach for candlesticks
+  const bodyRange = Math.abs(open - close) || 0.001;
+  const pixelPerPrice = Math.abs(height) / bodyRange;
+
+  const wickTopPrice = high - Math.max(open, close);
+  const wickTopY = bodyTop - wickTopPrice * pixelPerPrice;
+  const wickBottomPrice = Math.min(open, close) - low;
+  const wickBottomY = bodyBottom + wickBottomPrice * pixelPerPrice;
+
+  const candleWidth = Math.max(Math.min(width * 0.7, 12), 3);
+  const wickWidth = Math.max(Math.min(width * 0.12, 2), 1);
+
+  return (
+    <g>
+      <rect x={barCenter - wickWidth / 2} y={wickTopY} width={wickWidth} height={Math.max(bodyTop - wickTopY, 0)} fill={color} />
+      <rect x={barCenter - wickWidth / 2} y={bodyBottom} width={wickWidth} height={Math.max(wickBottomY - bodyBottom, 0)} fill={color} />
+      <rect x={barCenter - candleWidth / 2} y={bodyTop} width={candleWidth} height={Math.max(Math.abs(height), 1)} fill={isUp ? color : color} fillOpacity={isUp ? 0.3 : 0.8} stroke={color} strokeWidth={1} rx={1} />
+    </g>
+  );
 };
 
 export default function StockDetailClient({ symbol }: { symbol: string }) {
@@ -250,7 +263,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-            <h3 className="text-white font-semibold text-sm">Fiyat Grafiği</h3>
+            <h3 className="text-white font-semibold text-sm">Mum Grafiği</h3>
           </div>
           <div className="flex flex-wrap gap-1">
             {PERIODS.map((p: any) => (
@@ -288,16 +301,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartPositive ? '#22C55E' : '#EF4444'} stopOpacity={0.15} />
-                    <stop offset="95%" stopColor={chartPositive ? '#22C55E' : '#EF4444'} stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="bbGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.08} />
-                    <stop offset="100%" stopColor="#F59E0B" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
+
                 <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
                 <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
@@ -307,14 +311,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 {/* Bollinger Bands */}
                 {overlay === 'bb' && (
                   <>
-                    <Area type="monotone" dataKey="bbUpper" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" fill="none" dot={false} />
-                    <Area type="monotone" dataKey="bbLower" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" fill="url(#bbGradient)" dot={false} />
+                    <Line type="monotone" dataKey="bbUpper" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
+                    <Line type="monotone" dataKey="bbLower" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
                     <Line type="monotone" dataKey="bbMiddle" stroke="#F59E0B" strokeWidth={1} strokeOpacity={0.5} dot={false} />
                   </>
                 )}
 
-                {/* Price Area + Line */}
-                <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} fill="url(#priceGradient)" strokeWidth={2} dot={false} />
+                {/* Candlestick Chart */}
+                <Bar dataKey="candleBody" shape={<CandlestickShape />} isAnimationActive={false}>
+                  {chartData.map((entry: any, idx: number) => (
+                    <Cell key={idx} fill={entry.isUp ? '#22C55E' : '#EF4444'} />
+                  ))}
+                </Bar>
 
                 {/* EMA overlays */}
                 {overlay === 'ema' && (

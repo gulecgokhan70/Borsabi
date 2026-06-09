@@ -5,8 +5,10 @@ import { Bell, Plus, Trash2, TrendingUp, TrendingDown, Check, AlertTriangle } fr
 import { formatCurrency, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
 import { SymbolSearch } from '@/components/symbol-search';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 export default function AlertsClient() {
+  const router = useRouter();
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -135,7 +137,7 @@ export default function AlertsClient() {
                   {alert.condition === 'above' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{alert.name}</p>
+                  <p className="text-sm font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
                   <p className="text-xs text-[#94A3B8]">
                     {alert.condition === 'above' ? 'Fiyat üstüne çıktığında' : 'Fiyat altına düştüğünde'}: {formatCurrency(alert.targetPrice)}
                   </p>
@@ -163,7 +165,7 @@ export default function AlertsClient() {
                   <Check className="w-4 h-4 text-[#22C55E]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{alert.name}</p>
+                  <p className="text-sm font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
                   <p className="text-xs text-[#94A3B8]">{formatCurrency(alert.targetPrice)} - Tetiklendi</p>
                 </div>
                 <button onClick={() => deleteAlert(alert.id)} className="p-2 text-[#64748B] hover:text-[#EF4444] rounded-lg">

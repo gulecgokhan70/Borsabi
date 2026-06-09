@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Play, Filter, TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw, ChevronDown } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
+import { useRouter } from 'next/navigation';
 
 const DEFAULT_FILTERS = {
   market: 'BIST',
@@ -20,6 +21,7 @@ const DEFAULT_FILTERS = {
 };
 
 export default function AlgoScanClient() {
+  const router = useRouter();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -182,7 +184,7 @@ export default function AlgoScanClient() {
                         <span className="text-xs font-bold" style={{ color: r.score >= 80 ? '#22C55E' : r.score >= 60 ? '#3B82F6' : '#F59E0B' }}>{r.score}</span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{r.shortName}</p>
+                        <p className="text-sm font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(r.symbol)}`)}>{r.shortName}</p>
                         <p className="text-xs text-[#64748B]">{r.name}</p>
                       </div>
                     </div>

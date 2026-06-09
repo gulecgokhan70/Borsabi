@@ -7,6 +7,7 @@ import {
   Target, Activity, CheckCircle2, XCircle
 } from 'lucide-react';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import { useRouter } from 'next/navigation';
 
 interface RiskData {
   summary: {
@@ -55,6 +56,7 @@ interface RiskData {
 }
 
 export function RiskCenterClient() {
+  const router = useRouter();
   const [data, setData] = useState<RiskData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -351,7 +353,7 @@ export function RiskCenterClient() {
                 {positions.map((pos) => (
                   <tr key={pos.id} className="border-b border-[#334155]/50 hover:bg-[#0F172A]/30">
                     <td className="px-4 py-3">
-                      <p className="text-sm font-semibold text-white">{pos.symbol}</p>
+                      <p className="text-sm font-semibold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(pos.symbol)}`)}>{pos.symbol}</p>
                       <p className="text-xs text-[#64748B]">{pos.quantity} adet</p>
                     </td>
                     <td className="px-4 py-3">

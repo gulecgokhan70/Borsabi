@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
+import { useRouter } from 'next/navigation';
 
 interface DayTradeResult {
   symbol: string;
@@ -43,6 +44,7 @@ interface DayTradeResult {
 }
 
 export function DayTradingClient() {
+  const router = useRouter();
   const [data, setData] = useState<DayTradeResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string } | null>(null);
@@ -223,7 +225,7 @@ export function DayTradingClient() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-bold text-white">{item.symbol}</h3>
+                        <h3 className="text-lg font-bold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={(e) => { e.stopPropagation(); router.push(`/stock/${encodeURIComponent(item.yahooSymbol || (item.symbol + '.IS'))}`); }}>{item.symbol}</h3>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getScoreBg(item.score)} ${getScoreColor(item.score)}`}>
                           {item.quality}
                         </span>
