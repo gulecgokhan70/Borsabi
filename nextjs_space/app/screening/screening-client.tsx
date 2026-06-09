@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight, Crosshair, BarChart3, Activity } from 'lucide-react';
 import { formatNumber, formatPercent, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 
@@ -12,23 +12,34 @@ export function ScreeningClient() {
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
 
-  const fetchScreening = async () => {
+  const fetchScreening = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/screening');
       const data = await res.json();
       setResults(data?.data ?? []);
     } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  };
+  }, []);
 
-  useEffect(() => { fetchScreening(); }, []);
+  useEffect(() => {
+    fetchScreening();
+    const interval = setInterval(() => { fetchScreening(); }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchScreening]);
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return '#22C55E';
+    if (score >= 65) return '#3B82F6';
+    if (score >= 50) return '#F59E0B';
+    return '#EF4444';
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Hisse Tarama Motoru</h1>
-          <p className="text-sm text-[#94A3B8]">BIST hisseleri için teknik gösterge bazlı puanlama</p>
+          <p className="text-sm text-[#94A3B8]">BIST hisseleri için 5 kategori puanlama + Sapan/Dip-Bip/Formasyon tespiti</p>
         </div>
         <button onClick={fetchScreening} disabled={loading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tara
@@ -41,9 +52,6 @@ export function ScreeningClient() {
           <div key={key} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1E293B] border border-[#334155]">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: val?.color }} />
             <span className="text-xs text-[#94A3B8]">{val?.label}</span>
-            <span className="text-[10px] text-[#64748B]">
-              {key === 'elite' ? '90-100' : key === 'strong' ? '80-89' : key === 'watch' ? '70-79' : '60-69'}
-            </span>
           </div>
         ))}
       </div>
@@ -53,14 +61,13 @@ export function ScreeningClient() {
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-[#3B82F6] mx-auto mb-3" />
             <p className="text-sm text-[#94A3B8]">Hisseler taranıyor...</p>
-            <p className="text-xs text-[#64748B] mt-1">Teknik göstergeler hesaplanıyor</p>
+            <p className="text-xs text-[#64748B] mt-1">Tüm teknik göstergeler, Sapan/Dip-Bip ve formasyonlar hesaplanıyor</p>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
           {(results ?? []).map((stock: any, i: number) => {
-            const cat = getScoreCategory(stock?.score ?? 0);
-            const catInfo = SCORE_LABELS?.[cat] ?? { label: '-', color: '#94A3B8' };
+            const scoreColor = getScoreColor(stock?.score ?? 0);
             return (
               <motion.div
                 key={stock?.symbol ?? i}
@@ -69,55 +76,110 @@ export function ScreeningClient() {
                 transition={{ delay: i * 0.05 }}
                 className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 hover:border-[#3B82F6]/30 transition-colors"
               >
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   {/* Left: Name & score */}
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <div className="w-14 h-14 rounded-xl flex items-center justify-center font-bold text-lg" style={{ backgroundColor: `${catInfo?.color}15`, color: catInfo?.color }}>
-                        {stock?.score ?? 0}
+                      <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center font-bold" style={{ backgroundColor: `${scoreColor}15`, color: scoreColor }}>
+                        <span className="text-lg">{stock?.score ?? 0}</span>
+                        <span className="text-[7px] opacity-70">PUAN</span>
                       </div>
-                      <span className="absolute -bottom-1 -right-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: catInfo?.color, color: '#fff' }}>
-                        {catInfo?.label}
+                      <span className="absolute -bottom-1 -right-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: scoreColor }}>
+                        {stock?.quality ?? '-'}
                       </span>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-base font-bold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(stock?.yahooSymbol ?? stock?.symbol)}`)}>{stock?.symbol}</p>
                         <span className={`text-xs font-mono font-semibold ${(stock?.change ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                           {(stock?.change ?? 0) >= 0 ? <ArrowUpRight className="w-3 h-3 inline" /> : <ArrowDownRight className="w-3 h-3 inline" />}
                           {formatPercent(stock?.change)}
                         </span>
+                        {stock?.dayTradeUygun && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30 font-semibold">
+                            ⚡ Day
+                          </span>
+                        )}
+                        {stock?.swingUygun && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/30 font-semibold">
+                            🌊 Swing
+                          </span>
+                        )}
+                        {stock?.sapanDetected && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30 font-semibold">
+                            🎯 Sapan
+                          </span>
+                        )}
+                        {stock?.dipBipDetected && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30 font-semibold">
+                            ⚡ Dip-Bip
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-[#94A3B8]">{stock?.name}</p>
                       <p className="text-sm font-mono font-semibold text-white mt-0.5">{formatNumber(stock?.price)} TL</p>
                     </div>
                   </div>
 
-                  {/* Center: Indicators */}
-                  <div className="grid grid-cols-3 lg:grid-cols-5 gap-3 text-center">
-                    <div>
-                      <p className="text-[10px] text-[#64748B] mb-0.5">RSI</p>
-                      <p className={`text-xs font-mono font-semibold ${(stock?.rsi ?? 50) < 30 ? 'text-[#22C55E]' : (stock?.rsi ?? 50) > 70 ? 'text-[#EF4444]' : 'text-white'}`}>
-                        {stock?.rsi ?? '-'}
-                      </p>
+                  {/* Center: Puan dağılımı + Indicators */}
+                  <div className="flex-1 min-w-0">
+                    {/* Puan bars */}
+                    <div className="grid grid-cols-5 gap-1 mb-2">
+                      {[
+                        { label: 'Hac', puan: stock?.hacimPuan ?? 0 },
+                        { label: 'Trn', puan: stock?.trendPuan ?? 0 },
+                        { label: 'Mom', puan: stock?.momentumPuan ?? 0 },
+                        { label: 'For', puan: stock?.formasyonPuan ?? 0 },
+                        { label: 'R/Ö', puan: stock?.riskOdulPuan ?? 0 },
+                      ].map((p: any, pIdx: number) => (
+                        <div key={pIdx} className="text-center">
+                          <div className="h-1.5 bg-[#0F172A] rounded-full overflow-hidden mb-0.5">
+                            <div className="h-full rounded-full" style={{ width: `${(p.puan / 20) * 100}%`, backgroundColor: p.puan >= 16 ? '#22C55E' : p.puan >= 10 ? '#3B82F6' : '#F59E0B' }} />
+                          </div>
+                          <span className="text-[8px] text-[#64748B]">{p.label} {p.puan}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <p className="text-[10px] text-[#64748B] mb-0.5">MACD</p>
-                      <p className={`text-xs font-mono font-semibold ${(stock?.macd?.histogram ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-                        {stock?.macd?.histogram ?? '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-[#64748B] mb-0.5">EMA20</p>
-                      <p className="text-xs font-mono text-white">{formatNumber(stock?.ema20)}</p>
-                    </div>
-                    <div className="hidden lg:block">
-                      <p className="text-[10px] text-[#64748B] mb-0.5">EMA50</p>
-                      <p className="text-xs font-mono text-white">{formatNumber(stock?.ema50)}</p>
-                    </div>
-                    <div className="hidden lg:block">
-                      <p className="text-[10px] text-[#64748B] mb-0.5">R/G Oranı</p>
-                      <p className="text-xs font-mono text-[#3B82F6]">1:{stock?.riskReward ?? '-'}</p>
+                    {/* Formations */}
+                    {(stock?.formations?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {(stock.formations ?? []).map((f: string, fIdx: number) => (
+                          <span key={fIdx} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/30">
+                            📐 {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Indicators row */}
+                    <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 text-center">
+                      <div>
+                        <p className="text-[10px] text-[#64748B] mb-0.5">RSI</p>
+                        <p className={`text-xs font-mono font-semibold ${(stock?.rsi ?? 50) < 30 ? 'text-[#22C55E]' : (stock?.rsi ?? 50) > 70 ? 'text-[#EF4444]' : 'text-white'}`}>
+                          {stock?.rsi ?? '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[#64748B] mb-0.5">MACD</p>
+                        <p className={`text-xs font-mono font-semibold ${(stock?.macd?.histogram ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+                          {stock?.macd?.histogram ?? '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[#64748B] mb-0.5">EMA20</p>
+                        <p className="text-xs font-mono text-white">{formatNumber(stock?.ema20)}</p>
+                      </div>
+                      <div className="hidden lg:block">
+                        <p className="text-[10px] text-[#64748B] mb-0.5">EMA50</p>
+                        <p className="text-xs font-mono text-white">{formatNumber(stock?.ema50)}</p>
+                      </div>
+                      <div className="hidden lg:block">
+                        <p className="text-[10px] text-[#64748B] mb-0.5">VWAP</p>
+                        <p className="text-xs font-mono text-white">{formatNumber(stock?.vwap)}</p>
+                      </div>
+                      <div className="hidden lg:block">
+                        <p className="text-[10px] text-[#64748B] mb-0.5">R/G</p>
+                        <p className="text-xs font-mono text-[#3B82F6]">1:{stock?.riskReward ?? '-'}</p>
+                      </div>
                     </div>
                   </div>
 

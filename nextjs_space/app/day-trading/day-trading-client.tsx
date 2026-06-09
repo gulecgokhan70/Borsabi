@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Zap, RefreshCw, TrendingUp, TrendingDown, Target, Shield,
-  AlertTriangle, Clock, BarChart3, Activity
+  AlertTriangle, Clock, BarChart3, Activity, CheckCircle2
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
@@ -22,12 +22,19 @@ interface DayTradeResult {
   score: number;
   quality: string;
   signals: string[];
+  passesFilter: boolean;
+  hacimPuan: number;
+  trendPuan: number;
+  momentumPuan: number;
+  formasyonPuan: number;
+  riskOdulPuan: number;
   entry: number;
   stop: number;
   target1: number;
   target2: number;
   riskReward: number;
   rsi: number;
+  rsi14: number;
   vwap: number;
   macd: { macd: number; signal: number; histogram: number };
 }
@@ -56,7 +63,7 @@ export function DayTradingClient() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const filteredData = data.filter((item) => {
+  const filteredData = data.filter((item: DayTradeResult) => {
     if (filter === 'all') return true;
     const cat = getScoreCategory(item.score);
     if (filter === 'elite') return cat === 'elite';
@@ -79,6 +86,22 @@ export function DayTradingClient() {
     return 'bg-[#EF4444]/10 border-[#EF4444]/30';
   };
 
+  const PuanBar = ({ label, puan, max }: { label: string; puan: number; max: number }) => (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-[#94A3B8] w-20 text-right">{label}</span>
+      <div className="flex-1 h-2 bg-[#0F172A] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${(puan / max) * 100}%`,
+            backgroundColor: puan >= max * 0.8 ? '#22C55E' : puan >= max * 0.5 ? '#3B82F6' : '#F59E0B',
+          }}
+        />
+      </div>
+      <span className="text-white font-mono w-10 text-right">{puan}/{max}</span>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -90,7 +113,7 @@ export function DayTradingClient() {
             </div>
             Day Trading Motoru
           </h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Gün içi fırsatları analiz edin</p>
+          <p className="text-[#94A3B8] text-sm mt-1">5 Kategori Puanlama Sistemi ile Gün İçi Fırsat Analizi</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-[#1E293B] rounded-lg p-1 gap-1">
@@ -99,7 +122,7 @@ export function DayTradingClient() {
               { key: 'elite', label: 'Elite' },
               { key: 'strong', label: 'Güçlü+' },
               { key: 'watch', label: 'İzleme+' },
-            ].map((f) => (
+            ].map((f: any) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key as any)}
@@ -131,8 +154,8 @@ export function DayTradingClient() {
           <div>
             <p className="text-sm font-medium text-[#F59E0B]">Day Trading Uyarısı</p>
             <p className="text-xs text-[#94A3B8] mt-1">
-              Day trading yüksek risk içerir. İşlem başına sermayenizin maksimum %1'ini riske atın. 
-              Stop loss olmadan işlem açmayın. Bu veriler eğitim amaçlıdır, yatırım tavsiyesi değildir.
+              Filtre: Hacim {'>'} 20 günlük ort. | VWAP üstü | EMA9 {'>'} EMA21 | RSI(5) {'>'} 55 | MACD pozitif | Değişim {'>'} %1. 
+              Minimum R:R 1:2. Stop loss olmadan işlem açmayın.
             </p>
           </div>
         </div>
@@ -141,11 +164,11 @@ export function DayTradingClient() {
       {/* Stats Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Taranan Hisse', value: data.length, icon: BarChart3, color: '#3B82F6' },
-          { label: 'Elite Fırsat', value: data.filter(d => d.score >= 90).length, icon: Target, color: '#22C55E' },
-          { label: 'Güçlü Fırsat', value: data.filter(d => d.score >= 80 && d.score < 90).length, icon: TrendingUp, color: '#3B82F6' },
-          { label: 'İzleme', value: data.filter(d => d.score >= 70 && d.score < 80).length, icon: Clock, color: '#F59E0B' },
-        ].map((stat, idx) => (
+          { label: 'Toplam Hisse', value: data.length, icon: BarChart3, color: '#3B82F6' },
+          { label: 'Filtre Geçen', value: data.filter((d: DayTradeResult) => d.passesFilter).length, icon: CheckCircle2, color: '#22C55E' },
+          { label: 'Elite Fırsat', value: data.filter((d: DayTradeResult) => d.score >= 90).length, icon: Target, color: '#22C55E' },
+          { label: 'Güçlü Fırsat', value: data.filter((d: DayTradeResult) => d.score >= 80 && d.score < 90).length, icon: TrendingUp, color: '#3B82F6' },
+        ].map((stat: any, idx: number) => (
           <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
@@ -161,7 +184,7 @@ export function DayTradingClient() {
         <div className="flex flex-col items-center justify-center py-20">
           <RefreshCw className="w-8 h-8 text-[#3B82F6] animate-spin mb-4" />
           <p className="text-[#94A3B8]">BIST hisseleri taranıyor...</p>
-          <p className="text-xs text-[#64748B] mt-1">Açılış gücü, hacim, VWAP ve momentum analiz ediliyor</p>
+          <p className="text-xs text-[#64748B] mt-1">Hacim, VWAP, EMA, RSI(5), MACD analiz ediliyor</p>
         </div>
       ) : filteredData.length === 0 ? (
         <div className="text-center py-16">
@@ -170,7 +193,7 @@ export function DayTradingClient() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredData.map((item, idx) => (
+          {filteredData.map((item: DayTradeResult, idx: number) => (
             <motion.div
               key={item.symbol}
               initial={{ opacity: 0, y: 20 }}
@@ -192,6 +215,11 @@ export function DayTradingClient() {
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getScoreBg(item.score)} ${getScoreColor(item.score)}`}>
                           {item.quality}
                         </span>
+                        {item.passesFilter && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30 font-medium">
+                            ✓ Filtre Geçti
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-[#94A3B8]">{item.name}</p>
                     </div>
@@ -214,11 +242,23 @@ export function DayTradingClient() {
 
                 {/* Signals */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {item.signals.map((signal, sIdx) => (
+                  {(item.signals ?? []).map((signal: string, sIdx: number) => (
                     <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-[#334155]">
                       {signal}
                     </span>
                   ))}
+                </div>
+
+                {/* Puan Breakdown */}
+                <div className="bg-[#0F172A]/50 rounded-lg p-3 mb-4">
+                  <p className="text-[10px] text-[#64748B] uppercase mb-2 font-semibold">Puan Dağılımı</p>
+                  <div className="space-y-1.5">
+                    <PuanBar label="Hacim" puan={item.hacimPuan ?? 0} max={20} />
+                    <PuanBar label="Trend" puan={item.trendPuan ?? 0} max={20} />
+                    <PuanBar label="Momentum" puan={item.momentumPuan ?? 0} max={20} />
+                    <PuanBar label="Formasyon" puan={item.formasyonPuan ?? 0} max={20} />
+                    <PuanBar label="Risk/Ödül" puan={item.riskOdulPuan ?? 0} max={20} />
+                  </div>
                 </div>
 
                 {/* Trade plan */}
@@ -229,9 +269,9 @@ export function DayTradingClient() {
                     { label: 'Hedef 1', value: formatCurrency(item.target1), icon: Target, color: '#22C55E' },
                     { label: 'Hedef 2', value: formatCurrency(item.target2), icon: Target, color: '#22C55E' },
                     { label: 'R/G', value: `1:${item.riskReward}`, icon: Activity, color: '#F59E0B' },
-                    { label: 'RSI', value: item.rsi.toString(), icon: BarChart3, color: '#94A3B8' },
+                    { label: 'RSI(5)', value: (item.rsi ?? 0).toString(), icon: BarChart3, color: '#94A3B8' },
                     { label: 'VWAP', value: formatNumber(item.vwap), icon: Activity, color: '#94A3B8' },
-                  ].map((field, fIdx) => (
+                  ].map((field: any, fIdx: number) => (
                     <div key={fIdx} className="bg-[#0F172A]/50 rounded-lg p-2.5">
                       <div className="flex items-center gap-1 mb-1">
                         <field.icon className="w-3 h-3" style={{ color: field.color }} />

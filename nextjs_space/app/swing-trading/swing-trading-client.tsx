@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, RefreshCw, Target, Shield, Clock,
-  AlertTriangle, BarChart3, Activity, Waves, ArrowUpDown
+  AlertTriangle, BarChart3, Activity, Waves, ArrowUpDown, Crosshair, Zap
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency, getScoreCategory } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
@@ -19,6 +19,10 @@ interface SwingTradeResult {
   score: number;
   quality: string;
   signals: string[];
+  passesFilter: boolean;
+  sapanDetected: boolean;
+  dipBipDetected: boolean;
+  formations: string[];
   entryZone: { low: number; high: number };
   stop: number;
   target1: number;
@@ -57,7 +61,7 @@ export function SwingTradingClient() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const filteredData = data.filter((item) => {
+  const filteredData = data.filter((item: SwingTradeResult) => {
     if (filter === 'all') return true;
     const cat = getScoreCategory(item.score);
     if (filter === 'elite') return cat === 'elite';
@@ -91,7 +95,7 @@ export function SwingTradingClient() {
             </div>
             Swing Trading Motoru
           </h1>
-          <p className="text-[#94A3B8] text-sm mt-1">Orta vadeli trend fırsatlarını keşfedin</p>
+          <p className="text-[#94A3B8] text-sm mt-1">Sapan & Dip-Bip Sistemleri ile Orta Vadeli Fırsat Analizi</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex bg-[#1E293B] rounded-lg p-1 gap-1">
@@ -100,7 +104,7 @@ export function SwingTradingClient() {
               { key: 'elite', label: 'Elite' },
               { key: 'strong', label: 'Güçlü+' },
               { key: 'watch', label: 'İzleme+' },
-            ].map((f) => (
+            ].map((f: any) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key as any)}
@@ -132,8 +136,8 @@ export function SwingTradingClient() {
           <div>
             <p className="text-sm font-medium text-[#3B82F6]">Swing Trading Stratejisi</p>
             <p className="text-xs text-[#94A3B8] mt-1">
-              Swing trading, 1-4 haftalık pozisyonlar için tasarlanmıştır. Haftalık trend, EMA dizilimi, 
-              hacim artışı ve kırılım yapıları analiz edilir. Minimum 1:2 risk/getiri oranı hedeflenir.
+              Filtre: EMA20 üstü | EMA20 {'>'} EMA50 | RSI(14) 50-70 | MACD pozitif | Hacim {'>'} ort. 
+              Sapan Sistemi (pullback to EMA20) ve Dip-Bip Sistemi (dip dönüşü) tespit edilir. Minimum R:R 1:2.
             </p>
           </div>
         </div>
@@ -142,11 +146,11 @@ export function SwingTradingClient() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Taranan Hisse', value: data.length, icon: BarChart3, color: '#3B82F6' },
-          { label: 'Elite Kurulum', value: data.filter(d => d.score >= 90).length, icon: Target, color: '#22C55E' },
-          { label: 'Güçlü Kurulum', value: data.filter(d => d.score >= 80 && d.score < 90).length, icon: TrendingUp, color: '#3B82F6' },
-          { label: 'İzleme Listesi', value: data.filter(d => d.score >= 70 && d.score < 80).length, icon: Clock, color: '#F59E0B' },
-        ].map((stat, idx) => (
+          { label: 'Toplam Hisse', value: data.length, icon: BarChart3, color: '#3B82F6' },
+          { label: 'Sapan Sinyali', value: data.filter((d: SwingTradeResult) => d.sapanDetected).length, icon: Crosshair, color: '#F59E0B' },
+          { label: 'Dip-Bip Sinyali', value: data.filter((d: SwingTradeResult) => d.dipBipDetected).length, icon: Zap, color: '#22C55E' },
+          { label: 'Formasyon', value: data.filter((d: SwingTradeResult) => (d.formations?.length ?? 0) > 0).length, icon: Activity, color: '#8B5CF6' },
+        ].map((stat: any, idx: number) => (
           <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
@@ -162,7 +166,7 @@ export function SwingTradingClient() {
         <div className="flex flex-col items-center justify-center py-20">
           <RefreshCw className="w-8 h-8 text-[#3B82F6] animate-spin mb-4" />
           <p className="text-[#94A3B8]">BIST hisseleri taranıyor...</p>
-          <p className="text-xs text-[#64748B] mt-1">Haftalık trend, EMA dizilimi ve kırılım yapıları analiz ediliyor</p>
+          <p className="text-xs text-[#64748B] mt-1">Sapan, Dip-Bip, formasyon ve EMA dizilimi analiz ediliyor</p>
         </div>
       ) : filteredData.length === 0 ? (
         <div className="text-center py-16">
@@ -171,7 +175,7 @@ export function SwingTradingClient() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredData.map((item, idx) => (
+          {filteredData.map((item: SwingTradeResult, idx: number) => (
             <motion.div
               key={item.symbol}
               initial={{ opacity: 0, y: 20 }}
@@ -188,11 +192,26 @@ export function SwingTradingClient() {
                       <span className="text-[8px] text-[#94A3B8] uppercase">Puan</span>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-lg font-bold text-white">{item.symbol}</h3>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getScoreBg(item.score)} ${getScoreColor(item.score)}`}>
                           {item.quality}
                         </span>
+                        {item.sapanDetected && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30 font-semibold">
+                            🎯 Sapan
+                          </span>
+                        )}
+                        {item.dipBipDetected && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30 font-semibold">
+                            ⚡ Dip-Bip
+                          </span>
+                        )}
+                        {item.passesFilter && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/30 font-medium">
+                            ✓ Filtre
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-[#94A3B8]">{item.name}</p>
                     </div>
@@ -213,11 +232,16 @@ export function SwingTradingClient() {
                   </div>
                 </div>
 
-                {/* Signals */}
+                {/* Signals + Formations */}
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {item.signals.map((signal, sIdx) => (
+                  {(item.signals ?? []).map((signal: string, sIdx: number) => (
                     <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-[#334155]">
                       {signal}
+                    </span>
+                  ))}
+                  {(item.formations ?? []).map((f: string, fIdx: number) => (
+                    <span key={`f-${fIdx}`} className="text-xs px-2.5 py-1 rounded-full bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/30 font-medium">
+                      📐 {f}
                     </span>
                   ))}
                 </div>
@@ -225,15 +249,15 @@ export function SwingTradingClient() {
                 {/* Trade plan */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                   {[
-                    { label: 'Giriş Bölgesi', value: `${formatNumber(item.entryZone.low)} - ${formatNumber(item.entryZone.high)}`, icon: TrendingUp, color: '#3B82F6' },
+                    { label: 'Giriş Bölgesi', value: `${formatNumber(item.entryZone?.low ?? 0)} - ${formatNumber(item.entryZone?.high ?? 0)}`, icon: TrendingUp, color: '#3B82F6' },
                     { label: 'Stop', value: formatCurrency(item.stop), icon: Shield, color: '#EF4444' },
                     { label: 'Hedef 1', value: formatCurrency(item.target1), icon: Target, color: '#22C55E' },
                     { label: 'Hedef 2', value: formatCurrency(item.target2), icon: Target, color: '#22C55E' },
-                    { label: 'Bekleme', value: item.holdingPeriod, icon: Clock, color: '#94A3B8' },
+                    { label: 'Bekleme', value: item.holdingPeriod ?? '-', icon: Clock, color: '#94A3B8' },
                     { label: 'R/G', value: `1:${item.riskReward}`, icon: ArrowUpDown, color: '#F59E0B' },
-                    { label: 'RSI', value: item.rsi.toString(), icon: BarChart3, color: '#94A3B8' },
+                    { label: 'RSI', value: (item.rsi ?? 0).toString(), icon: BarChart3, color: '#94A3B8' },
                     { label: 'ATR', value: formatNumber(item.atr), icon: Activity, color: '#94A3B8' },
-                  ].map((field, fIdx) => (
+                  ].map((field: any, fIdx: number) => (
                     <div key={fIdx} className="bg-[#0F172A]/50 rounded-lg p-2.5">
                       <div className="flex items-center gap-1 mb-1">
                         <field.icon className="w-3 h-3" style={{ color: field.color }} />
@@ -249,7 +273,7 @@ export function SwingTradingClient() {
                   <span className="text-[#94A3B8]">EMA20: <span className={item.price > item.ema20 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema20)}</span></span>
                   <span className="text-[#94A3B8]">EMA50: <span className={item.price > item.ema50 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema50)}</span></span>
                   <span className="text-[#94A3B8]">EMA200: <span className={item.price > item.ema200 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.ema200)}</span></span>
-                  <span className="text-[#94A3B8]">MACD: <span className={item.macd.histogram > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.macd.histogram)}</span></span>
+                  <span className="text-[#94A3B8]">MACD: <span className={(item.macd?.histogram ?? 0) > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatNumber(item.macd?.histogram ?? 0)}</span></span>
                 </div>
               </div>
             </motion.div>
