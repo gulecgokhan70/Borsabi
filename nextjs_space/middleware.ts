@@ -25,5 +25,6 @@ export const config = {
     '/alerts/:path*',
     '/achievements/:path*',
     '/profile/:path*',
+    '/stock/:path*',
   ],
 };

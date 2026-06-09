@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Eye, Plus, Loader2, TrendingUp, TrendingDown, RefreshCw, Search, X, Star } from 'lucide-react';
 import { BIST_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
@@ -13,6 +14,7 @@ const ALL_ASSETS = [
 ];
 
 export function WatchlistClient() {
+  const router = useRouter();
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -128,12 +130,12 @@ export function WatchlistClient() {
               <motion.div key={w?.id ?? i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 hover:border-[#3B82F6]/30 transition-colors">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/stock/${encodeURIComponent(w?.symbol)}`)}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${change >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
                       {change >= 0 ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white">{w?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
+                      <p className="text-sm font-semibold text-white hover:text-[#3B82F6] transition-colors">{w?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
                       <p className="text-[10px] text-[#94A3B8]">{w?.name}</p>
                     </div>
                   </div>

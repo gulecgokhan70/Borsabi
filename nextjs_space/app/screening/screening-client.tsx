@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { formatNumber, formatPercent, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 
 export function ScreeningClient() {
+  const router = useRouter();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
@@ -80,7 +82,7 @@ export function ScreeningClient() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-base font-bold text-white">{stock?.symbol}</p>
+                        <p className="text-base font-bold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(stock?.yahooSymbol ?? stock?.symbol)}`)}>{stock?.symbol}</p>
                         <span className={`text-xs font-mono font-semibold ${(stock?.change ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                           {(stock?.change ?? 0) >= 0 ? <ArrowUpRight className="w-3 h-3 inline" /> : <ArrowDownRight className="w-3 h-3 inline" />}
                           {formatPercent(stock?.change)}

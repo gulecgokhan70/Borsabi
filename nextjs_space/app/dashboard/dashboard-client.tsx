@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, BarChart3, Activity, RefreshCw, Loader2,
@@ -13,6 +14,7 @@ import { TradeModal } from '@/components/trade-modal';
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
 
 export function DashboardClient() {
+  const router = useRouter();
   const { data: session } = useSession() || {};
   const [indices, setIndices] = useState<any[]>([]);
   const [stocks, setStocks] = useState<any[]>([]);
@@ -96,7 +98,7 @@ export function DashboardClient() {
       {/* Indices */}
       <motion.div {...fadeIn} transition={{ delay: 0.1 }} className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {(indices ?? []).map((idx: any) => (
-          <div key={idx?.symbol} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <div key={idx?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(idx?.symbol)}`)} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155] cursor-pointer hover:border-[#3B82F6]/50 transition-colors">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm font-semibold text-white">{idx?.name ?? idx?.symbol}</p>
@@ -128,7 +130,7 @@ export function DashboardClient() {
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" /></div>
             ) : (
               (stocks ?? []).slice(0, 8).map((s: any) => (
-                <button key={s?.symbol} onClick={() => setTradeModal({ symbol: s?.symbol, name: s?.name ?? s?.symbol, price: s?.price ?? 0, marketType: 'BIST' })}
+                <button key={s?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)}
                   className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
@@ -164,7 +166,7 @@ export function DashboardClient() {
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#F59E0B]" /></div>
             ) : (
               (cryptos ?? []).slice(0, 8).map((c: any) => (
-                <button key={c?.symbol} onClick={() => setTradeModal({ symbol: c?.symbol, name: c?.name ?? c?.symbol, price: c?.price ?? 0, marketType: 'CRYPTO' })}
+                <button key={c?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(c?.symbol)}`)}
                   className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
@@ -200,7 +202,7 @@ export function DashboardClient() {
             </div>
             <div className="divide-y divide-[#334155]/50">
               {(gainers ?? []).map((s: any, i: number) => (
-                <div key={s?.symbol ?? i} className="flex items-center justify-between px-4 py-2.5">
+                <div key={s?.symbol ?? i} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#334155]/30 transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-[#22C55E] w-5">{i + 1}</span>
                     <span className="text-sm font-medium text-white">{s?.symbol?.replace?.('.IS', '')}</span>
@@ -222,7 +224,7 @@ export function DashboardClient() {
             </div>
             <div className="divide-y divide-[#334155]/50">
               {(losers ?? []).map((s: any, i: number) => (
-                <div key={s?.symbol ?? i} className="flex items-center justify-between px-4 py-2.5">
+                <div key={s?.symbol ?? i} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#334155]/30 transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-[#EF4444] w-5">{i + 1}</span>
                     <span className="text-sm font-medium text-white">{s?.symbol?.replace?.('.IS', '')}</span>

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert } from 'lucide-react';
 import { formatCurrency, formatPercent, formatNumber, COMMISSION_RATE } from '@/lib/constants';
@@ -7,6 +8,7 @@ import { TradeModal } from '@/components/trade-modal';
 import { PriceChart } from '@/components/price-chart';
 
 export function PortfolioClient() {
+  const router = useRouter();
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
@@ -54,7 +56,7 @@ export function PortfolioClient() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
           <div className="flex items-center gap-2 mb-2"><DollarSign className={`w-4 h-4 ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`} /><span className="text-xs text-[#94A3B8]">Toplam Getiri</span></div>
           <p className={`text-lg font-bold font-mono ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatCurrency(totalReturn)}</p>
-          <p className={`text-xs font-mono ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatPercent(totalReturnPct)}</p>
+          <p className={`text-xs font-mono font-semibold ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{totalReturn >= 0 ? '+' : ''}{formatPercent(totalReturnPct)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
           <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-4 h-4 text-[#8B5CF6]" /><span className="text-xs text-[#94A3B8]">Açık Pozisyon</span></div>
@@ -62,8 +64,8 @@ export function PortfolioClient() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
           <div className="flex items-center gap-2 mb-2"><Target className="w-4 h-4 text-[#F59E0B]" /><span className="text-xs text-[#94A3B8]">Kazanç Oranı</span></div>
-          <p className="text-lg font-bold font-mono text-white">{formatNumber(portfolio?.winRate, 1)}%</p>
-          <p className="text-xs text-[#94A3B8]">{portfolio?.totalTrades ?? 0} işlem</p>
+          <p className="text-lg font-bold font-mono text-white">{formatNumber(portfolio?.winRate ?? 0, 1)}%</p>
+          <p className="text-xs font-medium text-[#CBD5E1]">{portfolio?.totalTrades ?? 0} işlem</p>
         </motion.div>
       </div>
 
@@ -97,7 +99,7 @@ export function PortfolioClient() {
                   return (
                     <tr key={p?.id} className="hover:bg-[#334155]/20">
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-white">{p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
+                        <p className="font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(p?.symbol)}`)}>{p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
                         <p className="text-[10px] text-[#94A3B8]">{p?.name}</p>
                       </td>
                       <td className="text-right px-4 py-2.5 font-mono text-white">{p?.quantity}</td>
@@ -144,7 +146,7 @@ export function PortfolioClient() {
               <tbody className="divide-y divide-[#334155]/50">
                 {closedPositions.slice(0, 10).map((p: any) => (
                   <tr key={p?.id} className="hover:bg-[#334155]/20">
-                    <td className="px-4 py-2.5 font-medium text-white">{p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</td>
+                    <td className="px-4 py-2.5 font-medium text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(p?.symbol)}`)}>{p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</td>
                     <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(p?.entryPrice)}</td>
                     <td className="text-right px-4 py-2.5 font-mono text-white">{formatNumber(p?.currentPrice)}</td>
                     <td className={`text-right px-4 py-2.5 font-mono font-semibold ${(p?.pnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
