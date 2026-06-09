@@ -30,6 +30,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="tr" suppressHydrationWarning className="dark">
       <head>
         <script src="https://apps.abacus.ai/chatllm/appllm-lib.js"></script>
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var origError = console.error;
+            console.error = function() {
+              var msg = arguments[0];
+              if (typeof msg === 'string' && (msg.indexOf('contentWindow') !== -1 || msg.indexOf('Cannot listen to the event from the provided iframe') !== -1)) return;
+              origError.apply(console, arguments);
+            };
+          })();
+        `}} />
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <Providers>

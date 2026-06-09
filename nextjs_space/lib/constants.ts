@@ -42,6 +42,21 @@ export const CRYPTO_ASSETS = [
   { symbol: 'MATIC-USD', name: 'Polygon', shortName: 'MATIC' },
 ];
 
+// Yahoo -> TradingView sembol dönüşümü
+export function toTradingViewSymbol(yahooSymbol: string): string {
+  if (yahooSymbol.endsWith('.IS')) {
+    return `BIST:${yahooSymbol.replace('.IS', '')}`;
+  }
+  if (yahooSymbol.endsWith('-USD')) {
+    const base = yahooSymbol.replace('-USD', '');
+    return `BINANCE:${base}USDT`;
+  }
+  // Index mapping
+  if (yahooSymbol === 'XU100.IS') return 'BIST:XU100';
+  if (yahooSymbol === 'XU030.IS') return 'BIST:XU030';
+  return yahooSymbol;
+}
+
 export const COMMISSION_RATE = 0.002; // 0.2%
 export const MAX_RISK_PER_TRADE = 0.01; // 1%
 export const DAILY_LOSS_LIMIT = 0.03; // 3%

@@ -1,19 +1,9 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, TrendingUp, TrendingDown, BarChart3, CandlestickChart, LineChart as LineChartIcon, Loader2, Activity, DollarSign, Volume2, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Loader2, Activity, DollarSign, Volume2, ArrowUpDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
-
-type ChartType = 'candlestick' | 'bar' | 'line';
-
-const PERIOD_OPTIONS = [
-  { id: '1w', label: '1H' },
-  { id: '1mo', label: '1A' },
-  { id: '3mo', label: '3A' },
-  { id: '6mo', label: '6A' },
-  { id: '1y', label: '1Y' },
-];
+import { formatCurrency, formatNumber, formatPercent, toTradingViewSymbol } from '@/lib/constants';
 
 interface StockData {
   symbol: string;
@@ -32,25 +22,18 @@ interface StockData {
   fiftyTwoWeekLow: number;
   currency: string;
   indicators: { rsi: number | null; ema20: number | null; ema50: number | null; avgVolume: number };
-  ohlc: { time: number; date: string; open: number; high: number; low: number; close: number; volume: number }[];
 }
 
 export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<any>(null);
-  const seriesRef = useRef<any>(null);
-  const volumeSeriesRef = useRef<any>(null);
+  const tvContainerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [chartType, setChartType] = useState<ChartType>('candlestick');
-  const [period, setPeriod] = useState('1mo');
-  const [chartReady, setChartReady] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=${period}`);
+      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=1mo`);
       const json = await res.json();
       if (!json.error) setData(json);
     } catch (e: any) {
@@ -58,166 +41,56 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } finally {
       setLoading(false);
     }
-  }, [symbol, period]);
+  }, [symbol]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Initialize chart
+  // TradingView Advanced Chart Widget
   useEffect(() => {
-    if (!chartRef.current) return;
-    let cancelled = false;
+    if (!tvContainerRef.current) return;
+    const container = tvContainerRef.current;
+    container.innerHTML = '';
 
-    import('lightweight-charts').then((mod) => {
-      if (cancelled || !chartRef.current) return;
-      // Clean up previous chart
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.remove();
-        chartInstanceRef.current = null;
-        seriesRef.current = null;
-        volumeSeriesRef.current = null;
-      }
+    const tvSymbol = toTradingViewSymbol(symbol);
 
-      const chart = mod.createChart(chartRef.current!, {
-        layout: {
-          background: { color: '#0F172A' } as any,
-          textColor: '#94A3B8',
-          fontFamily: 'Inter, sans-serif',
-        },
-        grid: {
-          vertLines: { color: '#1E293B' },
-          horzLines: { color: '#1E293B' },
-        },
-        crosshair: {
-          mode: 0,
-        },
-        rightPriceScale: {
-          borderColor: '#334155',
-        },
-        timeScale: {
-          borderColor: '#334155',
-          timeVisible: true,
-        },
-        handleScroll: true,
-        handleScale: true,
-      });
-
-      chartInstanceRef.current = chart;
-      setChartReady(true);
-
-      const resizeObserver = new ResizeObserver(() => {
-        if (chartRef.current && chart) {
-          chart.applyOptions({ width: chartRef.current.clientWidth });
-        }
-      });
-      if (chartRef.current) resizeObserver.observe(chartRef.current);
-
-      return () => {
-        resizeObserver.disconnect();
-      };
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: tvSymbol,
+      interval: 'D',
+      timezone: 'Europe/Istanbul',
+      theme: 'dark',
+      style: '1',
+      locale: 'tr',
+      backgroundColor: '#0F172A',
+      gridColor: '#1E293B',
+      hide_top_toolbar: false,
+      hide_legend: false,
+      allow_symbol_change: true,
+      save_image: false,
+      calendar: false,
+      hide_volume: false,
+      support_host: 'https://www.tradingview.com',
+      studies: ['RSI@tv-basicstudies', 'MAExp@tv-basicstudies'],
     });
+
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    widgetDiv.style.height = '100%';
+    widgetDiv.style.width = '100%';
+
+    container.appendChild(widgetDiv);
+    container.appendChild(script);
 
     return () => {
-      cancelled = true;
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.remove();
-        chartInstanceRef.current = null;
-        seriesRef.current = null;
-        volumeSeriesRef.current = null;
-        setChartReady(false);
-      }
+      container.innerHTML = '';
     };
-  }, []);
-
-  // Update chart series when data or type changes
-  useEffect(() => {
-    if (!chartInstanceRef.current || !data || !chartReady) return;
-    const chart = chartInstanceRef.current;
-
-    // Remove existing series
-    if (seriesRef.current) {
-      try { chart.removeSeries(seriesRef.current); } catch (e: any) { /* ignore */ }
-      seriesRef.current = null;
-    }
-    if (volumeSeriesRef.current) {
-      try { chart.removeSeries(volumeSeriesRef.current); } catch (e: any) { /* ignore */ }
-      volumeSeriesRef.current = null;
-    }
-
-    const ohlc = data.ohlc ?? [];
-    if (ohlc.length === 0) return;
-
-    // Deduplicate by time
-    const seen = new Set<number>();
-    const uniqueOhlc = ohlc.filter((d: any) => {
-      if (seen.has(d.time)) return false;
-      seen.add(d.time);
-      return true;
-    });
-
-    if (chartType === 'candlestick') {
-      const series = chart.addCandlestickSeries({
-        upColor: '#22C55E',
-        downColor: '#EF4444',
-        borderDownColor: '#EF4444',
-        borderUpColor: '#22C55E',
-        wickDownColor: '#EF4444',
-        wickUpColor: '#22C55E',
-      });
-      series.setData(uniqueOhlc.map((d: any) => ({
-        time: d.time,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-      })));
-      seriesRef.current = series;
-    } else if (chartType === 'bar') {
-      const series = chart.addBarSeries({
-        upColor: '#22C55E',
-        downColor: '#EF4444',
-      });
-      series.setData(uniqueOhlc.map((d: any) => ({
-        time: d.time,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-      })));
-      seriesRef.current = series;
-    } else {
-      const series = chart.addAreaSeries({
-        lineColor: '#3B82F6',
-        topColor: 'rgba(59,130,246,0.3)',
-        bottomColor: 'rgba(59,130,246,0.02)',
-        lineWidth: 2,
-      });
-      series.setData(uniqueOhlc.map((d: any) => ({
-        time: d.time,
-        value: d.close,
-      })));
-      seriesRef.current = series;
-    }
-
-    // Volume series
-    const volSeries = chart.addHistogramSeries({
-      color: '#334155',
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'vol',
-    });
-    chart.priceScale('vol').applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0 },
-    });
-    volSeries.setData(uniqueOhlc.map((d: any) => ({
-      time: d.time,
-      value: d.volume,
-      color: d.close >= d.open ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
-    })));
-    volumeSeriesRef.current = volSeries;
-
-    chart.timeScale().fitContent();
-  }, [data, chartType, chartReady]);
+  }, [symbol]);
 
   const isPositive = (data?.change ?? 0) >= 0;
 
@@ -265,53 +138,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
       </motion.div>
 
-      {/* Chart Controls */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-          {/* Chart type buttons */}
-          <div className="flex items-center gap-1 bg-[#0F172A] rounded-lg p-1">
-            <button
-              onClick={() => setChartType('candlestick')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${chartType === 'candlestick' ? 'bg-[#3B82F6] text-white' : 'text-[#94A3B8] hover:text-white'}`}
-            >
-              <CandlestickChart className="w-4 h-4" /> Mum
-            </button>
-            <button
-              onClick={() => setChartType('bar')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${chartType === 'bar' ? 'bg-[#3B82F6] text-white' : 'text-[#94A3B8] hover:text-white'}`}
-            >
-              <BarChart3 className="w-4 h-4" /> Çubuk
-            </button>
-            <button
-              onClick={() => setChartType('line')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-all ${chartType === 'line' ? 'bg-[#3B82F6] text-white' : 'text-[#94A3B8] hover:text-white'}`}
-            >
-              <LineChartIcon className="w-4 h-4" /> Çizgi
-            </button>
-          </div>
-
-          {/* Period buttons */}
-          <div className="flex items-center gap-1">
-            {PERIOD_OPTIONS.map((p: any) => (
-              <button
-                key={p.id}
-                onClick={() => setPeriod(p.id)}
-                className={`px-3 py-2 rounded-md text-xs font-medium transition-all ${period === p.id ? 'bg-[#3B82F6] text-white' : 'bg-[#0F172A] text-[#94A3B8] hover:text-white'}`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Chart container */}
-        <div ref={chartRef} className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden" />
-        {loading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" />
-            <span className="text-[#94A3B8] text-sm ml-2">Yükleniyor...</span>
-          </div>
-        )}
+      {/* TradingView Chart */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
+        <div
+          ref={tvContainerRef}
+          className="tradingview-widget-container w-full"
+          style={{ height: '500px' }}
+        />
       </motion.div>
 
       {/* Info cards */}
@@ -322,7 +155,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           { label: 'Gün İçi Yüksek', value: formatCurrency(data.high), icon: TrendingUp },
           { label: 'Gün İçi Düşük', value: formatCurrency(data.low), icon: TrendingDown },
           { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2 },
-          { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: BarChart3 },
+          { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity },
           { label: '52H Yüksek', value: formatCurrency(data.fiftyTwoWeekHigh), icon: TrendingUp },
           { label: '52H Düşük', value: formatCurrency(data.fiftyTwoWeekLow), icon: TrendingDown },
         ].map((item: any, i: number) => (
@@ -342,7 +175,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         ))}
       </div>
 
-      {/* Technical indicators */}
+      {/* Technical indicators from Yahoo */}
       {(data.indicators?.rsi || data.indicators?.ema20 || data.indicators?.ema50) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl border border-[#334155] p-6">
           <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
