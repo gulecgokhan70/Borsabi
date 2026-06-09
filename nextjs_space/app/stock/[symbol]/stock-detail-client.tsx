@@ -37,23 +37,25 @@ interface StockData {
 }
 
 const PERIODS = [
-  { label: '1H', value: '1w' },
-  { label: '1A', value: '1mo' },
-  { label: '3A', value: '3mo' },
-  { label: '6A', value: '6mo' },
-  { label: '1Y', value: '1y' },
+  { label: 'Günlük', value: '1d', interval: '5m' },
+  { label: '1H', value: '1w', interval: '1d' },
+  { label: '1A', value: '1mo', interval: '1d' },
+  { label: '3A', value: '3mo', interval: '1d' },
+  { label: '6A', value: '6mo', interval: '1d' },
+  { label: '1Y', value: '1y', interval: '1d' },
 ];
 
 export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('1mo');
+  const [period, setPeriod] = useState('1d');
+  const [chartInterval, setChartInterval] = useState('5m');
 
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=${period}`);
+      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=${period}&interval=${chartInterval}`);
       const json = await res.json();
       if (!json.error) setData(json);
     } catch (e: any) {
@@ -61,17 +63,21 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } finally {
       setLoading(false);
     }
-  }, [symbol, period]);
+  }, [symbol, period, chartInterval]);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(() => { fetchData(); }, 30000);
+    const refreshMs = period === '1d' ? 15000 : 30000;
+    const interval = setInterval(() => { fetchData(); }, refreshMs);
     return () => clearInterval(interval);
   }, [fetchData]);
 
   const isPositive = (data?.change ?? 0) >= 0;
+  const isIntraday = period === '1d';
   const chartData = (data?.ohlc ?? []).map((d: OHLCData) => ({
-    date: new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
+    date: isIntraday
+      ? new Date(d.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      : new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
     close: d.close,
     volume: d.volume,
   }));
@@ -126,7 +132,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           <h3 className="text-white font-semibold text-sm">Fiyat Grafiği</h3>
           <div className="flex gap-1">
             {PERIODS.map((p: any) => (
-              <button key={p.value} onClick={() => setPeriod(p.value)}
+              <button key={p.value} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                   period === p.value ? 'bg-[#3B82F6] text-white' : 'bg-[#0F172A] text-[#94A3B8] hover:text-white'
                 }`}>{p.label}</button>
