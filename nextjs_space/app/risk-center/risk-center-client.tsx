@@ -335,7 +335,7 @@ export function RiskCenterClient() {
           className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden"
         >
           <div className="p-5 border-b border-[#334155]">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h3 className="text-base font-semibold text-white flex items-center gap-2">
               <Target className="w-4 h-4 text-[#3B82F6]" />
               Pozisyon Risk Analizi
             </h3>
@@ -345,7 +345,7 @@ export function RiskCenterClient() {
               <thead>
                 <tr className="border-b border-[#334155]">
                   {['Hisse', 'Değer', 'K/Z', 'Ağırlık', 'Stop Loss', 'Risk'].map((h) => (
-                    <th key={h} className="text-left text-[10px] uppercase text-[#64748B] px-4 py-3 font-medium">{h}</th>
+                    <th key={h} className="text-left text-[10px] uppercase text-[#94A3B8] px-4 py-3 font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>

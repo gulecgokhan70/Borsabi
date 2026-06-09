@@ -4,6 +4,11 @@ import { cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 
+// ===== CACHE =====
+let cachedResult: any = null;
+let cachedAt: number = 0;
+const CACHE_TTL = 4 * 60 * 60 * 1000; // 4 saat
+
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
 function calculateRSI(closes: number[], period = 14): number {
@@ -369,6 +374,16 @@ function analyzeSwingTrade(
 
 export async function GET(request: NextRequest) {
   try {
+    // Önbellekten dön
+    const { searchParams } = new URL(request.url);
+    const wantCached = searchParams.get('cached') === 'true';
+    if (wantCached) {
+      if (cachedResult && (Date.now() - cachedAt) < CACHE_TTL) {
+        return NextResponse.json(cachedResult);
+      }
+      return NextResponse.json({ error: 'no_cache' });
+    }
+
     // 1) Midas'tan tüm BIST verilerini al
     let midasMap = new Map<string, MidasStock>();
     try {
@@ -448,14 +463,20 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const analizZamani = now.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
 
-    return NextResponse.json({
+    const result = {
       analizZamani,
       tarananHisse: analyzed,
       toplamDayTrade: dayResults.length,
       toplamSwing: swingResults.length,
       dayTrade: top5Day,
       swingTrade: top5Swing,
-    });
+    };
+
+    // Sonucu önbelleğe al
+    cachedResult = result;
+    cachedAt = Date.now();
+
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error('Akşam analizi error:', error);
     return NextResponse.json({ error: 'Analiz yapılamadı: ' + (error?.message || 'Bilinmeyen hata') }, { status: 500 });

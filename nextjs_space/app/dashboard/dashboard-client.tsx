@@ -168,29 +168,33 @@ export function DashboardClient() {
                 if (stockSort === 'price') return (b?.price ?? 0) - (a?.price ?? 0);
                 return (a?.symbol ?? '').localeCompare(b?.symbol ?? '');
               }).slice(0, 10).map((s: any) => (
-                <button key={s?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                <div key={s?.symbol} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
+                  <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       (s?.changePercent ?? 0) >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
                     }`}>
                       {(s?.changePercent ?? 0) >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                     </div>
-                    <div className="text-left">
+                    <div className="text-left min-w-0">
                       <p className="text-sm font-medium text-white">{s?.symbol?.replace?.('.IS', '') ?? s?.symbol}</p>
-                      <p className="text-[10px] text-[#94A3B8] truncate max-w-[120px]">{s?.name}</p>
+                      <p className="text-[10px] text-[#94A3B8] truncate max-w-[100px]">{s?.name}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <MiniSparkline symbol={s?.symbol} />
+                  <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className="text-sm font-mono font-semibold text-white">{formatNumber(s?.price)}</p>
                       <p className={`text-xs font-mono ${(s?.changePercent ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                         {formatPercent(s?.changePercent)}
                       </p>
                     </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTradeModal({ symbol: s?.symbol, name: s?.name, price: s?.price ?? 0, marketType: 'BIST' }); }}
+                      className="px-2 py-1.5 text-[10px] font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors whitespace-nowrap"
+                    >
+                      İşlem
+                    </button>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
@@ -206,27 +210,34 @@ export function DashboardClient() {
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#F59E0B]" /></div>
             ) : (
-              (cryptos ?? []).slice(0, 8).map((c: any) => (
-                <button key={c?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(c?.symbol)}`)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+              (cryptos ?? []).filter((c: any) => (c?.price ?? 0) > 0).slice(0, 8).map((c: any) => (
+                <div key={c?.symbol} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
+                  <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/stock/${encodeURIComponent(c?.symbol)}`)}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       (c?.changePercent ?? 0) >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
                     }`}>
                       {(c?.changePercent ?? 0) >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                     </div>
-                    <div className="text-left">
+                    <div className="text-left min-w-0">
                       <p className="text-sm font-medium text-white">{c?.symbol?.replace?.('-USD', '') ?? c?.symbol}</p>
                       <p className="text-[10px] text-[#94A3B8]">{c?.name}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-mono font-semibold text-white">${formatNumber(c?.price)}</p>
-                    <p className={`text-xs font-mono ${(c?.changePercent ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-                      {formatPercent(c?.changePercent)}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <p className="text-sm font-mono font-semibold text-white">${formatNumber(c?.price)}</p>
+                      <p className={`text-xs font-mono ${(c?.changePercent ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+                        {formatPercent(c?.changePercent)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setTradeModal({ symbol: c?.symbol, name: c?.name, price: c?.price ?? 0, marketType: 'CRYPTO' }); }}
+                      className="px-2 py-1.5 text-[10px] font-semibold bg-[#F59E0B]/10 text-[#F59E0B] rounded-lg hover:bg-[#F59E0B]/20 transition-colors whitespace-nowrap"
+                    >
+                      İşlem
+                    </button>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>

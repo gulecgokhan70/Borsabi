@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -60,6 +60,24 @@ export default function AksamAnaliziClient() {
   const [error, setError] = useState('');
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [expandedSwing, setExpandedSwing] = useState<string | null>(null);
+
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Sayfa açılışında önbellekten son analizi yükle
+  useEffect(() => {
+    const loadCached = async () => {
+      try {
+        const res = await fetch('/api/aksam-analizi?cached=true');
+        const json = await res.json();
+        if (!json.error && json.dayTrade) {
+          setData(json);
+        }
+      } catch (e) {
+        // sessizce geç
+      }
+    };
+    loadCached();
+  }, []);
 
   const runAnalysis = useCallback(async () => {
     setLoading(true);
