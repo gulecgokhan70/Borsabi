@@ -9,7 +9,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
 } from 'recharts';
 
@@ -82,6 +82,7 @@ const PERIODS = [
 
 type ChartOverlay = 'ema' | 'bb' | 'none';
 type BottomIndicator = 'volume' | 'macd';
+type ChartType = 'candle' | 'line';
 
 const CandlestickShape = (props: any) => {
   const { x, y, width, height, payload } = props;
@@ -121,6 +122,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [period, setPeriod] = useState('1mo');
   const [chartInterval, setChartInterval] = useState('1d');
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
+  const [chartType, setChartType] = useState<ChartType>('candle');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
   const [showFundamentals, setShowFundamentals] = useState(true);
 
@@ -261,9 +263,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
         {/* Chart controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-            <h3 className="text-white font-semibold text-sm">Mum Grafiği</h3>
+            <div className="flex bg-[#0F172A] rounded-lg p-0.5">
+              <button onClick={() => setChartType('candle')}
+                className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B] hover:text-[#94A3B8]'}`}>🕯️ Mum</button>
+              <button onClick={() => setChartType('line')}
+                className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'line' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B] hover:text-[#94A3B8]'}`}>📈 Çizgi</button>
+            </div>
           </div>
           <div className="flex flex-wrap gap-1">
             {PERIODS.map((p: any) => (
@@ -317,12 +324,17 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   </>
                 )}
 
-                {/* Candlestick Chart */}
-                <Bar dataKey="candleBody" shape={<CandlestickShape />} isAnimationActive={false}>
-                  {chartData.map((entry: any, idx: number) => (
-                    <Cell key={idx} fill={entry.isUp ? '#22C55E' : '#EF4444'} />
-                  ))}
-                </Bar>
+                {/* Price rendering: Candle or Line */}
+                {chartType === 'candle' ? (
+                  <Bar dataKey="candleBody" shape={<CandlestickShape />} isAnimationActive={false}>
+                    {chartData.map((entry: any, idx: number) => (
+                      <Cell key={idx} fill={entry.isUp ? '#22C55E' : '#EF4444'} />
+                    ))}
+                  </Bar>
+                ) : (
+                  <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={false}
+                    fill={chartPositive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)'} />
+                )}
 
                 {/* EMA overlays */}
                 {overlay === 'ema' && (
