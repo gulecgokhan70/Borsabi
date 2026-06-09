@@ -58,7 +58,7 @@ export function ScreeningClient() {
       {/* Score legend */}
       <div className="flex flex-wrap items-center gap-3">
         {Object.entries(SCORE_LABELS ?? {}).map(([key, val]: any) => (
-          <div key={key} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1E293B] border border-[#334155]">
+          <div key={key} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-card">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: val?.color }} />
             <span className="text-xs text-[#94A3B8]">{val?.label}</span>
           </div>
@@ -83,7 +83,7 @@ export function ScreeningClient() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 hover:border-[#3B82F6]/30 transition-colors"
+                className="glass-card rounded-xl p-4 hover:border-[#3B82F6]/30 transition-colors"
               >
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   {/* Left: Name & score */}
@@ -142,7 +142,7 @@ export function ScreeningClient() {
                         { label: 'R/Ö', puan: stock?.riskOdulPuan ?? 0 },
                       ].map((p: any, pIdx: number) => (
                         <div key={pIdx} className="text-center">
-                          <div className="h-1.5 bg-[#0F172A] rounded-full overflow-hidden mb-0.5">
+                          <div className="h-1.5 glass-inner rounded-full overflow-hidden mb-0.5">
                             <div className="h-full rounded-full" style={{ width: `${(p.puan / 20) * 100}%`, backgroundColor: p.puan >= 16 ? '#22C55E' : p.puan >= 10 ? '#3B82F6' : '#F59E0B' }} />
                           </div>
                           <span className="text-[8px] text-[#64748B]">{p.label} {p.puan}</span>

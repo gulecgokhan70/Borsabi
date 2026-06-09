@@ -75,7 +75,7 @@ export function DashboardClient() {
             <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
             <span>Canlı{lastUpdate ? ` • ${lastUpdate}` : ''}</span>
           </div>
-          <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg bg-[#1E293B] border border-[#334155] text-[#94A3B8] hover:text-white hover:bg-[#334155] transition-colors">
+          <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg glass-card text-[#94A3B8] hover:text-white hover:bg-white/[0.06] transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -90,21 +90,21 @@ export function DashboardClient() {
 
       {/* Portfolio summary cards */}
       <motion.div {...fadeIn} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+        <div className="glass-card rounded-xl p-4 border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="w-4 h-4 text-[#3B82F6]" />
             <span className="text-xs text-[#94A3B8]">Bakiye</span>
           </div>
           <p className="text-lg font-bold font-mono text-white">{formatCurrency(portfolio?.balance)}</p>
         </div>
-        <div className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+        <div className="glass-card rounded-xl p-4 border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
             <PieChart className="w-4 h-4 text-[#8B5CF6]" />
             <span className="text-xs text-[#94A3B8]">Yatırım</span>
           </div>
           <p className="text-lg font-bold font-mono text-white">{formatCurrency(portfolio?.totalInvested)}</p>
         </div>
-        <div className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+        <div className="glass-card rounded-xl p-4 border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className={`w-4 h-4 ${(portfolio?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`} />
             <span className="text-xs text-[#94A3B8]">Toplam K/Z</span>
@@ -113,7 +113,7 @@ export function DashboardClient() {
             {formatCurrency(portfolio?.totalPnl)}
           </p>
         </div>
-        <div className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+        <div className="glass-card rounded-xl p-4 border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-[#F59E0B]" />
             <span className="text-xs text-[#94A3B8]">Kazanç Oranı</span>
@@ -125,7 +125,7 @@ export function DashboardClient() {
       {/* Indices */}
       <motion.div {...fadeIn} transition={{ delay: 0.1 }} className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {(indices ?? []).map((idx: any) => (
-          <div key={idx?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(idx?.symbol)}`)} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155] cursor-pointer hover:border-[#3B82F6]/50 transition-colors">
+          <div key={idx?.symbol} onClick={() => router.push(`/stock/${encodeURIComponent(idx?.symbol)}`)} className="glass-card rounded-xl p-4 border border-white/[0.08] cursor-pointer hover:border-[#3B82F6]/50 transition-colors">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm font-semibold text-white">{idx?.name ?? idx?.symbol}</p>
@@ -147,19 +147,19 @@ export function DashboardClient() {
       {/* BIST stocks & Crypto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* BIST */}
-        <motion.div {...fadeIn} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#334155]">
+        <motion.div {...fadeIn} transition={{ delay: 0.2 }} className="glass-card rounded-xl">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
               <h2 className="text-sm font-semibold text-white">BIST Hisseleri</h2>
             </div>
-            <div className="flex bg-[#0F172A] rounded-lg p-0.5">
+            <div className="flex glass-inner rounded-lg p-0.5">
               <button onClick={() => setStockSort('alpha')} className={`px-2 py-0.5 rounded text-[9px] font-semibold transition-colors ${stockSort === 'alpha' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B]'}`}>A-Z</button>
               <button onClick={() => setStockSort('change')} className={`px-2 py-0.5 rounded text-[9px] font-semibold transition-colors ${stockSort === 'change' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B]'}`}>%Değişim</button>
               <button onClick={() => setStockSort('price')} className={`px-2 py-0.5 rounded text-[9px] font-semibold transition-colors ${stockSort === 'price' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B]'}`}>Fiyat</button>
             </div>
           </div>
-          <div className="divide-y divide-[#334155]/50">
+          <div className="divide-y divide-white/[0.06]">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" /></div>
             ) : (
@@ -168,7 +168,7 @@ export function DashboardClient() {
                 if (stockSort === 'price') return (b?.price ?? 0) - (a?.price ?? 0);
                 return (a?.symbol ?? '').localeCompare(b?.symbol ?? '');
               }).slice(0, 10).map((s: any) => (
-                <div key={s?.symbol} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
+                <div key={s?.symbol} className="flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.06] transition-colors">
                   <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       (s?.changePercent ?? 0) >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
@@ -201,17 +201,17 @@ export function DashboardClient() {
         </motion.div>
 
         {/* Crypto */}
-        <motion.div {...fadeIn} transition={{ delay: 0.3 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
+        <motion.div {...fadeIn} transition={{ delay: 0.3 }} className="glass-card rounded-xl">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08]">
             <Activity className="w-4 h-4 text-[#F59E0B]" />
             <h2 className="text-sm font-semibold text-white">Kripto Piyasası</h2>
           </div>
-          <div className="divide-y divide-[#334155]/50">
+          <div className="divide-y divide-white/[0.06]">
             {loading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#F59E0B]" /></div>
             ) : (
               (cryptos ?? []).filter((c: any) => (c?.price ?? 0) > 0).slice(0, 8).map((c: any) => (
-                <div key={c?.symbol} className="flex items-center justify-between px-4 py-2.5 hover:bg-[#334155]/30 transition-colors">
+                <div key={c?.symbol} className="flex items-center justify-between px-4 py-2.5 hover:bg-white/[0.06] transition-colors">
                   <div className="flex items-center gap-3 cursor-pointer flex-1 min-w-0" onClick={() => router.push(`/stock/${encodeURIComponent(c?.symbol)}`)}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       (c?.changePercent ?? 0) >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
@@ -247,14 +247,14 @@ export function DashboardClient() {
       {/* Gainers/Losers */}
       {((gainers?.length ?? 0) > 0 || (losers?.length ?? 0) > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <motion.div {...fadeIn} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
+          <motion.div {...fadeIn} transition={{ delay: 0.4 }} className="glass-card rounded-xl">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08]">
               <TrendingUp className="w-4 h-4 text-[#22C55E]" />
               <h2 className="text-sm font-semibold text-white">En Çok Yükselen</h2>
             </div>
-            <div className="divide-y divide-[#334155]/50">
+            <div className="divide-y divide-white/[0.06]">
               {(gainers ?? []).map((s: any, i: number) => (
-                <div key={s?.symbol ?? i} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#334155]/30 transition-colors">
+                <div key={s?.symbol ?? i} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-white/[0.06] transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-[#22C55E] w-5">{i + 1}</span>
                     <span className="text-sm font-medium text-white">{s?.symbol?.replace?.('.IS', '')}</span>
@@ -269,14 +269,14 @@ export function DashboardClient() {
             </div>
           </motion.div>
 
-          <motion.div {...fadeIn} transition={{ delay: 0.5 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
+          <motion.div {...fadeIn} transition={{ delay: 0.5 }} className="glass-card rounded-xl">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08]">
               <TrendingDown className="w-4 h-4 text-[#EF4444]" />
               <h2 className="text-sm font-semibold text-white">En Çok Düşen</h2>
             </div>
-            <div className="divide-y divide-[#334155]/50">
+            <div className="divide-y divide-white/[0.06]">
               {(losers ?? []).map((s: any, i: number) => (
-                <div key={s?.symbol ?? i} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-[#334155]/30 transition-colors">
+                <div key={s?.symbol ?? i} onClick={() => router.push(`/stock/${encodeURIComponent(s?.symbol)}`)} className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-white/[0.06] transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-[#EF4444] w-5">{i + 1}</span>
                     <span className="text-sm font-medium text-white">{s?.symbol?.replace?.('.IS', '')}</span>

@@ -104,17 +104,17 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="relative w-full max-w-md bg-[#1E293B] rounded-xl border border-[#334155] shadow-2xl max-h-[90vh] overflow-y-auto"
+          className="relative w-full max-w-md glass-card rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[#334155]">
+          <div className="flex items-center justify-between p-4 border-b border-white/[0.08]">
             <div>
               <h3 className="text-lg font-bold text-white">{symbol}</h3>
               <p className="text-xs text-[#94A3B8]">{name}</p>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-lg font-mono font-bold text-white">{formatCurrency(price, currencyCode)}</span>
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#334155] text-[#94A3B8]">
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-[#94A3B8]">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -122,7 +122,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
           <div className="p-4 space-y-4">
             {/* Buy/Sell toggle */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-[#0F172A] rounded-lg">
+            <div className="grid grid-cols-2 gap-2 p-1 glass-inner rounded-lg">
               <button
                 onClick={() => setType('BUY')}
                 className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'BUY' ? 'bg-[#22C55E] text-white' : 'text-[#94A3B8] hover:text-white'}`}
@@ -140,7 +140,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             {/* Order Type */}
             <div>
               <label className="text-xs text-[#94A3B8] mb-1.5 block">Emir Türü</label>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#0F172A] rounded-lg">
+              <div className="grid grid-cols-3 gap-1.5 p-1 glass-inner rounded-lg">
                 {[
                   { value: 'market' as OrderType, label: 'Piyasa' },
                   { value: 'limit' as OrderType, label: 'Limit' },
@@ -198,7 +198,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                 value={quantity}
                 onChange={(e: any) => setQuantity(e?.target?.value ?? '')}
                 placeholder="0"
-                className="w-full px-3 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-white font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                className="w-full px-3 py-2.5 bg-[#0F172A] border border-white/[0.08] rounded-lg text-white font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
               />
             </div>
 
@@ -222,7 +222,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                       value={stopLoss}
                       onChange={(e: any) => setStopLoss(e?.target?.value ?? '')}
                       placeholder="0.00"
-                      className="w-full px-3 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#EF4444] focus:border-transparent outline-none"
+                      className="w-full px-3 py-2.5 bg-[#0F172A] border border-white/[0.08] rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#EF4444] focus:border-transparent outline-none"
                     />
                   </div>
                   <div>
@@ -232,7 +232,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                       value={takeProfit}
                       onChange={(e: any) => setTakeProfit(e?.target?.value ?? '')}
                       placeholder="0.00"
-                      className="w-full px-3 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#22C55E] focus:border-transparent outline-none"
+                      className="w-full px-3 py-2.5 bg-[#0F172A] border border-white/[0.08] rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#22C55E] focus:border-transparent outline-none"
                     />
                   </div>
                 </div>
@@ -245,14 +245,14 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     value={note}
                     onChange={(e: any) => setNote(e?.target?.value ?? '')}
                     placeholder="İşlem notu..."
-                    className="w-full px-3 py-2 bg-[#0F172A] border border-[#334155] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                    className="w-full px-3 py-2 bg-[#0F172A] border border-white/[0.08] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
                   />
                 </div>
               </motion.div>
             )}
 
             {/* Summary */}
-            <div className="p-3 bg-[#0F172A] rounded-lg space-y-2">
+            <div className="p-3 glass-inner rounded-lg space-y-2">
               {orderType !== 'market' && (
                 <div className="flex justify-between text-xs">
                   <span className="text-[#94A3B8]">İşlem Fiyatı</span>
@@ -261,7 +261,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               )}
               <div className="flex justify-between text-xs"><span className="text-[#94A3B8]">Toplam</span><span className="text-white font-mono">{formatCurrency(total, currencyCode)}</span></div>
               <div className="flex justify-between text-xs"><span className="text-[#94A3B8]">Komisyon (%0.2)</span><span className="text-[#F59E0B] font-mono">{formatCurrency(commission, currencyCode)}</span></div>
-              <div className="border-t border-[#334155] pt-2 flex justify-between text-sm"><span className="text-[#94A3B8] font-medium">Toplam Maliyet</span><span className="text-white font-bold font-mono">{formatCurrency(totalWithCommission, currencyCode)}</span></div>
+              <div className="border-t border-white/[0.08] pt-2 flex justify-between text-sm"><span className="text-[#94A3B8] font-medium">Toplam Maliyet</span><span className="text-white font-bold font-mono">{formatCurrency(totalWithCommission, currencyCode)}</span></div>
               {riskReward > 0 && (
                 <div className="flex justify-between text-xs"><span className="text-[#94A3B8]">Risk/Getiri</span><span className="text-[#3B82F6] font-mono">1:{riskReward.toFixed(1)}</span></div>
               )}

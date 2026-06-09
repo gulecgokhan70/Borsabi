@@ -50,8 +50,8 @@ function MarkdownRenderer({ content }: { content: string }) {
         elements.push(
           <div key={i} className="overflow-x-auto my-3">
             <table className="w-full text-sm">
-              <thead><tr>{tableHeaders.map((h, hi) => <th key={hi} className="text-left text-[10px] uppercase text-[#64748B] px-3 py-2 border-b border-[#334155] font-medium">{h}</th>)}</tr></thead>
-              <tbody>{tableRows.map((row, ri) => <tr key={ri} className="border-b border-[#334155]/50">{row.map((cell, ci) => <td key={ci} className="px-3 py-2 text-[#94A3B8]">{cell}</td>)}</tr>)}</tbody>
+              <thead><tr>{tableHeaders.map((h, hi) => <th key={hi} className="text-left text-[10px] uppercase text-[#64748B] px-3 py-2 border-b border-white/[0.08] font-medium">{h}</th>)}</tr></thead>
+              <tbody>{tableRows.map((row, ri) => <tr key={ri} className="border-b border-white/[0.06]">{row.map((cell, ci) => <td key={ci} className="px-3 py-2 text-[#94A3B8]">{cell}</td>)}</tr>)}</tbody>
             </table>
           </div>
         );
@@ -78,7 +78,7 @@ function MarkdownRenderer({ content }: { content: string }) {
       i++;
       while (i < lines.length && !lines[i].trim().startsWith('```')) { codeLines.push(lines[i]); i++; }
       elements.push(
-        <pre key={i} className="bg-[#0F172A] rounded-lg p-4 my-3 overflow-x-auto">
+        <pre key={i} className="glass-inner rounded-lg p-4 my-3 overflow-x-auto">
           <code className="text-sm text-[#22C55E]">{codeLines.join('\n')}</code>
         </pre>
       );
@@ -140,7 +140,7 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-6 text-center"
+        className="glass-card rounded-xl p-6 text-center"
       >
         <Award className={`w-12 h-12 mx-auto mb-3 ${percent >= 70 ? 'text-[#22C55E]' : 'text-[#F59E0B]'}`} />
         <h3 className="text-xl font-bold text-white mb-1">Quiz Tamamlandı!</h3>
@@ -161,7 +161,7 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
   }
 
   return (
-    <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-6">
+    <div className="glass-card rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs text-[#64748B]">
           Soru {currentQ + 1}/{questions.length}
@@ -178,11 +178,11 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
       </h4>
       <div className="space-y-2">
         {q.options.map((opt, oi) => {
-          let bg = 'bg-[#0F172A] border-[#334155] hover:border-[#3B82F6]/50';
+          let bg = 'bg-[#0F172A] border-white/[0.08] hover:border-[#3B82F6]/50';
           if (showResult) {
             if (oi === q.correctIndex) bg = 'bg-[#22C55E]/10 border-[#22C55E]';
             else if (oi === selected) bg = 'bg-[#EF4444]/10 border-[#EF4444]';
-            else bg = 'bg-[#0F172A] border-[#334155] opacity-50';
+            else bg = 'bg-[#0F172A] border-white/[0.08] opacity-50';
           } else if (oi === selected) {
             bg = 'bg-[#3B82F6]/10 border-[#3B82F6]';
           }
@@ -249,7 +249,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/academy" className="p-2 rounded-lg bg-[#1E293B] hover:bg-[#334155] text-[#94A3B8] transition-colors">
+        <Link href="/academy" className="p-2 rounded-lg glass-card hover:bg-white/[0.06] text-[#94A3B8] transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex-1">
@@ -264,12 +264,12 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
       </div>
 
       {/* Progress */}
-      <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+      <div className="glass-card rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-[#94A3B8]">İlerleme</span>
           <span className="text-sm font-medium text-white">%{progress}</span>
         </div>
-        <div className="h-2 bg-[#0F172A] rounded-full overflow-hidden">
+        <div className="h-2 glass-inner rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-[#3B82F6] rounded-full"
             initial={{ width: 0 }}
@@ -282,24 +282,24 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar - lesson list */}
         <div className="lg:col-span-1">
-          <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-            <div className="p-4 border-b border-[#334155]">
+          <div className="glass-card rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-white/[0.08]">
               <h3 className="text-sm font-semibold text-white">Dersler</h3>
             </div>
-            <div className="divide-y divide-[#334155]/50">
+            <div className="divide-y divide-white/[0.06]">
               {course.lessons.map((l, idx) => (
                 <button
                   key={l.id}
                   onClick={() => { setActiveLesson(idx); setShowQuiz(false); }}
                   className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
-                    idx === activeLesson ? 'bg-[#3B82F6]/10' : 'hover:bg-[#0F172A]/50'
+                    idx === activeLesson ? 'bg-[#3B82F6]/10' : 'hover:glass-inner'
                   }`}
                 >
                   {completedLessons.has(idx) ? (
                     <CheckCircle2 className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
                   ) : (
                     <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                      idx === activeLesson ? 'border-[#3B82F6]' : 'border-[#334155]'
+                      idx === activeLesson ? 'border-[#3B82F6]' : 'border-white/[0.08]'
                     }`} />
                   )}
                   <div className="min-w-0">
@@ -336,11 +336,11 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                className="bg-[#1E293B] rounded-xl border border-[#334155] p-6"
+                className="glass-card rounded-xl p-6"
               >
                 <MarkdownRenderer content={lesson.content} />
 
-                <div className="mt-6 pt-4 border-t border-[#334155] flex flex-col sm:flex-row gap-3">
+                <div className="mt-6 pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row gap-3">
                   {lesson.quiz && lesson.quiz.length > 0 ? (
                     <button
                       onClick={() => setShowQuiz(true)}
@@ -361,7 +361,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                   {activeLesson < course.lessons.length - 1 && (
                     <button
                       onClick={() => { setActiveLesson(activeLesson + 1); setShowQuiz(false); }}
-                      className="flex items-center gap-2 px-4 py-2.5 bg-[#1E293B] hover:bg-[#334155] text-white rounded-lg text-sm font-medium transition-colors border border-[#334155]"
+                      className="flex items-center gap-2 px-4 py-2.5 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors border border-white/[0.08]"
                     >
                       Sonraki Ders
                       <ChevronRight className="w-4 h-4" />

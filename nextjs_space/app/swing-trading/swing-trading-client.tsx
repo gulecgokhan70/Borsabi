@@ -102,7 +102,7 @@ export function SwingTradingClient() {
           <p className="text-[#94A3B8] text-sm mt-1">Sapan & Dip-Bip Sistemleri ile Orta Vadeli Fırsat Analizi</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex bg-[#1E293B] rounded-lg p-1 gap-1">
+          <div className="flex glass-card rounded-lg p-1 gap-1">
             {[
               { key: 'all', label: 'Tümü' },
               { key: 'elite', label: 'Elite' },
@@ -125,7 +125,7 @@ export function SwingTradingClient() {
           <button
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1E293B] hover:bg-[#334155] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Tara
@@ -162,7 +162,7 @@ export function SwingTradingClient() {
           { label: 'Dip-Bip Sinyali', value: data.filter((d: SwingTradeResult) => d.dipBipDetected).length, icon: Zap, color: '#22C55E' },
           { label: 'Formasyon', value: data.filter((d: SwingTradeResult) => (d.formations?.length ?? 0) > 0).length, icon: Activity, color: '#8B5CF6' },
         ].map((stat: any, idx: number) => (
-          <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
               <span className="text-xs text-[#94A3B8]">{stat.label}</span>
@@ -192,7 +192,7 @@ export function SwingTradingClient() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className={`bg-[#1E293B] rounded-xl border overflow-hidden ${getScoreBg(item.score)}`}
+              className={`glass-card rounded-xl border overflow-hidden ${getScoreBg(item.score)}`}
             >
               <div className="p-5">
                 {/* Top row */}
@@ -246,7 +246,7 @@ export function SwingTradingClient() {
                 {/* Signals + Formations */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(item.signals ?? []).map((signal: string, sIdx: number) => (
-                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-[#334155]">
+                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-white/[0.08]">
                       {signal}
                     </span>
                   ))}
@@ -269,7 +269,7 @@ export function SwingTradingClient() {
                     { label: 'RSI', value: (item.rsi ?? 0).toString(), icon: BarChart3, color: '#94A3B8' },
                     { label: 'ATR', value: formatNumber(item.atr), icon: Activity, color: '#94A3B8' },
                   ].map((field: any, fIdx: number) => (
-                    <div key={fIdx} className="bg-[#0F172A]/50 rounded-lg p-2.5">
+                    <div key={fIdx} className="glass-inner rounded-lg p-2.5">
                       <div className="flex items-center gap-1 mb-1">
                         <field.icon className="w-3 h-3" style={{ color: field.color }} />
                         <span className="text-[10px] text-[#64748B] uppercase">{field.label}</span>

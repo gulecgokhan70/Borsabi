@@ -91,7 +91,7 @@ export default function AlertsClient() {
       {/* Create Form */}
       {showForm && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+          className="glass-card rounded-xl p-5">
           <h3 className="text-sm font-semibold text-white mb-3">Yeni Alarm Oluştur</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
@@ -101,7 +101,7 @@ export default function AlertsClient() {
             <div>
               <label className="text-xs text-[#94A3B8] mb-1 block">Koşul</label>
               <select value={condition} onChange={e => setCondition(e.target.value)}
-                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
                 <option value="above">↑ Üstüne Çıktığında</option>
                 <option value="below">↓ Altına Düştüğünde</option>
               </select>
@@ -109,7 +109,7 @@ export default function AlertsClient() {
             <div>
               <label className="text-xs text-[#94A3B8] mb-1 block">Hedef Fiyat</label>
               <input type="number" value={targetPrice} onChange={e => setTargetPrice(e.target.value)} placeholder="0.00"
-                className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
+                className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
             </div>
             <div className="flex items-end">
               <button onClick={createAlert} disabled={creating || !targetPrice}
@@ -123,16 +123,16 @@ export default function AlertsClient() {
 
       {/* Active Alerts */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#334155]">
+        className="glass-card rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-white/[0.08]">
           <span className="text-sm font-semibold text-[#F1F5F9]">Aktif Alarmlar ({activeAlerts.length})</span>
         </div>
         {activeAlerts.length === 0 ? (
           <div className="p-10 text-center text-sm text-[#CBD5E1]">Henüz aktif alarmınız yok.</div>
         ) : (
-          <div className="divide-y divide-[#334155]">
+          <div className="divide-y divide-white/[0.08]">
             {activeAlerts.map((alert: any) => (
-              <div key={alert.id} className="px-5 py-3 flex items-center gap-3 hover:bg-[#0F172A]/30 transition">
+              <div key={alert.id} className="px-5 py-3 flex items-center gap-3 hover:bg-white/[0.04] transition">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${alert.condition === 'above' ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
                   {alert.condition === 'above' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
                 </div>
@@ -154,11 +154,11 @@ export default function AlertsClient() {
       {/* Triggered Alerts */}
       {triggeredAlerts.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-          <div className="px-5 py-3 border-b border-[#334155]">
+          className="glass-card rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-white/[0.08]">
             <span className="text-sm font-semibold text-white">Tetiklenen Alarmlar ({triggeredAlerts.length})</span>
           </div>
-          <div className="divide-y divide-[#334155]">
+          <div className="divide-y divide-white/[0.08]">
             {triggeredAlerts.map((alert: any) => (
               <div key={alert.id} className="px-5 py-3 flex items-center gap-3 opacity-60">
                 <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 flex items-center justify-center">

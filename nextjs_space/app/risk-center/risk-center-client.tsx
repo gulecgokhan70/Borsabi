@@ -147,7 +147,7 @@ export function RiskCenterClient() {
         </div>
         <button
           onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 bg-[#1E293B] hover:bg-[#334155] text-white rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Güncelle
@@ -158,7 +158,7 @@ export function RiskCenterClient() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#1E293B] rounded-2xl border border-[#334155] p-6"
+        className="glass-card rounded-2xl p-6"
       >
         <div className="flex flex-col md:flex-row md:items-center gap-6">
           {/* Score circle */}
@@ -193,11 +193,11 @@ export function RiskCenterClient() {
 
           {/* Quick stats */}
           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-[#0F172A] rounded-lg p-3">
+            <div className="glass-inner rounded-lg p-3">
               <p className="text-xs text-[#64748B]">Portföy Değeri</p>
               <p className="text-lg font-bold text-white">{formatCurrency(summary.portfolioValue)}</p>
             </div>
-            <div className="bg-[#0F172A] rounded-lg p-3">
+            <div className="glass-inner rounded-lg p-3">
               <p className="text-xs text-[#64748B]">Toplam K/Z</p>
               <p className={`text-lg font-bold ${summary.totalPnL >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                 {formatCurrency(summary.totalPnL)}
@@ -206,11 +206,11 @@ export function RiskCenterClient() {
                 {formatPercent(summary.totalPnLPercent)}
               </p>
             </div>
-            <div className="bg-[#0F172A] rounded-lg p-3">
+            <div className="glass-inner rounded-lg p-3">
               <p className="text-xs text-[#64748B]">Nakit Oranı</p>
               <p className="text-lg font-bold text-white">%{formatNumber(summary.cashRatio, 1)}</p>
             </div>
-            <div className="bg-[#0F172A] rounded-lg p-3">
+            <div className="glass-inner rounded-lg p-3">
               <p className="text-xs text-[#64748B]">Açık Pozisyon</p>
               <p className="text-lg font-bold text-white">{summary.openPositionCount}</p>
             </div>
@@ -246,7 +246,7 @@ export function RiskCenterClient() {
         transition={{ delay: 0.15 }}
         className="grid grid-cols-1 md:grid-cols-3 gap-4"
       >
-        <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        <div className="glass-card rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="w-4 h-4 text-[#3B82F6]" />
             <span className="text-sm font-medium text-[#94A3B8]">Günlük K/Z</span>
@@ -257,7 +257,7 @@ export function RiskCenterClient() {
           <p className={`text-sm ${summary.todayPnLPercent >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
             {formatPercent(summary.todayPnLPercent)}
           </p>
-          <div className="mt-3 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
+          <div className="mt-3 h-1.5 glass-inner rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -269,7 +269,7 @@ export function RiskCenterClient() {
           <p className="text-[10px] text-[#64748B] mt-1">Günlük limit: %3</p>
         </div>
 
-        <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        <div className="glass-card rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-[#F59E0B]" />
             <span className="text-sm font-medium text-[#94A3B8]">Haftalık K/Z</span>
@@ -280,7 +280,7 @@ export function RiskCenterClient() {
           <p className={`text-sm ${summary.weekPnLPercent >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
             {formatPercent(summary.weekPnLPercent)}
           </p>
-          <div className="mt-3 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
+          <div className="mt-3 h-1.5 glass-inner rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -292,7 +292,7 @@ export function RiskCenterClient() {
           <p className="text-[10px] text-[#64748B] mt-1">Haftalık limit: %6</p>
         </div>
 
-        <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        <div className="glass-card rounded-xl p-5">
           <div className="flex items-center gap-2 mb-3">
             <PieChart className="w-4 h-4 text-[#22C55E]" />
             <span className="text-sm font-medium text-[#94A3B8]">İşlem İstatistikleri</span>
@@ -332,9 +332,9 @@ export function RiskCenterClient() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden"
+          className="glass-card rounded-xl overflow-hidden"
         >
-          <div className="p-5 border-b border-[#334155]">
+          <div className="p-5 border-b border-white/[0.08]">
             <h3 className="text-base font-semibold text-white flex items-center gap-2">
               <Target className="w-4 h-4 text-[#3B82F6]" />
               Pozisyon Risk Analizi
@@ -343,7 +343,7 @@ export function RiskCenterClient() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#334155]">
+                <tr className="border-b border-white/[0.08]">
                   {['Hisse', 'Değer', 'K/Z', 'Ağırlık', 'Stop Loss', 'Risk'].map((h) => (
                     <th key={h} className="text-left text-[10px] uppercase text-[#94A3B8] px-4 py-3 font-medium">{h}</th>
                   ))}
@@ -351,7 +351,7 @@ export function RiskCenterClient() {
               </thead>
               <tbody>
                 {positions.map((pos) => (
-                  <tr key={pos.id} className="border-b border-[#334155]/50 hover:bg-[#0F172A]/30">
+                  <tr key={pos.id} className="border-b border-white/[0.06] hover:bg-white/[0.04]">
                     <td className="px-4 py-3">
                       <p className="text-sm font-semibold text-white cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(pos.symbol)}`)}>{pos.symbol}</p>
                       <p className="text-xs text-[#64748B]">{pos.quantity} adet</p>
@@ -369,7 +369,7 @@ export function RiskCenterClient() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-[#0F172A] rounded-full overflow-hidden">
+                        <div className="w-16 h-1.5 glass-inner rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full"
                             style={{
@@ -418,7 +418,7 @@ export function RiskCenterClient() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-5"
+        className="glass-card rounded-xl p-5"
       >
         <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
           <Shield className="w-4 h-4 text-[#F59E0B]" />
@@ -433,7 +433,7 @@ export function RiskCenterClient() {
             { rule: 'Stop Loss Zorunluluğu', value: 'Her işlemde', icon: Shield },
             { rule: 'Altın Kural', value: 'Önce sermayeyi koru', icon: Wallet },
           ].map((item, idx) => (
-            <div key={idx} className="flex items-center gap-3 bg-[#0F172A]/50 rounded-lg p-3">
+            <div key={idx} className="flex items-center gap-3 glass-inner rounded-lg p-3">
               <item.icon className="w-4 h-4 text-[#F59E0B] flex-shrink-0" />
               <div>
                 <p className="text-xs text-[#94A3B8]">{item.rule}</p>

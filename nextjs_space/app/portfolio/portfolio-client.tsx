@@ -50,18 +50,18 @@ export function PortfolioClient() {
           <h1 className="text-2xl font-bold text-white tracking-tight">Portföy Yönetimi</h1>
           <p className="text-sm text-[#94A3B8]">Pozisyonlarınızı yönetin ve performansınızı takip edin</p>
         </div>
-        <button onClick={fetchPortfolio} disabled={loading} className="p-2.5 rounded-lg bg-[#1E293B] border border-[#334155] text-[#94A3B8] hover:text-white transition-colors">
+        <button onClick={fetchPortfolio} disabled={loading} className="p-2.5 rounded-lg glass-card text-[#94A3B8] hover:text-white transition-colors">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2"><Wallet className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-[#94A3B8]">Nakit Bakiye</span></div>
           <p className="text-lg font-bold font-mono text-white">{formatCurrency(balance)}</p>
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2"><Banknote className="w-4 h-4 text-[#8B5CF6]" /><span className="text-xs text-[#94A3B8]">Pozisyon Değeri</span></div>
           <p className="text-lg font-bold font-mono text-white">{formatCurrency(totalPositionValue)}</p>
           {totalInvested > 0 && <p className={`text-xs font-mono ${unrealizedPnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(unrealizedPnl)} açık K/Z</p>}
@@ -75,23 +75,23 @@ export function PortfolioClient() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#1E293B] rounded-xl p-3 border border-[#334155] text-center">
+        <div className="glass-card rounded-xl p-3 border border-white/[0.08] text-center">
           <p className="text-xs text-[#94A3B8] mb-1">Açık Pozisyon</p>
           <p className="text-xl font-bold font-mono text-white">{positions?.length ?? 0}</p>
         </div>
-        <div className="bg-[#1E293B] rounded-xl p-3 border border-[#334155] text-center">
+        <div className="glass-card rounded-xl p-3 border border-white/[0.08] text-center">
           <p className="text-xs text-[#94A3B8] mb-1">Toplam İşlem</p>
           <p className="text-xl font-bold font-mono text-white">{portfolio?.totalTrades ?? 0}</p>
         </div>
-        <div className="bg-[#1E293B] rounded-xl p-3 border border-[#334155] text-center">
+        <div className="glass-card rounded-xl p-3 border border-white/[0.08] text-center">
           <p className="text-xs text-[#94A3B8] mb-1">Kazanç Oranı</p>
           <p className="text-xl font-bold font-mono text-white">{formatNumber(portfolio?.winRate ?? 0, 1)}%</p>
         </div>
       </div>
 
       {/* Open Positions */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-xl">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08]">
           <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
           <h2 className="text-sm font-semibold text-white">Açık Pozisyonlar</h2>
         </div>
@@ -101,13 +101,13 @@ export function PortfolioClient() {
             <p className="text-xs text-[#64748B] mt-1">Dashboard'dan bir hisseye tıklayarak işlem yapabilirsiniz</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#334155]/50">
+          <div className="divide-y divide-white/[0.06]">
             {positions.map((p: any) => {
               const pnl = p?.pnl ?? (((p?.currentPrice ?? 0) - (p?.entryPrice ?? 0)) * (p?.quantity ?? 0) - (p?.commission ?? 0));
               const pnlPct = p?.pnlPercent ?? ((p?.entryPrice ?? 0) > 0 ? ((pnl / ((p?.entryPrice ?? 0) * (p?.quantity ?? 0))) * 100) : 0);
               const totalValue = p?.totalValue ?? ((p?.currentPrice ?? 0) * (p?.quantity ?? 0));
               return (
-                <div key={p?.id} className="px-4 py-3 hover:bg-[#334155]/20 transition-colors">
+                <div key={p?.id} className="px-4 py-3 hover:bg-white/[0.04] transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${pnl >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
@@ -128,15 +128,15 @@ export function PortfolioClient() {
 
                   {/* Fiyat ve Değer bilgileri */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                    <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                    <div className="glass-inner rounded-lg p-2">
                       <p className="text-[#64748B] mb-0.5">Giriş Fiyatı</p>
                       <p className="font-mono font-medium text-white">{formatCurrency(p?.entryPrice)}</p>
                     </div>
-                    <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                    <div className="glass-inner rounded-lg p-2">
                       <p className="text-[#64748B] mb-0.5">Güncel Fiyat</p>
                       <p className="font-mono font-medium text-white">{formatCurrency(p?.currentPrice)}</p>
                     </div>
-                    <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                    <div className="glass-inner rounded-lg p-2">
                       <p className="text-[#64748B] mb-0.5">Toplam Değer</p>
                       <p className="font-mono font-bold text-[#3B82F6]">{formatCurrency(totalValue)}</p>
                     </div>
@@ -167,14 +167,14 @@ export function PortfolioClient() {
 
       {/* Closed positions */}
       {(closedPositions?.length ?? 0) > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card rounded-xl">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08]">
             <ShieldAlert className="w-4 h-4 text-[#94A3B8]" />
             <h2 className="text-sm font-semibold text-white">Kapanan Pozisyonlar (Son 10)</h2>
           </div>
-          <div className="divide-y divide-[#334155]/50">
+          <div className="divide-y divide-white/[0.06]">
             {closedPositions.slice(0, 10).map((p: any) => (
-              <div key={p?.id} className="px-4 py-3 hover:bg-[#334155]/20 flex items-center justify-between">
+              <div key={p?.id} className="px-4 py-3 hover:bg-white/[0.04] flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${(p?.pnl ?? 0) >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
                     {(p?.pnl ?? 0) >= 0 ? <TrendingUp className="w-3.5 h-3.5 text-[#22C55E]" /> : <TrendingDown className="w-3.5 h-3.5 text-[#F87171]" />}

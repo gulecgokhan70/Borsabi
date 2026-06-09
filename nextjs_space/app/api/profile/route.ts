@@ -76,7 +76,7 @@ export async function PUT(req: NextRequest) {
 
     const updateData: any = {};
     if (name) updateData.name = name;
-    if (tier && ['free', 'pro', 'elite'].includes(tier)) updateData.tier = tier;
+    if (tier && ['free', 'pro'].includes(tier)) updateData.tier = tier;
 
     const user = await prisma.user.update({
       where: { email: session.user.email },

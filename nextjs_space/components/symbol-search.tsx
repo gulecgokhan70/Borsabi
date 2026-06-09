@@ -60,7 +60,7 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#475569] focus:border-[#3B82F6] focus:outline-none transition-colors"
+        className="w-full bg-[#0F172A] border border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#475569] focus:border-[#3B82F6] focus:outline-none transition-colors"
       >
         <span className={selected ? 'text-white' : 'text-[#64748B]'}>
           {selected ? `${selected.shortName} - ${selected.name}` : 'Sembol seçin'}
@@ -69,9 +69,9 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-[#1E293B] border border-[#334155] rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full glass-card rounded-xl shadow-xl overflow-hidden">
           {/* Search input */}
-          <div className="p-2 border-b border-[#334155]">
+          <div className="p-2 border-b border-white/[0.08]">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#64748B]" />
               <input
@@ -80,7 +80,7 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-[#64748B]"
+                className="w-full bg-[#0F172A] border border-white/[0.08] text-white rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-[#64748B]"
               />
               {search && (
                 <button
@@ -105,7 +105,7 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
             ) : (
               filteredGroups.map(group => (
                 <div key={group.label}>
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider bg-[#0F172A]/50 sticky top-0">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold text-[#64748B] uppercase tracking-wider glass-inner sticky top-0">
                     {group.label} ({group.items.length})
                   </div>
                   {group.items.slice(0, q ? 50 : 30).map(item => (
@@ -116,7 +116,7 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
                         setOpen(false);
                         setSearch('');
                       }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-[#334155]/50 flex items-center gap-2 transition-colors ${
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06]/50 flex items-center gap-2 transition-colors ${
                         item.symbol === value ? 'bg-[#3B82F6]/10 text-[#3B82F6]' : 'text-white'
                       }`}
                     >

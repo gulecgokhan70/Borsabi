@@ -187,7 +187,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const d = payload[0]?.payload;
     if (!d) return null;
     return (
-      <div className="bg-[#1E293B] border border-[#334155] rounded-lg p-3 shadow-xl text-xs">
+      <div className="glass-card rounded-lg p-3 shadow-xl text-xs">
         <p className="text-[#94A3B8] mb-1.5 font-medium">{label}</p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
           <span className="text-[#64748B]">Açılış:</span><span className="text-white font-mono">{formatCurrency(d.open)}</span>
@@ -205,7 +205,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const d = payload[0]?.payload;
     if (!d || d.macd === undefined) return null;
     return (
-      <div className="bg-[#1E293B] border border-[#334155] rounded-lg p-3 shadow-xl text-xs">
+      <div className="glass-card rounded-lg p-3 shadow-xl text-xs">
         <p className="text-[#94A3B8] mb-1">{label}</p>
         <div className="space-y-0.5">
           <p><span className="text-[#3B82F6]">MACD:</span> <span className="text-white font-mono">{d.macd?.toFixed(3)}</span></p>
@@ -218,7 +218,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
   if (!loading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-[#0F172A] text-white">
+      <div className="flex flex-col items-center justify-center h-screen text-white">
         <p className="text-[#94A3B8] mb-4">Hisse verisi bulunamadı</p>
         <button onClick={() => router.back()} className="text-[#3B82F6] hover:underline">Geri Dön</button>
       </div>
@@ -226,12 +226,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F172A] p-4 md:p-6 space-y-5">
+    <div className="min-h-screen glass-inner p-4 md:p-6 space-y-5">
       {/* Header */}
       {data ? (
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 rounded-lg bg-[#1E293B] hover:bg-[#334155] transition-colors">
+            <button onClick={() => router.back()} className="p-2 rounded-lg glass-card hover:bg-white/[0.06] transition-colors">
               <ArrowLeft className="w-5 h-5 text-[#94A3B8]" />
             </button>
             <div>
@@ -260,12 +260,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
       {/* ===== PRICE CHART ===== */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+        className="glass-card rounded-xl p-4">
         {/* Chart controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-            <div className="flex bg-[#0F172A] rounded-lg p-0.5">
+            <div className="flex glass-inner rounded-lg p-0.5">
               <button onClick={() => setChartType('candle')}
                 className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-[#64748B] hover:text-[#94A3B8]'}`}>🕯️ Mum</button>
               <button onClick={() => setChartType('line')}
@@ -292,7 +292,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
               overlay === 'bb' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40' : 'bg-[#0F172A] text-[#64748B] border border-transparent hover:text-[#94A3B8]'
             }`}>Bollinger</button>
-          <span className="border-l border-[#334155] mx-1" />
+          <span className="border-l border-white/[0.08] mx-1" />
           <button onClick={() => setBottomIndicator('volume')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
               bottomIndicator === 'volume' ? 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/40' : 'bg-[#0F172A] text-[#64748B] border border-transparent hover:text-[#94A3B8]'
@@ -368,7 +368,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         )}
 
         {/* Bottom Indicator: Volume or MACD */}
-        <div className="mt-3 border-t border-[#334155]/50 pt-2">
+        <div className="mt-3 border-t border-white/[0.06] pt-2">
           {bottomIndicator === 'volume' && chartData.length > 0 && (
             <div style={{ height: '100px' }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -423,7 +423,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-[#64748B]' },
           ].map((item: any, i: number) => (
             <motion.div key={item.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.03 }}
-              className="bg-[#1E293B] rounded-xl border border-[#334155] p-3">
+              className="glass-card rounded-xl p-3">
               <div className="flex items-center gap-1.5 mb-1">
                 <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
                 <span className="text-[10px] text-[#64748B] uppercase tracking-wide">{item.label}</span>
@@ -437,13 +437,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {/* ===== 52 WEEK RANGE ===== */}
       {data && (data.fiftyTwoWeekHigh > 0 || data.fiftyTwoWeekLow > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+          className="glass-card rounded-xl p-4">
           <h3 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
             <Target className="w-4 h-4 text-[#3B82F6]" /> 52 Haftalık Aralık
           </h3>
           <div className="flex items-center gap-3">
             <span className="text-xs text-[#F87171] font-mono whitespace-nowrap">{formatCurrency(data.fiftyTwoWeekLow)}</span>
-            <div className="flex-1 relative h-3 bg-[#0F172A] rounded-full overflow-hidden">
+            <div className="flex-1 relative h-3 glass-inner rounded-full overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-[#EF4444]/30 via-[#F59E0B]/30 to-[#22C55E]/30 rounded-full" />
               <div className="absolute top-0 h-full w-2 bg-white rounded-full shadow-lg shadow-white/20 transition-all"
                 style={{ left: `calc(${Math.min(Math.max(range52Pct, 2), 98)}% - 4px)` }} />
@@ -456,7 +456,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {/* ===== MIDAS EXTRA DATA (BIST ONLY) ===== */}
       {data && (data.vwap || data.tavan || data.fk || data.pddd) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+          className="glass-card rounded-xl p-4">
           <button onClick={() => setShowFundamentals(!showFundamentals)}
             className="w-full flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold text-sm flex items-center gap-2">
@@ -467,7 +467,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           {showFundamentals && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {data.vwap ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">VWAP</p>
                   <p className="text-white font-bold font-mono">{formatCurrency(data.vwap)}</p>
                   <p className={`text-[10px] mt-0.5 ${data.price > data.vwap ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
@@ -476,14 +476,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 </div>
               ) : null}
               {data.tavan ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">Tavan</p>
                   <p className="text-[#22C55E] font-bold font-mono">{formatCurrency(data.tavan)}</p>
                   <p className="text-[10px] text-[#64748B] mt-0.5">{data.taban ? `Taban: ${formatCurrency(data.taban)}` : ''}</p>
                 </div>
               ) : null}
               {data.fk ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">F/K Oranı</p>
                   <p className="text-white font-bold font-mono">{data.fk.toFixed(2)}</p>
                   <p className={`text-[10px] mt-0.5 ${data.fk < 10 ? 'text-[#22C55E]' : data.fk < 20 ? 'text-[#F59E0B]' : 'text-[#F87171]'}`}>
@@ -492,7 +492,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 </div>
               ) : null}
               {data.pddd ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">PD/DD</p>
                   <p className="text-white font-bold font-mono">{data.pddd.toFixed(2)}</p>
                   <p className={`text-[10px] mt-0.5 ${data.pddd < 1 ? 'text-[#22C55E]' : data.pddd < 3 ? 'text-[#F59E0B]' : 'text-[#F87171]'}`}>
@@ -501,7 +501,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 </div>
               ) : null}
               {data.marketCap ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">Piyasa Değeri</p>
                   <p className="text-white font-bold font-mono">
                     {data.marketCap >= 1e9 ? `₺${(data.marketCap / 1e9).toFixed(1)} Milyar` : `₺${(data.marketCap / 1e6).toFixed(0)} Milyon`}
@@ -509,13 +509,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 </div>
               ) : null}
               {data.freeFloat ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">Serbest Dolaşım</p>
                   <p className="text-white font-bold font-mono">%{(data.freeFloat * 100).toFixed(1)}</p>
                 </div>
               ) : null}
               {data.volatility ? (
-                <div className="bg-[#0F172A] rounded-lg p-3">
+                <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-1">Volatilite</p>
                   <p className="text-white font-bold font-mono">{data.volatility.toFixed(2)}</p>
                   <p className={`text-[10px] mt-0.5 ${data.volatility < 2 ? 'text-[#22C55E]' : data.volatility < 5 ? 'text-[#F59E0B]' : 'text-[#F87171]'}`}>
@@ -531,14 +531,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {/* ===== TECHNICAL INDICATORS ===== */}
       {data && (data.indicators?.rsi !== null || data.indicators?.macd !== null) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+          className="glass-card rounded-xl p-4">
           <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
             <LineChart className="w-4 h-4 text-[#3B82F6]" /> Teknik Göstergeler
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* RSI */}
             {data.indicators.rsi !== null && (
-              <div className="bg-[#0F172A] rounded-lg p-3">
+              <div className="glass-inner rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] text-[#64748B] uppercase tracking-wide">RSI (14)</p>
                   <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
@@ -564,7 +564,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
             {/* MACD */}
             {data.indicators.macd !== null && (
-              <div className="bg-[#0F172A] rounded-lg p-3">
+              <div className="glass-inner rounded-lg p-3">
                 <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-2">MACD</p>
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
@@ -590,7 +590,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
             {/* EMA Summary */}
             {(data.indicators.ema20 !== null || data.indicators.ema50 !== null) && (
-              <div className="bg-[#0F172A] rounded-lg p-3">
+              <div className="glass-inner rounded-lg p-3">
                 <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-2">Hareketli Ortalamalar</p>
                 <div className="space-y-1.5">
                   {data.indicators.ema20 !== null && (
@@ -633,7 +633,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
             {/* Bollinger Bands */}
             {data.indicators.bbUpper !== null && (
-              <div className="bg-[#0F172A] rounded-lg p-3">
+              <div className="glass-inner rounded-lg p-3">
                 <p className="text-[10px] text-[#64748B] uppercase tracking-wide mb-2">Bollinger Bantları</p>
                 <div className="space-y-1.5">
                   <div className="flex justify-between">

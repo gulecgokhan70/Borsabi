@@ -83,7 +83,7 @@ export function WatchlistClient() {
           <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors">
             <Plus className="w-4 h-4" /> Ekle
           </button>
-          <button onClick={fetchWatchlist} disabled={loading} className="p-2 rounded-lg bg-[#1E293B] border border-[#334155] text-[#94A3B8] hover:text-white transition-colors">
+          <button onClick={fetchWatchlist} disabled={loading} className="p-2 rounded-lg glass-card text-[#94A3B8] hover:text-white transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -91,21 +91,21 @@ export function WatchlistClient() {
 
       {/* Add modal */}
       {showAdd && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white">Hisse / Kripto Ekle</h3>
             <button onClick={() => setShowAdd(false)} className="text-[#94A3B8] hover:text-white"><X className="w-4 h-4" /></button>
           </div>
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
-            <input type="text" value={searchQ} onChange={(e: any) => setSearchQ(e?.target?.value ?? '')} placeholder="Ara..." className="w-full pl-10 pr-3 py-2 bg-[#0F172A] border border-[#334155] rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]" />
+            <input type="text" value={searchQ} onChange={(e: any) => setSearchQ(e?.target?.value ?? '')} placeholder="Ara..." className="w-full pl-10 pr-3 py-2 glass-inner border border-white/[0.08] rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-[#3B82F6]" />
           </div>
           <div className="max-h-64 overflow-y-auto space-y-1 scrollbar-none">
             {filteredAssets.map((a: any) => {
               const isInList = watchlistSymbols.has(a?.symbol);
               return (
                 <button key={a?.symbol} onClick={() => toggleWatchlist(a?.symbol, a?.name, a?.type)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${isInList ? 'bg-[#3B82F6]/10' : 'hover:bg-[#334155]/30'}`}>
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${isInList ? 'bg-[#3B82F6]/10' : 'hover:bg-white/[0.06]'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-1.5 py-0.5 rounded ${a?.type === 'CRYPTO' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'}`}>{a?.type}</span>
                     <span className="text-sm text-white">{a?.shortName ?? a?.symbol}</span>
@@ -135,7 +135,7 @@ export function WatchlistClient() {
             const change = priceData?.changePercent ?? 0;
             return (
               <motion.div key={w?.id ?? i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 hover:border-[#3B82F6]/30 transition-colors">
+                className="glass-card rounded-xl p-4 hover:border-[#3B82F6]/30 transition-colors">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/stock/${encodeURIComponent(w?.symbol)}`)}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${change >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>

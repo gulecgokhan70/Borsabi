@@ -58,30 +58,30 @@ export default function AchievementsClient() {
 
       {/* Progress */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-semibold text-white">İlerleme</span>
           <span className="text-sm font-bold text-[#F59E0B]">{unlocked.length}/{badges.length}</span>
         </div>
-        <div className="w-full h-3 bg-[#0F172A] rounded-full overflow-hidden">
+        <div className="w-full h-3 glass-inner rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-[#F59E0B] to-[#22C55E] rounded-full transition-all"
             style={{ width: `${badges.length > 0 ? (unlocked.length / badges.length) * 100 : 0}%` }} />
         </div>
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-            <div className="bg-[#0F172A]/50 rounded-lg p-2 text-center">
+            <div className="glass-inner rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-white">{stats.totalTrades}</p>
               <p className="text-xs text-[#94A3B8]">Toplam İşlem</p>
             </div>
-            <div className="bg-[#0F172A]/50 rounded-lg p-2 text-center">
+            <div className="glass-inner rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-[#22C55E]">{stats.winRate?.toFixed(1)}%</p>
               <p className="text-xs text-[#94A3B8]">Kazanç Oranı</p>
             </div>
-            <div className="bg-[#0F172A]/50 rounded-lg p-2 text-center">
+            <div className="glass-inner rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-[#3B82F6]">{stats.uniqueSymbols}</p>
               <p className="text-xs text-[#94A3B8]">Farklı Sembol</p>
             </div>
-            <div className="bg-[#0F172A]/50 rounded-lg p-2 text-center">
+            <div className="glass-inner rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-[#F59E0B]">{stats.maxWinStreak}</p>
               <p className="text-xs text-[#94A3B8]">En Uzun Seri</p>
             </div>
@@ -98,7 +98,7 @@ export default function AchievementsClient() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {unlocked.map((badge: any, idx: number) => (
               <motion.div key={badge.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: idx * 0.05 }}
-                className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 text-center hover:border-[#F59E0B]/50 transition">
+                className="glass-card rounded-xl p-4 text-center hover:border-[#F59E0B]/50 transition">
                 <div className="text-3xl mb-2">{badge.icon}</div>
                 <p className="text-sm font-bold text-white">{badge.name}</p>
                 <p className="text-xs text-[#94A3B8] mt-1">{badge.desc}</p>
@@ -119,7 +119,7 @@ export default function AchievementsClient() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {locked.map((badge: any) => (
-              <div key={badge.id} className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 text-center opacity-70">
+              <div key={badge.id} className="glass-card rounded-xl p-4 text-center opacity-70">
                 <div className="text-3xl mb-2 grayscale">{badge.icon}</div>
                 <p className="text-sm font-bold text-[#CBD5E1]">{badge.name}</p>
                 <p className="text-xs text-[#94A3B8] mt-1">{badge.desc}</p>

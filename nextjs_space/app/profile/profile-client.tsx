@@ -15,16 +15,9 @@ const TIERS = [
   {
     id: 'pro',
     name: 'Pro',
-    icon: Star,
-    color: '#3B82F6',
-    features: ['20 aktif alarm', 'Algoritmik tarama', 'Sınırsız backtest', 'Strateji oluşturucu', 'Gelişmiş göstergeler'],
-  },
-  {
-    id: 'elite',
-    name: 'Elite',
     icon: Crown,
-    color: '#F59E0B',
-    features: ['50 aktif alarm', 'Tüm özellikler', 'Öncelikli AI analiz', 'API erişimi', 'Özel stratejiler', 'VIP destek'],
+    color: '#3B82F6',
+    features: ['50 aktif alarm', 'Algoritmik tarama', 'Sınırsız backtest', 'Strateji oluşturucu', 'Gelişmiş göstergeler', 'Öncelikli AI analiz', 'API erişimi', 'Özel stratejiler'],
   },
 ];
 
@@ -76,7 +69,8 @@ export default function ProfileClient() {
 
   if (!profile) return <div className="text-center text-[#94A3B8] py-20">Profil yüklenemedi.</div>;
 
-  const currentTier = TIERS.find(t => t.id === profile.tier) || TIERS[0];
+  const effectiveTier = profile.tier === 'elite' ? 'pro' : profile.tier;
+  const currentTier = TIERS.find(t => t.id === effectiveTier) || TIERS[0];
   const TierIcon = currentTier.icon;
 
   return (
@@ -94,7 +88,7 @@ export default function ProfileClient() {
 
       {/* Profile Card */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-6">
+        className="glass-card rounded-xl p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${currentTier.color}20`, border: `2px solid ${currentTier.color}` }}>
             <TierIcon className="w-8 h-8" style={{ color: currentTier.color }} />
@@ -104,7 +98,7 @@ export default function ProfileClient() {
               {editingName ? (
                 <div className="flex items-center gap-2">
                   <input value={newName} onChange={e => setNewName(e.target.value)}
-                    className="bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-[#3B82F6]" />
+                    className="glass-inner border border-white/[0.08] rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-[#3B82F6]" />
                   <button onClick={handleNameSave} className="p-1 text-[#22C55E] hover:bg-[#22C55E]/10 rounded"><Check className="w-4 h-4" /></button>
                   <button onClick={() => setEditingName(false)} className="p-1 text-[#EF4444] hover:bg-[#EF4444]/10 rounded"><X className="w-4 h-4" /></button>
                 </div>
@@ -135,7 +129,7 @@ export default function ProfileClient() {
             { label: 'Toplam İşlem', value: profile.totalTrades.toString(), icon: BarChart3, color: '#8B5CF6' },
             { label: 'Kazanç Oranı', value: `%${profile.winRate.toFixed(1)}`, icon: Shield, color: '#F59E0B' },
           ].map((s, i) => (
-            <div key={i} className="bg-[#0F172A]/50 rounded-lg p-3">
+            <div key={i} className="glass-inner rounded-lg p-3">
               <div className="flex items-center gap-1.5 mb-1">
                 <s.icon className="w-3.5 h-3.5" style={{ color: s.color }} />
                 <span className="text-xs text-[#94A3B8]">{s.label}</span>
@@ -151,14 +145,14 @@ export default function ProfileClient() {
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
           <Crown className="w-4 h-4 text-[#F59E0B]" /> Paket Seçimi
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TIERS.map((tier) => {
             const Icon = tier.icon;
-            const isActive = profile.tier === tier.id;
+            const isActive = effectiveTier === tier.id;
             return (
               <div key={tier.id}
-                className={`bg-[#1E293B] rounded-xl border p-5 transition-all ${
-                  isActive ? 'border-2' : 'border-[#334155] hover:border-[#475569]'
+                className={`glass-card rounded-xl p-5 transition-all ${
+                  isActive ? 'border-2' : 'hover:border-white/[0.12]'
                 }`}
                 style={isActive ? { borderColor: tier.color } : {}}>
                 <div className="flex items-center gap-2 mb-3">
@@ -189,7 +183,7 @@ export default function ProfileClient() {
 
       {/* Achievements Summary */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        className="glass-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
           <Award className="w-4 h-4 text-[#F59E0B]" /> Başarılar
         </h3>

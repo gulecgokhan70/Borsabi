@@ -62,7 +62,7 @@ export default function AlgoScanClient() {
 
       {/* Filters Panel */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
+        className="glass-card rounded-xl overflow-hidden">
         <button onClick={() => setShowFilters(!showFilters)}
           className="w-full flex items-center justify-between px-5 py-3 text-sm font-semibold text-white">
           <span className="flex items-center gap-2"><Filter className="w-4 h-4 text-[#8B5CF6]" /> Filtreler</span>
@@ -76,7 +76,7 @@ export default function AlgoScanClient() {
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Piyasa</label>
                 <select value={filters.market} onChange={e => updateFilter('market', e.target.value)}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
                   <option value="BIST">BIST</option>
                   <option value="CRYPTO">Kripto</option>
                 </select>
@@ -84,7 +84,7 @@ export default function AlgoScanClient() {
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Sıralama</label>
                 <select value={filters.sortBy} onChange={e => updateFilter('sortBy', e.target.value)}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
                   <option value="score">Puana Göre</option>
                   <option value="rsi">RSI (Düşük Önce)</option>
                   <option value="change">Değişim (Yüksek Önce)</option>
@@ -94,7 +94,7 @@ export default function AlgoScanClient() {
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">EMA Periyodu</label>
                 <select value={filters.emaPeriod} onChange={e => updateFilter('emaPeriod', Number(e.target.value))}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
                   <option value={10}>EMA 10</option>
                   <option value={20}>EMA 20</option>
                   <option value={50}>EMA 50</option>
@@ -107,17 +107,17 @@ export default function AlgoScanClient() {
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">RSI Min</label>
                 <input type="number" value={filters.rsiMin} onChange={e => updateFilter('rsiMin', Number(e.target.value))}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={0} max={100} />
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={0} max={100} />
               </div>
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">RSI Max</label>
                 <input type="number" value={filters.rsiMax} onChange={e => updateFilter('rsiMax', Number(e.target.value))}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={0} max={100} />
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={0} max={100} />
               </div>
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">MACD Sinyal</label>
                 <select value={filters.macdSignal} onChange={e => updateFilter('macdSignal', e.target.value)}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
                   <option value="all">Tümü</option>
                   <option value="bullish">Yükseliş (Bullish)</option>
                   <option value="bearish">Düşüş (Bearish)</option>
@@ -126,7 +126,7 @@ export default function AlgoScanClient() {
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">EMA Filtre</label>
                 <select value={filters.emaFilter} onChange={e => updateFilter('emaFilter', e.target.value)}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]">
                   <option value="all">Tümü</option>
                   <option value="above">EMA Üstünde</option>
                   <option value="below">EMA Altında</option>
@@ -139,17 +139,17 @@ export default function AlgoScanClient() {
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Min Hacim Çarpanı</label>
                 <input type="number" value={filters.volumeMin} onChange={e => updateFilter('volumeMin', Number(e.target.value))}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={0} step={0.1} />
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={0} step={0.1} />
               </div>
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Değişim Min %</label>
                 <input type="number" value={filters.changeMin} onChange={e => updateFilter('changeMin', Number(e.target.value))}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
               </div>
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Değişim Max %</label>
                 <input type="number" value={filters.changeMax} onChange={e => updateFilter('changeMax', Number(e.target.value))}
-                  className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
+                  className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
               </div>
               <div className="flex items-end">
                 <button onClick={runScan} disabled={loading}
@@ -166,18 +166,18 @@ export default function AlgoScanClient() {
       {/* Results */}
       {scanned && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-          <div className="px-5 py-3 border-b border-[#334155] flex items-center justify-between">
+          className="glass-card rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-white/[0.08] flex items-center justify-between">
             <span className="text-sm font-semibold text-white">Sonuçlar ({results.length})</span>
           </div>
 
           {results.length === 0 ? (
             <div className="p-10 text-center text-[#94A3B8] text-sm">Filtrelere uygun sonuç bulunamadı. Filtreleri gevşetin.</div>
           ) : (
-            <div className="divide-y divide-[#334155]">
+            <div className="divide-y divide-white/[0.08]">
               {results.map((r: any, idx: number) => (
                 <motion.div key={r.symbol} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.03 }}
-                  className="px-5 py-3 hover:bg-[#0F172A]/30 transition">
+                  className="px-5 py-3 hover:bg-white/[0.04] transition">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div className="flex items-center gap-3 min-w-[180px]">
                       <div className="w-8 h-8 rounded-lg bg-[#0F172A] flex items-center justify-center">

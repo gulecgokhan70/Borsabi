@@ -120,7 +120,7 @@ export default function AksamAnaliziClient() {
         {/* Desktop Tablo */}
         <table className="w-full text-sm hidden lg:table">
           <thead>
-            <tr className="border-b border-[#334155]">
+            <tr className="border-b border-white/[0.08]">
               <th className="text-left py-3 px-3 text-[#94A3B8] font-medium">#</th>
               <th className="text-left py-3 px-3 text-[#94A3B8] font-medium">Hisse</th>
               <th className="text-right py-3 px-3 text-[#94A3B8] font-medium">Puan</th>
@@ -136,7 +136,7 @@ export default function AksamAnaliziClient() {
           </thead>
           <tbody>
             {trades.map((t, idx) => (
-              <tr key={t.symbol} className="border-b border-[#1E293B] hover:bg-[#1E293B]/50 transition-colors">
+              <tr key={t.symbol} className="border-b border-white/[0.06] hover:glass-card/50 transition-colors">
                 <td className="py-3 px-3">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${getScoreBg(t.score)}`}>
                     {idx + 1}
@@ -209,19 +209,19 @@ export default function AksamAnaliziClient() {
 
               {/* Trade Plan */}
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                <div className="glass-inner rounded-lg p-2">
                   <div className="text-[10px] text-[#64748B] mb-0.5">GİRİŞ</div>
                   <div className="text-sm font-bold text-[#22C55E]">{formatCurrency(t.entry)}</div>
                 </div>
-                <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                <div className="glass-inner rounded-lg p-2">
                   <div className="text-[10px] text-[#64748B] mb-0.5">STOP LOSS</div>
                   <div className="text-sm font-bold text-[#EF4444]">{formatCurrency(t.stopLoss)}</div>
                 </div>
-                <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                <div className="glass-inner rounded-lg p-2">
                   <div className="text-[10px] text-[#64748B] mb-0.5">HEDEF 1</div>
                   <div className="text-sm font-bold text-[#3B82F6]">{formatCurrency(t.target1)}</div>
                 </div>
-                <div className="bg-[#0F172A]/50 rounded-lg p-2">
+                <div className="glass-inner rounded-lg p-2">
                   <div className="text-[10px] text-[#64748B] mb-0.5">HEDEF 2</div>
                   <div className="text-sm font-bold text-[#8B5CF6]">{formatCurrency(t.target2)}</div>
                 </div>
@@ -241,7 +241,7 @@ export default function AksamAnaliziClient() {
               {/* Detay toggle */}
               <button
                 onClick={() => setExpanded(expanded === t.symbol ? null : t.symbol)}
-                className="w-full mt-2 pt-2 border-t border-[#334155]/50 text-xs text-[#64748B] flex items-center justify-center gap-1 hover:text-white transition-colors"
+                className="w-full mt-2 pt-2 border-t border-white/[0.06] text-xs text-[#64748B] flex items-center justify-center gap-1 hover:text-white transition-colors"
               >
                 {expanded === t.symbol ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 {expanded === t.symbol ? 'Gizle' : 'Detaylar'}
@@ -255,36 +255,36 @@ export default function AksamAnaliziClient() {
                     className="overflow-hidden"
                   >
                     <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
-                      <div className="bg-[#0F172A]/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.03] rounded p-1.5 text-center">
                         <div className="text-[#64748B]">RSI</div>
                         <div className="text-white font-medium">{t.rsi14}</div>
                       </div>
-                      <div className="bg-[#0F172A]/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.03] rounded p-1.5 text-center">
                         <div className="text-[#64748B]">MACD</div>
                         <div className={`font-medium ${t.macd.histogram > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                           {t.macd.histogram > 0 ? '+' : ''}{t.macd.histogram}
                         </div>
                       </div>
-                      <div className="bg-[#0F172A]/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.03] rounded p-1.5 text-center">
                         <div className="text-[#64748B]">5G Perf.</div>
                         <div className={`font-medium ${t.last5Day >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                           {t.last5Day >= 0 ? '+' : ''}{t.last5Day}%
                         </div>
                       </div>
-                      <div className="bg-[#0F172A]/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.03] rounded p-1.5 text-center">
                         <div className="text-[#64748B]">Destek</div>
                         <div className="text-white font-medium">{formatCurrency(t.support)}</div>
                       </div>
-                      <div className="bg-[#0F172A]/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.03] rounded p-1.5 text-center">
                         <div className="text-[#64748B]">Direnç</div>
                         <div className="text-white font-medium">{formatCurrency(t.resistance)}</div>
                       </div>
-                      <div className="bg-[#0F172A]/30 rounded p-1.5 text-center">
+                      <div className="bg-white/[0.03] rounded p-1.5 text-center">
                         <div className="text-[#64748B]">Hacim</div>
                         <div className="text-white font-medium">{t.volRatio}x</div>
                       </div>
                       {type === 'swing' && t.trendDirection && (
-                        <div className="bg-[#0F172A]/30 rounded p-1.5 text-center col-span-3">
+                        <div className="bg-white/[0.03] rounded p-1.5 text-center col-span-3">
                           <div className="text-[#64748B]">Trend: <span className="text-white">{t.trendDirection}</span> | Süre: <span className="text-white">{t.holdingPeriod}</span></div>
                         </div>
                       )}
@@ -323,7 +323,7 @@ export default function AksamAnaliziClient() {
       </div>
 
       {/* Disclaimer */}
-      <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+      <div className="glass-card rounded-xl p-4">
         <div className="flex gap-3">
           <AlertTriangle className="w-5 h-5 text-[#F59E0B] flex-shrink-0 mt-0.5" />
           <div>
@@ -367,7 +367,7 @@ export default function AksamAnaliziClient() {
               { label: 'Swing Adayı', value: data.toplamSwing, icon: Waves, color: '#8B5CF6' },
               { label: 'Analiz Zamanı', value: data.analizZamani?.split(' ')[1] || '-', icon: Clock, color: '#94A3B8', isText: true },
             ].map((stat: any, idx: number) => (
-              <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+              <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
                 <div className="flex items-center gap-2 mb-2">
                   <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
                   <span className="text-xs text-[#94A3B8]">{stat.label}</span>
@@ -378,8 +378,8 @@ export default function AksamAnaliziClient() {
           </div>
 
           {/* DAY TRADING TABLOSU */}
-          <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-            <div className="p-5 border-b border-[#334155]">
+          <div className="glass-card rounded-xl overflow-hidden">
+            <div className="p-5 border-b border-white/[0.08]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#F59E0B]/10 flex items-center justify-center">
                   <Zap className="w-5 h-5 text-[#F59E0B]" />
@@ -402,8 +402,8 @@ export default function AksamAnaliziClient() {
           </div>
 
           {/* SWING TRADING TABLOSU */}
-          <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-            <div className="p-5 border-b border-[#334155]">
+          <div className="glass-card rounded-xl overflow-hidden">
+            <div className="p-5 border-b border-white/[0.08]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#8B5CF6]/10 flex items-center justify-center">
                   <Waves className="w-5 h-5 text-[#8B5CF6]" />
@@ -426,7 +426,7 @@ export default function AksamAnaliziClient() {
           </div>
 
           {/* Analiz kriterleri */}
-          <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+          <div className="glass-card rounded-xl p-5">
             <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
               <Star className="w-4 h-4 text-[#F59E0B]" />
               Analiz Metodolojisi
@@ -475,14 +475,14 @@ export default function AksamAnaliziClient() {
             Akşam analizi yapın, sabah en iyi fırsatlarla işleme başlayın.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg w-full">
-            <div className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+            <div className="glass-card rounded-xl p-4 border border-white/[0.08]">
               <Zap className="w-5 h-5 text-[#F59E0B] mb-2" />
               <p className="text-sm font-semibold text-white">Day Trading</p>
               <p className="text-xs text-[#64748B] mt-1">
                 Hacim, RSI, MACD, EMA, momentum, VWAP kriterlerine göre en iyi 5 hisse
               </p>
             </div>
-            <div className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+            <div className="glass-card rounded-xl p-4 border border-white/[0.08]">
               <Waves className="w-5 h-5 text-[#8B5CF6] mb-2" />
               <p className="text-sm font-semibold text-white">Swing Trading</p>
               <p className="text-xs text-[#64748B] mt-1">

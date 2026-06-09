@@ -206,11 +206,11 @@ export default function StrategyBuilderClient() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowTemplates(!showTemplates)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-xs text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all">
+            className="flex items-center gap-1.5 px-3 py-2 glass-card rounded-lg text-xs text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all">
             <Lightbulb className="w-3.5 h-3.5 text-[#F59E0B]" /> Şablonlar
           </button>
           <button onClick={resetAll}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded-lg text-xs text-[#64748B] hover:text-[#F87171] hover:border-[#EF4444]/30 transition-all">
+            className="flex items-center gap-1.5 px-3 py-2 glass-card rounded-lg text-xs text-[#64748B] hover:text-[#F87171] hover:border-[#EF4444]/30 transition-all">
             <RotateCcw className="w-3.5 h-3.5" /> Sıfırla
           </button>
         </div>
@@ -220,14 +220,14 @@ export default function StrategyBuilderClient() {
       <AnimatePresence>
         {showTemplates && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="bg-[#1E293B] rounded-xl border border-[#F59E0B]/20 p-4">
+            <div className="glass-card rounded-xl border border-[#F59E0B]/20 p-4">
               <h3 className="text-sm font-semibold text-[#F59E0B] mb-3 flex items-center gap-2">
                 <Lightbulb className="w-4 h-4" /> Hazır Strateji Şablonları
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {TEMPLATES.map(tpl => (
                   <button key={tpl.id} onClick={() => applyTemplate(tpl)}
-                    className="text-left bg-[#0F172A]/50 rounded-lg p-3 border border-[#334155] hover:border-[#F59E0B]/40 transition-all group">
+                    className="text-left glass-inner rounded-lg p-3 border border-white/[0.08] hover:border-[#F59E0B]/40 transition-all group">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-lg">{tpl.icon}</span>
                       <span className="text-sm font-semibold text-white group-hover:text-[#F59E0B] transition-colors">{tpl.name}</span>
@@ -248,7 +248,7 @@ export default function StrategyBuilderClient() {
 
       {/* Config */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        className="glass-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
           <Activity className="w-4 h-4 text-[#3B82F6]" /> Temel Ayarlar
         </h3>
@@ -256,7 +256,7 @@ export default function StrategyBuilderClient() {
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Strateji Adı</label>
             <input value={name} onChange={e => setName(e.target.value)}
-              className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
+              className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" />
           </div>
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Sembol</label>
@@ -265,12 +265,12 @@ export default function StrategyBuilderClient() {
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Stop Loss %</label>
             <input type="number" value={stopLoss} onChange={e => setStopLoss(Number(e.target.value))}
-              className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={1} max={50} />
+              className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={1} max={50} />
           </div>
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Take Profit %</label>
             <input type="number" value={takeProfit} onChange={e => setTakeProfit(Number(e.target.value))}
-              className="w-full bg-[#0F172A] border border-[#334155] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={1} max={100} />
+              className="w-full glass-inner border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3B82F6]" min={1} max={100} />
           </div>
         </div>
 
@@ -285,7 +285,7 @@ export default function StrategyBuilderClient() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   period === p.id
                     ? 'bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/20'
-                    : 'bg-[#0F172A] text-[#94A3B8] hover:text-white border border-[#334155] hover:border-[#3B82F6]/30'
+                    : 'bg-[#0F172A] text-[#94A3B8] hover:text-white border border-white/[0.08] hover:border-[#3B82F6]/30'
                 }`}>
                 <span className="mr-1">{p.icon}</span> {p.name}
               </button>
@@ -296,7 +296,7 @@ export default function StrategyBuilderClient() {
 
       {/* Rules */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        className="glass-card rounded-xl p-5">
         <button onClick={() => setShowRules(!showRules)} className="w-full flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
             <Target className="w-4 h-4 text-[#F59E0B]" /> Kurallar ({rules.length})
@@ -359,7 +359,7 @@ export default function StrategyBuilderClient() {
         {result && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
             {/* Score Card */}
-            <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+            <div className="glass-card rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                   <Award className="w-4 h-4 text-[#F59E0B]" /> "{result.name}" Sonuçları
@@ -372,7 +372,7 @@ export default function StrategyBuilderClient() {
 
               {/* Key Metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <div className="bg-[#0F172A]/50 rounded-lg p-3 border border-[#334155]/50">
+                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Percent className="w-3 h-3 text-[#3B82F6]" />
                     <p className="text-[10px] text-[#64748B] uppercase">Toplam Getiri</p>
@@ -381,21 +381,21 @@ export default function StrategyBuilderClient() {
                     {result.summary.totalReturn >= 0 ? '+' : ''}{result.summary.totalReturn.toFixed(2)}%
                   </p>
                 </div>
-                <div className="bg-[#0F172A]/50 rounded-lg p-3 border border-[#334155]/50">
+                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Target className="w-3 h-3 text-[#8B5CF6]" />
                     <p className="text-[10px] text-[#64748B] uppercase">Kazanç Oranı</p>
                   </div>
                   <p className="text-lg font-bold font-mono text-white">%{result.summary.winRate}</p>
                 </div>
-                <div className="bg-[#0F172A]/50 rounded-lg p-3 border border-[#334155]/50">
+                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <BarChart3 className="w-3 h-3 text-[#F59E0B]" />
                     <p className="text-[10px] text-[#64748B] uppercase">İşlem Sayısı</p>
                   </div>
                   <p className="text-lg font-bold font-mono text-white">{result.summary.totalTrades}</p>
                 </div>
-                <div className="bg-[#0F172A]/50 rounded-lg p-3 border border-[#334155]/50">
+                <div className="glass-inner rounded-lg p-3 border border-white/[0.06]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Shield className="w-3 h-3 text-[#EF4444]" />
                     <p className="text-[10px] text-[#64748B] uppercase">Max Drawdown</p>
@@ -406,19 +406,19 @@ export default function StrategyBuilderClient() {
 
               {/* Secondary metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="bg-[#0F172A]/30 rounded-lg p-2.5">
+                <div className="bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-[#64748B]">Son Sermaye</p>
                   <p className="text-sm font-bold text-white font-mono">{formatCurrency(result.summary.finalCapital)}</p>
                 </div>
-                <div className="bg-[#0F172A]/30 rounded-lg p-2.5">
+                <div className="bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-[#64748B]">Başlangıç</p>
                   <p className="text-sm font-bold text-[#94A3B8] font-mono">{formatCurrency(result.summary.initialCapital)}</p>
                 </div>
-                <div className="bg-[#0F172A]/30 rounded-lg p-2.5">
+                <div className="bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-[#64748B]">Ort. Kazanç</p>
                   <p className="text-sm font-bold text-[#22C55E] font-mono">{formatPercent(result.summary.avgWin)}</p>
                 </div>
-                <div className="bg-[#0F172A]/30 rounded-lg p-2.5">
+                <div className="bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-[#64748B]">Ort. Kayıp</p>
                   <p className="text-sm font-bold text-[#F87171] font-mono">{formatPercent(result.summary.avgLoss)}</p>
                 </div>
@@ -427,7 +427,7 @@ export default function StrategyBuilderClient() {
 
             {/* Equity Chart */}
             {result.equity?.length > 0 && (
-              <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+              <div className="glass-card rounded-xl p-5">
                 <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[#3B82F6]" /> Sermaye Eğrisi
                 </h3>
@@ -439,8 +439,8 @@ export default function StrategyBuilderClient() {
 
             {/* Trades Table */}
             {result.trades?.length > 0 && (
-              <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-                <div className="px-5 py-3 border-b border-[#334155] flex items-center justify-between">
+              <div className="glass-card rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.08] flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                     <Zap className="w-4 h-4 text-[#F59E0B]" /> İşlem Geçmişi ({result.trades.length})
                   </h3>
@@ -451,7 +451,7 @@ export default function StrategyBuilderClient() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
-                    <thead><tr className="text-[#94A3B8] border-b border-[#334155]">
+                    <thead><tr className="text-[#94A3B8] border-b border-white/[0.08]">
                       <th className="px-4 py-2 text-left">#</th>
                       <th className="px-4 py-2 text-left">Tarih</th>
                       <th className="px-4 py-2 text-right">Giriş</th>
@@ -462,7 +462,7 @@ export default function StrategyBuilderClient() {
                     </tr></thead>
                     <tbody>
                       {result.trades.map((t: any, i: number) => (
-                        <tr key={i} className="border-b border-[#334155]/50 hover:bg-[#0F172A]/30">
+                        <tr key={i} className="border-b border-white/[0.06] hover:bg-white/[0.04]">
                           <td className="px-4 py-2 text-[#64748B]">{i + 1}</td>
                           <td className="px-4 py-2 text-[#94A3B8]">{t.date}</td>
                           <td className="px-4 py-2 text-right text-white font-mono">{formatCurrency(t.entry)}</td>
@@ -503,33 +503,33 @@ function renderRule(
 ) {
   const dirColor = rule.direction === 'buy' ? 'border-[#22C55E]/20' : 'border-[#EF4444]/20';
   return (
-    <div key={rule.id} className={`flex flex-wrap items-center gap-2 bg-[#0F172A]/50 rounded-lg p-3 border ${dirColor}`}>
+    <div key={rule.id} className={`flex flex-wrap items-center gap-2 glass-inner rounded-lg p-3 border ${dirColor}`}>
       <select value={rule.direction} onChange={e => updateRule(rule.id, 'direction', e.target.value)}
-        className="bg-[#0F172A] border border-[#334155] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
         <option value="buy">🟢 AL</option>
         <option value="sell">🔴 SAT</option>
       </select>
       <select value={rule.indicator} onChange={e => updateRule(rule.id, 'indicator', e.target.value)}
-        className="bg-[#0F172A] border border-[#334155] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
         {INDICATORS.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
       </select>
       <select value={rule.operator} onChange={e => updateRule(rule.id, 'operator', e.target.value)}
-        className="bg-[#0F172A] border border-[#334155] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
         {OPERATORS.map(op => <option key={op.id} value={op.id}>{op.name}</option>)}
       </select>
       <select value={rule.compareWith} onChange={e => updateRule(rule.id, 'compareWith', e.target.value)}
-        className="bg-[#0F172A] border border-[#334155] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
         <option value="indicator">Gösterge</option>
         <option value="value">Değer</option>
       </select>
       {rule.compareWith === 'indicator' ? (
         <select value={rule.compareIndicator} onChange={e => updateRule(rule.id, 'compareIndicator', e.target.value)}
-          className="bg-[#0F172A] border border-[#334155] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+          className="glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
           {INDICATORS.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
         </select>
       ) : (
         <input type="number" value={rule.value} onChange={e => updateRule(rule.id, 'value', Number(e.target.value))}
-          className="w-20 bg-[#0F172A] border border-[#334155] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none" />
+          className="w-20 glass-inner border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none" />
       )}
       <button onClick={() => removeRule(rule.id)} className="ml-auto p-1.5 text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-colors">
         <Trash2 className="w-3.5 h-3.5" />

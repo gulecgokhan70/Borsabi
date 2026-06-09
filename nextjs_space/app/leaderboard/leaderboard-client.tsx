@@ -55,7 +55,7 @@ export default function LeaderboardClient() {
             const style = RANK_STYLES[idx];
             const Icon = style.icon;
             return (
-              <div key={idx} className={`bg-[#1E293B] rounded-xl border border-[#334155] p-4 text-center ${idx === 0 ? 'ring-2 ring-[#F59E0B]/30' : ''}`}>
+              <div key={idx} className={`glass-card rounded-xl p-4 text-center ${idx === 0 ? 'ring-2 ring-[#F59E0B]/30' : ''}`}>
                 <div className={`w-12 h-12 mx-auto rounded-full bg-gradient-to-br ${style.bg} flex items-center justify-center mb-2`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
@@ -73,16 +73,16 @@ export default function LeaderboardClient() {
 
       {/* Full List */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-        <div className="px-5 py-3 border-b border-[#334155]">
+        className="glass-card rounded-xl overflow-hidden">
+        <div className="px-5 py-3 border-b border-white/[0.08]">
           <span className="text-sm font-semibold text-white">Tüm Traderlar ({data.length})</span>
         </div>
-        <div className="divide-y divide-[#334155]">
+        <div className="divide-y divide-white/[0.08]">
           {data.map((user: any, idx: number) => {
             const tier = TIER_COLORS[user.tier] || TIER_COLORS.free;
             return (
               <motion.div key={idx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.03 }}
-                className="px-5 py-3 flex items-center gap-4 hover:bg-[#0F172A]/30 transition">
+                className="px-5 py-3 flex items-center gap-4 hover:bg-white/[0.04] transition">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : idx === 1 ? 'bg-[#94A3B8]/20 text-[#C0C0C0]' : idx === 2 ? 'bg-[#B45309]/20 text-[#CD7F32]' : 'bg-[#0F172A] text-[#94A3B8]'}`}>
                   {user.rank}
                 </div>

@@ -124,7 +124,7 @@ export function AiAssistantClient() {
             <p className="text-sm text-[#94A3B8] mb-6 text-center max-w-md">Gerçek piyasa verileriyle hisse analizi, teknik göstergeler, portföy değerlendirmesi ve risk yönetimi konularında sorabilirsiniz.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
               {SUGGESTIONS.map((s: string, i: number) => (
-                <button key={i} onClick={() => sendMessage(s)} className="flex items-center gap-2 px-4 py-2.5 bg-[#1E293B] border border-[#334155] rounded-lg text-sm text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all text-left">
+                <button key={i} onClick={() => sendMessage(s)} className="flex items-center gap-2 px-4 py-2.5 glass-card rounded-lg text-sm text-[#94A3B8] hover:text-white hover:border-[#3B82F6]/50 transition-all text-left">
                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-[#3B82F6]" />
                   {s}
                 </button>
@@ -137,7 +137,7 @@ export function AiAssistantClient() {
               <div className={`max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-xl ${
                 msg?.role === 'user'
                   ? 'bg-[#3B82F6] text-white'
-                  : 'bg-[#1E293B] border border-[#334155] text-[#E2E8F0]'
+                  : 'glass-card text-[#E2E8F0]'
               }`}>
                 {msg?.role === 'assistant' && (
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -153,7 +153,7 @@ export function AiAssistantClient() {
       </div>
 
       {/* Input */}
-      <div className="mt-auto pt-3 border-t border-[#1E293B]">
+      <div className="mt-auto pt-3 border-t border-white/[0.06]">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -162,7 +162,7 @@ export function AiAssistantClient() {
             onKeyDown={(e: any) => { if (e?.key === 'Enter' && !e?.shiftKey) { e?.preventDefault?.(); sendMessage(); } }}
             placeholder="Bir soru sorun... Örn: THYAO teknik analizi"
             disabled={loading}
-            className="flex-1 px-4 py-3 bg-[#1E293B] border border-[#334155] rounded-xl text-white text-sm placeholder-[#64748B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none disabled:opacity-50"
+            className="flex-1 px-4 py-3 glass-card rounded-xl text-white text-sm placeholder-[#64748B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none disabled:opacity-50"
           />
           <button
             onClick={() => sendMessage()}

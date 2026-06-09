@@ -112,7 +112,7 @@ export function BacktestClient() {
       </div>
 
       {/* Config */}
-      <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+      <div className="glass-card rounded-xl p-5">
         <h3 className="text-sm font-semibold text-white mb-4">Backtest Ayarları</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Symbol */}
@@ -132,7 +132,7 @@ export function BacktestClient() {
             <select
               value={strategy}
               onChange={e => setStrategy(e.target.value)}
-              className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
+              className="w-full glass-inner border border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
             >
               {STRATEGIES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
@@ -144,7 +144,7 @@ export function BacktestClient() {
             <select
               value={period}
               onChange={e => setPeriod(e.target.value)}
-              className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
+              className="w-full glass-inner border border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
             >
               {PERIODS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -158,7 +158,7 @@ export function BacktestClient() {
               value={stopLoss}
               onChange={e => setStopLoss(Number(e.target.value))}
               min={1} max={20} step={0.5}
-              className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
+              className="w-full glass-inner border border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
             />
           </div>
 
@@ -170,7 +170,7 @@ export function BacktestClient() {
               value={takeProfit}
               onChange={e => setTakeProfit(Number(e.target.value))}
               min={1} max={50} step={0.5}
-              className="w-full bg-[#0F172A] border border-[#334155] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
+              className="w-full glass-inner border border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm focus:border-[#3B82F6] focus:outline-none"
             />
           </div>
 
@@ -188,7 +188,7 @@ export function BacktestClient() {
         </div>
 
         {selectedStrategy && (
-          <div className="mt-3 p-3 bg-[#0F172A]/50 rounded-lg">
+          <div className="mt-3 p-3 glass-inner rounded-lg">
             <p className="text-xs text-[#94A3B8]">
               <strong className="text-white">{selectedStrategy.name}:</strong> {selectedStrategy.desc}
             </p>
@@ -217,7 +217,7 @@ export function BacktestClient() {
               { label: 'Kâr Faktörü', value: formatNumber(result.summary.profitFactor, 2), color: result.summary.profitFactor >= 1.5 ? '#22C55E' : '#F59E0B', icon: Shield },
               { label: 'Max Düşüş', value: `%${formatNumber(result.summary.maxDrawdown, 1)}`, color: '#EF4444', icon: TrendingDown },
             ].map((stat, idx) => (
-              <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+              <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
                 <div className="flex items-center gap-1.5 mb-2">
                   <stat.icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
                   <span className="text-[10px] text-[#64748B] uppercase">{stat.label}</span>
@@ -229,7 +229,7 @@ export function BacktestClient() {
 
           {/* Equity Curve */}
           {result.equity.length > 0 && (
-            <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+            <div className="glass-card rounded-xl p-5">
               <h3 className="text-sm font-semibold text-white mb-4">Sermaye Eğrisi</h3>
               <div className="h-[250px]">
                 <EquityChart equity={result.equity} positive={result.summary.totalReturn >= 0} />
@@ -239,7 +239,7 @@ export function BacktestClient() {
 
           {/* Detail Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+            <div className="glass-card rounded-xl p-5">
               <h3 className="text-sm font-semibold text-white mb-3">İşlem İstatistikleri</h3>
               <div className="space-y-2.5">
                 {[
@@ -258,7 +258,7 @@ export function BacktestClient() {
               </div>
             </div>
 
-            <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+            <div className="glass-card rounded-xl p-5">
               <h3 className="text-sm font-semibold text-white mb-3">Strateji Değerlendirmesi</h3>
               <div className="space-y-3">
                 {[
@@ -267,7 +267,7 @@ export function BacktestClient() {
                   { label: 'Risk Yönetimi', score: result.summary.maxDrawdown < 10 ? 'Güçlü' : result.summary.maxDrawdown < 20 ? 'Orta' : 'Zayıf', ok: result.summary.maxDrawdown < 20 },
                   { label: 'Kâr Faktörü', score: result.summary.profitFactor > 1.5 ? 'Güçlü' : result.summary.profitFactor > 1 ? 'Kabul Edilebilir' : 'Zayıf', ok: result.summary.profitFactor > 1 },
                 ].map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-[#0F172A]/50 rounded-lg px-3 py-2.5">
+                  <div key={idx} className="flex items-center justify-between glass-inner rounded-lg px-3 py-2.5">
                     <span className="text-xs text-[#94A3B8]">{item.label}</span>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${item.ok ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'}`}>
                       {item.score}
@@ -280,14 +280,14 @@ export function BacktestClient() {
 
           {/* Trade Table */}
           {result.trades.length > 0 && (
-            <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-              <div className="p-5 border-b border-[#334155]">
+            <div className="glass-card rounded-xl overflow-hidden">
+              <div className="p-5 border-b border-white/[0.08]">
                 <h3 className="text-sm font-semibold text-white">Son İşlemler (Son 20)</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-[#334155]">
+                    <tr className="border-b border-white/[0.08]">
                       {['Giriş', 'Çıkış', 'Giriş Fiyat', 'Çıkış Fiyat', 'K/Z', 'K/Z %', 'Süre', 'Neden'].map(h => (
                         <th key={h} className="text-left text-[10px] uppercase text-[#64748B] px-3 py-2.5 font-medium">{h}</th>
                       ))}
@@ -295,7 +295,7 @@ export function BacktestClient() {
                   </thead>
                   <tbody>
                     {result.trades.map((trade, idx) => (
-                      <tr key={idx} className="border-b border-[#334155]/50 hover:bg-[#0F172A]/30">
+                      <tr key={idx} className="border-b border-white/[0.06] hover:bg-white/[0.04]">
                         <td className="px-3 py-2.5 text-xs text-[#94A3B8]">{trade.entryDate}</td>
                         <td className="px-3 py-2.5 text-xs text-[#94A3B8]">{trade.exitDate}</td>
                         <td className="px-3 py-2.5 text-xs text-white font-medium">{formatNumber(trade.entryPrice)}</td>

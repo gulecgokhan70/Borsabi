@@ -39,7 +39,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0F172A] p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[#3B82F6]/10 mb-4">
@@ -49,7 +49,7 @@ export default function SignupPage() {
           <p className="text-sm text-[#94A3B8] mt-1">100.000 TL sanal bakiye ile başla</p>
         </div>
 
-        <form onSubmit={handleSignup} className="bg-[#1E293B] rounded-xl border border-[#334155] p-6 space-y-4">
+        <form onSubmit={handleSignup} className="glass-card rounded-xl p-6 space-y-4">
           <h2 className="text-lg font-semibold text-white">Hesap Oluştur</h2>
 
           <div>
@@ -57,7 +57,7 @@ export default function SignupPage() {
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
               <input type="text" value={name} onChange={(e: any) => setName(e?.target?.value ?? '')} placeholder="Adınız"
-                className="w-full pl-10 pr-3 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
+                className="w-full pl-10 pr-3 py-2.5 glass-inner border border-white/[0.08] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
             </div>
           </div>
 
@@ -66,7 +66,7 @@ export default function SignupPage() {
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
               <input type="email" value={email} onChange={(e: any) => setEmail(e?.target?.value ?? '')} placeholder="email@adres.com" required
-                className="w-full pl-10 pr-3 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
+                className="w-full pl-10 pr-3 py-2.5 glass-inner border border-white/[0.08] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
             </div>
           </div>
 
@@ -75,7 +75,7 @@ export default function SignupPage() {
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
               <input type={showPw ? 'text' : 'password'} value={password} onChange={(e: any) => setPassword(e?.target?.value ?? '')} placeholder="En az 6 karakter" required
-                className="w-full pl-10 pr-10 py-2.5 bg-[#0F172A] border border-[#334155] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
+                className="w-full pl-10 pr-10 py-2.5 glass-inner border border-white/[0.08] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
               <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-white">
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

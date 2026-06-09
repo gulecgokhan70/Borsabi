@@ -96,7 +96,7 @@ export function DayTradingClient() {
   const PuanBar = ({ label, puan, max }: { label: string; puan: number; max: number }) => (
     <div className="flex items-center gap-2 text-xs">
       <span className="text-[#94A3B8] w-20 text-right">{label}</span>
-      <div className="flex-1 h-2 bg-[#0F172A] rounded-full overflow-hidden">
+      <div className="flex-1 h-2 glass-inner rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all"
           style={{
@@ -123,7 +123,7 @@ export function DayTradingClient() {
           <p className="text-[#94A3B8] text-sm mt-1">5 Kategori Puanlama Sistemi ile Gün İçi Fırsat Analizi</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex bg-[#1E293B] rounded-lg p-1 gap-1">
+          <div className="flex glass-card rounded-lg p-1 gap-1">
             {[
               { key: 'all', label: 'Tümü' },
               { key: 'elite', label: 'Elite' },
@@ -146,7 +146,7 @@ export function DayTradingClient() {
           <button
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1E293B] hover:bg-[#334155] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 glass-card hover:bg-white/[0.06] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Tara
@@ -183,7 +183,7 @@ export function DayTradingClient() {
           { label: 'Elite Fırsat', value: data.filter((d: DayTradeResult) => d.score >= 90).length, icon: Target, color: '#22C55E' },
           { label: 'Güçlü Fırsat', value: data.filter((d: DayTradeResult) => d.score >= 80 && d.score < 90).length, icon: TrendingUp, color: '#3B82F6' },
         ].map((stat: any, idx: number) => (
-          <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
               <span className="text-xs text-[#94A3B8]">{stat.label}</span>
@@ -213,7 +213,7 @@ export function DayTradingClient() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className={`bg-[#1E293B] rounded-xl border overflow-hidden ${getScoreBg(item.score)}`}
+              className={`glass-card rounded-xl border overflow-hidden ${getScoreBg(item.score)}`}
             >
               <div className="p-5">
                 {/* Top row */}
@@ -257,14 +257,14 @@ export function DayTradingClient() {
                 {/* Signals */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(item.signals ?? []).map((signal: string, sIdx: number) => (
-                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-[#334155]">
+                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-[#0F172A] text-[#94A3B8] border border-white/[0.08]">
                       {signal}
                     </span>
                   ))}
                 </div>
 
                 {/* Puan Breakdown */}
-                <div className="bg-[#0F172A]/50 rounded-lg p-3 mb-4">
+                <div className="glass-inner rounded-lg p-3 mb-4">
                   <p className="text-[10px] text-[#64748B] uppercase mb-2 font-semibold">Puan Dağılımı</p>
                   <div className="space-y-1.5">
                     <PuanBar label="Hacim" puan={item.hacimPuan ?? 0} max={20} />
@@ -286,7 +286,7 @@ export function DayTradingClient() {
                     { label: 'Tavan', value: item.tavan ? formatCurrency(item.tavan) : '-', icon: TrendingUp, color: '#F97316' },
                     { label: 'Taban', value: item.taban ? formatCurrency(item.taban) : '-', icon: TrendingDown, color: '#EF4444' },
                   ].map((field: any, fIdx: number) => (
-                    <div key={fIdx} className="bg-[#0F172A]/50 rounded-lg p-2.5">
+                    <div key={fIdx} className="glass-inner rounded-lg p-2.5">
                       <div className="flex items-center gap-1 mb-1">
                         <field.icon className="w-3 h-3" style={{ color: field.color }} />
                         <span className="text-[10px] text-[#64748B] uppercase">{field.label}</span>

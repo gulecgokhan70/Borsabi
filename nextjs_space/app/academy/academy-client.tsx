@@ -42,7 +42,7 @@ export function AcademyClient() {
           { label: 'Toplam Süre', value: '4+ saat', icon: Clock, color: '#F59E0B' },
           { label: 'Sertifika', value: 'Yakında', icon: Award, color: '#8B5CF6' },
         ].map((stat, idx) => (
-          <div key={idx} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <div key={idx} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2">
               <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
               <span className="text-xs text-[#94A3B8]">{stat.label}</span>
@@ -53,7 +53,7 @@ export function AcademyClient() {
       </div>
 
       {/* Filters */}
-      <div className="flex bg-[#1E293B] rounded-lg p-1 gap-1 w-fit">
+      <div className="flex glass-card rounded-lg p-1 gap-1 w-fit">
         {[
           { key: 'all', label: 'Tümü' },
           { key: 'Başlangıç', label: '🟢 Başlangıç' },
@@ -84,7 +84,7 @@ export function AcademyClient() {
             transition={{ delay: idx * 0.05 }}
           >
             <Link href={`/academy/${course.id}`}>
-              <div className="bg-[#1E293B] rounded-xl border border-[#334155] hover:border-[#3B82F6]/50 transition-all duration-300 overflow-hidden group cursor-pointer h-full">
+              <div className="glass-card rounded-xl hover:border-[#3B82F6]/50 transition-all duration-300 overflow-hidden group cursor-pointer h-full">
                 {/* Icon header */}
                 <div className="p-6 pb-3">
                   <div className="flex items-start justify-between mb-4">

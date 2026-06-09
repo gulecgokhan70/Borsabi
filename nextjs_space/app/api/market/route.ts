@@ -25,8 +25,11 @@ export async function GET(request: NextRequest) {
     }
 
     const symbolList = symbols.split(',').map((s: string) => s.trim());
-    const bistSymbols = symbolList.filter(isBistSymbol);
-    const otherSymbols = symbolList.filter(s => !isBistSymbol(s));
+    // Endeksler (XU100, XU030 vb.) Midas'ta yok, Yahoo'dan al
+    const INDEX_SYMBOLS = ['XU100.IS', 'XU030.IS', 'XU050.IS'];
+    const isIndex = (s: string) => INDEX_SYMBOLS.includes(s.toUpperCase());
+    const bistSymbols = symbolList.filter(s => isBistSymbol(s) && !isIndex(s));
+    const otherSymbols = symbolList.filter(s => !isBistSymbol(s) || isIndex(s));
 
     // Midas'tan BIST verilerini al (primary)
     let midasMap = new Map<string, MidasStock>();
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     const results = symbolList.map((sym: string) => {
       const cleanSym = sym.replace('.IS', '').toUpperCase();
-      const midas = midasOk && isBistSymbol(sym) ? midasMap.get(cleanSym) : null;
+      const midas = midasOk && isBistSymbol(sym) && !isIndex(sym) ? midasMap.get(cleanSym) : null;
 
       if (midas) {
         // Midas verisinden oluştur - Last > Close > PreviousClose fallback

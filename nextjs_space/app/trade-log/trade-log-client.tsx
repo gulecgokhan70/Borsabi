@@ -59,24 +59,24 @@ export function TradeLogClient() {
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-[#94A3B8]">Toplam İşlem</span></div>
             <p className="text-lg font-bold font-mono text-white">{stats?.totalTrades ?? 0}</p>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2"><Award className="w-4 h-4 text-[#22C55E]" /><span className="text-xs text-[#94A3B8]">Kazanç Oranı</span></div>
             <p className="text-lg font-bold font-mono text-white">{formatNumber(stats?.winRate, 1)}%</p>
             <p className="text-xs text-[#94A3B8]">{stats?.winCount ?? 0}K / {stats?.lossCount ?? 0}Z</p>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2"><DollarSign className={`w-4 h-4 ${(stats?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`} /><span className="text-xs text-[#94A3B8]">Toplam K/Z</span></div>
             <p className={`text-lg font-bold font-mono ${(stats?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatCurrency(stats?.totalPnl)}</p>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2"><TrendingUp className="w-4 h-4 text-[#22C55E]" /><span className="text-xs text-[#94A3B8]">Ort. Kazanç</span></div>
             <p className="text-sm font-bold font-mono text-[#22C55E]">{formatCurrency(stats?.avgWin)}</p>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl p-4 border border-[#334155]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card rounded-xl p-4 border border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2"><TrendingDown className="w-4 h-4 text-[#F87171]" /><span className="text-xs text-[#94A3B8]">Ort. Kayıp</span></div>
             <p className="text-sm font-bold font-mono text-[#F87171]">{formatCurrency(stats?.avgLoss)}</p>
           </motion.div>
@@ -96,7 +96,7 @@ export function TradeLogClient() {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               filter === f.key
                 ? 'bg-[#3B82F6] text-white'
-                : 'bg-[#1E293B] text-[#94A3B8] hover:text-white border border-[#334155]'
+                : 'glass-card text-[#94A3B8] hover:text-white border border-white/[0.08]'
             }`}
           >
             {f.label} ({f.count})
@@ -105,8 +105,8 @@ export function TradeLogClient() {
       </div>
 
       {/* Transactions */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl border border-[#334155]">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#334155]">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card rounded-xl">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08]">
           <ScrollText className="w-4 h-4 text-[#3B82F6]" />
           <h2 className="text-sm font-semibold text-white">İşlem Geçmişi</h2>
         </div>
@@ -119,11 +119,11 @@ export function TradeLogClient() {
             <p className="text-xs text-[#64748B] mt-1">Dashboard'dan hisse seçerek ilk işleminizi yapın</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#334155]/50">
+          <div className="divide-y divide-white/[0.06]">
             {filteredTx.map((t: any) => {
               const pnlInfo = getPnlDisplay(t);
               return (
-                <div key={t?.id} className="px-4 py-3 hover:bg-[#334155]/20 transition-colors">
+                <div key={t?.id} className="px-4 py-3 hover:bg-white/[0.04] transition-colors">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     {/* Left: Type badge + Symbol + Date */}
                     <div className="flex items-center gap-3 sm:w-[280px]">
@@ -152,7 +152,7 @@ export function TradeLogClient() {
 
                     {/* Middle: Quantity x Price = Total */}
                     <div className="flex items-center gap-2 sm:flex-1">
-                      <div className="bg-[#0F172A] rounded-lg px-3 py-1.5 flex items-center gap-2">
+                      <div className="glass-inner rounded-lg px-3 py-1.5 flex items-center gap-2">
                         <span className="text-xs text-[#94A3B8]">{t?.quantity} adet</span>
                         <span className="text-[#64748B]">×</span>
                         <span className="text-xs font-mono text-white">{formatCurrency(t?.price)}</span>
