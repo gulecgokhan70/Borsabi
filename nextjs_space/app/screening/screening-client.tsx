@@ -11,6 +11,7 @@ export function ScreeningClient() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
+  const [marketOpen, setMarketOpen] = useState(true);
 
   const fetchScreening = useCallback(async () => {
     setLoading(true);
@@ -18,6 +19,7 @@ export function ScreeningClient() {
       const res = await fetch('/api/screening');
       const data = await res.json();
       setResults(data?.data ?? []);
+      if (data?.marketOpen !== undefined) setMarketOpen(data.marketOpen);
     } catch (e: any) { console.error(e); } finally { setLoading(false); }
   }, []);
 
@@ -45,6 +47,13 @@ export function ScreeningClient() {
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tara
         </button>
       </div>
+
+      {!marketOpen && !loading && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
+          <span className="text-[#F59E0B] text-lg">🔔</span>
+          <p className="text-[#F59E0B] text-sm font-medium">Borsa şu an kapalı — son kapanış verileri üzerinden tarama yapılmıştır. Yarın açılışta tekrar tarayın.</p>
+        </div>
+      )}
 
       {/* Score legend */}
       <div className="flex flex-wrap items-center gap-3">

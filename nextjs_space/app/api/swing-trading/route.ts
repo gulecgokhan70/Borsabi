@@ -313,7 +313,7 @@ export async function GET(request: NextRequest) {
           yf.chart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
-        if (!quote || !chart) return null;
+        if (!chart) return null;
 
         const quotes = chart?.quotes ?? [];
         const closes = quotes.map((q: any) => q?.close ?? 0).filter((c: number) => c > 0);
@@ -329,9 +329,14 @@ export async function GET(request: NextRequest) {
         const ema50Arr = calculateEMA(closes, 50);
         const ema200Arr = calculateEMA(closes, Math.min(200, closes.length - 1));
         const atr = calculateATR(highs, lows, closes);
-        const price = quote?.regularMarketPrice ?? 0;
-        const volume = quote?.regularMarketVolume ?? 0;
-        const avgVolume = quote?.averageDailyVolume3Month ?? 0;
+        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+        const lastClose = closes[closes.length - 1] ?? 0;
+        const rawPrice = quote?.regularMarketPrice ?? 0;
+        const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+        if (price <= 0) return null;
+        const rawVolume = quote?.regularMarketVolume ?? 0;
+        const volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+        const avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
 
         const lastEma20 = ema20Arr[(ema20Arr.length ?? 1) - 1] ?? 0;
         const lastEma50 = ema50Arr[(ema50Arr.length ?? 1) - 1] ?? 0;
@@ -412,7 +417,13 @@ export async function GET(request: NextRequest) {
     // En yüksek puanlı 10 hisse, zayıfları listeleme
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
     const filtered = results.filter((r: any) => r.score >= 35);
-    return NextResponse.json({ data: filtered.slice(0, 10) });
+    const top10 = filtered.slice(0, 10);
+    const isBistOpen = top10.length > 0 && top10.some((r: any) => {
+      const rp = r.price ?? 0;
+      const pc = r.prevClose ?? 0;
+      return rp !== pc && rp > 0;
+    });
+    return NextResponse.json({ data: top10, marketOpen: isBistOpen });
   } catch (error: any) {
     console.error('Swing trading error:', error);
     return NextResponse.json({ error: 'Swing trading taraması yapılamadı' }, { status: 500 });

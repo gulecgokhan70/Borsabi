@@ -17,10 +17,13 @@ export async function GET(request: NextRequest) {
       symbolList.map(async (sym: string) => {
         try {
           const q: any = await yf.quote(sym);
+          // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+          const rawPrice = q?.regularMarketPrice ?? 0;
+          const price = rawPrice > 0 ? rawPrice : (q?.regularMarketPreviousClose ?? 0);
           return {
             symbol: sym,
             name: q?.shortName ?? q?.longName ?? sym,
-            price: q?.regularMarketPrice ?? 0,
+            price,
             change: q?.regularMarketChange ?? 0,
             changePercent: q?.regularMarketChangePercent ?? 0,
             volume: q?.regularMarketVolume ?? 0,
@@ -30,6 +33,7 @@ export async function GET(request: NextRequest) {
             prevClose: q?.regularMarketPreviousClose ?? 0,
             marketCap: q?.marketCap ?? 0,
             currency: q?.currency ?? 'TRY',
+            marketOpen: rawPrice > 0,
           };
         } catch (e: any) {
           console.error(`Quote error for ${sym}:`, e?.message);
@@ -39,7 +43,8 @@ export async function GET(request: NextRequest) {
     );
 
     const results = quotes.map((r: any) => r?.status === 'fulfilled' ? r.value : { symbol: 'N/A', price: 0, error: true });
-    return NextResponse.json({ data: results });
+    const anyMarketOpen = results.some((r: any) => r.marketOpen === true);
+    return NextResponse.json({ data: results, marketOpen: anyMarketOpen });
   } catch (error: any) {
     console.error('Market API error:', error);
     return NextResponse.json({ error: 'Piyasa verileri alınamadı' }, { status: 500 });

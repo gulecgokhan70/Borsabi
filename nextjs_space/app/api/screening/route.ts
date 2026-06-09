@@ -103,8 +103,11 @@ function screenStock(
   vwap: number,
   atr: number
 ): ScreenResult {
-  const price = quote?.regularMarketPrice ?? 0;
-  const volume = quote?.regularMarketVolume ?? 0;
+  // Borsa kapalıyken regularMarketPrice sıfır döner, fallback: son kapanış
+  const rawPrice = quote?.regularMarketPrice ?? 0;
+  const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? 0);
+  const rawVol = quote?.regularMarketVolume ?? 0;
+  const volume = rawVol > 0 ? rawVol : (quote?.averageDailyVolume3Month ?? 0);
   const avgVolume = quote?.averageDailyVolume3Month ?? 0;
   const change = quote?.regularMarketChangePercent ?? 0;
   const signals: string[] = [];
@@ -282,7 +285,7 @@ export async function GET(request: NextRequest) {
           yf.chart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
-        if (!quote || !chart) return null;
+        if (!chart) return null;
 
         const quotes = chart?.quotes ?? [];
         const closes = quotes.map((q: any) => q?.close ?? 0).filter((c: number) => c > 0);
@@ -291,9 +294,14 @@ export async function GET(request: NextRequest) {
         const volumes = quotes.map((q: any) => q?.volume ?? 0);
         if (closes.length < 30) return null;
 
-        const price = quote?.regularMarketPrice ?? 0;
-        const volume = quote?.regularMarketVolume ?? 0;
-        const avgVolume = quote?.averageDailyVolume3Month ?? 0;
+        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+        const lastClose = closes[closes.length - 1] ?? 0;
+        const rawPrice = quote?.regularMarketPrice ?? 0;
+        const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+        const rawVolume = quote?.regularMarketVolume ?? 0;
+        const volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
+        const avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
+        if (price <= 0) return null;
 
         const rsi14 = calculateRSI(closes, 14);
         const rsi5 = calculateRSI(closes, 5);
@@ -378,7 +386,13 @@ export async function GET(request: NextRequest) {
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
     const top10 = results.filter((r: any) => (r?.score ?? 0) >= 30).slice(0, 10);
 
-    return NextResponse.json({ data: top10 });
+    // BIST piyasa açık mı kontrolü
+    const isBistOpen = top10.length > 0 && top10.some((r: any) => {
+      const rp = r.price ?? 0;
+      const pc = r.prevClose ?? 0;
+      return rp !== pc && rp > 0;
+    });
+    return NextResponse.json({ data: top10, marketOpen: isBistOpen });
   } catch (error: any) {
     console.error('Screening error:', error);
     return NextResponse.json({ error: 'Tarama yapılamadı' }, { status: 500 });

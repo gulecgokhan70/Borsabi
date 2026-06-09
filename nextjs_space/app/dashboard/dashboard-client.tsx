@@ -20,6 +20,7 @@ export function DashboardClient() {
   const [stocks, setStocks] = useState<any[]>([]);
   const [cryptos, setCryptos] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
+  const [bistOpen, setBistOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
 
@@ -34,7 +35,10 @@ export function DashboardClient() {
         fetch(`/api/market?symbols=${CRYPTO_ASSETS.slice(0, 8).map((c: any) => c?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch('/api/portfolio').then((r: any) => r?.json?.()),
       ]);
-      if (indRes?.status === 'fulfilled') setIndices(indRes?.value?.data ?? []);
+      if (indRes?.status === 'fulfilled') {
+        setIndices(indRes?.value?.data ?? []);
+        if (indRes?.value?.marketOpen !== undefined) setBistOpen(indRes.value.marketOpen);
+      }
       if (stockRes?.status === 'fulfilled') setStocks(stockRes?.value?.data ?? []);
       if (cryptoRes?.status === 'fulfilled') setCryptos(cryptoRes?.value?.data ?? []);
       if (portRes?.status === 'fulfilled') setPortfolio(portRes?.value ?? null);
@@ -75,6 +79,13 @@ export function DashboardClient() {
           </button>
         </div>
       </div>
+
+      {!bistOpen && !loading && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
+          <span className="text-[#F59E0B] text-lg">🔔</span>
+          <p className="text-[#F59E0B] text-sm font-medium">BIST şu an kapalı — son kapanış fiyatları gösteriliyor.</p>
+        </div>
+      )}
 
       {/* Portfolio summary cards */}
       <motion.div {...fadeIn} className="grid grid-cols-2 lg:grid-cols-4 gap-3">

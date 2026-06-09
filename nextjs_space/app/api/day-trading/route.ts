@@ -98,10 +98,13 @@ function scoreDayTrade(
   atr: number
 ): DayTradeScore {
   const signals: string[] = [];
-  const price = quote?.regularMarketPrice ?? 0;
-  const open = quote?.regularMarketOpen ?? 0;
-  const prevClose = quote?.regularMarketPreviousClose ?? 0;
-  const volume = quote?.regularMarketVolume ?? 0;
+  // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+  const rawPrice = quote?.regularMarketPrice ?? 0;
+  const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? 0);
+  const open = quote?.regularMarketOpen ?? price;
+  const prevClose = quote?.regularMarketPreviousClose ?? price;
+  const rawVol = quote?.regularMarketVolume ?? 0;
+  const volume = rawVol > 0 ? rawVol : (quote?.averageDailyVolume3Month ?? 0);
   const avgVolume = quote?.averageDailyVolume3Month ?? 0;
   const dayChange = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
 
@@ -253,7 +256,7 @@ export async function GET(request: NextRequest) {
           yf.chart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
         ]);
 
-        if (!quote || !chart) return null;
+        if (!chart) return null;
 
         const quotes = chart?.quotes ?? [];
         const closes = quotes.map((q: any) => q?.close ?? 0).filter((c: number) => c > 0);
@@ -270,7 +273,19 @@ export async function GET(request: NextRequest) {
         const ema9 = calculateEMA(closes, 9);
         const ema21 = calculateEMA(closes, 21);
         const atr = calculateATR(highs, lows, closes);
-        const price = quote?.regularMarketPrice ?? 0;
+        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+        const lastClose = closes[closes.length - 1] ?? 0;
+        const rawPrice = quote?.regularMarketPrice ?? 0;
+        const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
+        if (price <= 0) return null;
+        // quote fallback'leri
+        if (!quote) {
+          (quote as any) = { regularMarketPrice: price, regularMarketPreviousClose: closes[closes.length - 2] ?? price, regularMarketOpen: lastClose, regularMarketVolume: volumes[volumes.length - 1] ?? 0, averageDailyVolume3Month: volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : 0, regularMarketChangePercent: 0 };
+        } else if (rawPrice <= 0) {
+          (quote as any).regularMarketPrice = price;
+          if (!quote.regularMarketOpen || quote.regularMarketOpen <= 0) (quote as any).regularMarketOpen = lastClose;
+          if (!quote.regularMarketVolume || quote.regularMarketVolume <= 0) (quote as any).regularMarketVolume = volumes[volumes.length - 1] ?? 0;
+        }
 
         const lastEma9 = ema9?.[(ema9?.length ?? 1) - 1] ?? 0;
         const lastEma21 = ema21?.[(ema21?.length ?? 1) - 1] ?? 0;
@@ -342,7 +357,13 @@ export async function GET(request: NextRequest) {
     // En yüksek puanlı 10 hisseyi göster, zayıfları listeleme
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
     const filtered = results.filter((r: any) => r.score >= 40);
-    return NextResponse.json({ data: filtered.slice(0, 10) });
+    const top10 = filtered.slice(0, 10);
+    const isBistOpen = top10.length > 0 && top10.some((r: any) => {
+      const rp = r.price ?? 0;
+      const pc = r.prevClose ?? 0;
+      return rp !== pc && rp > 0;
+    });
+    return NextResponse.json({ data: top10, marketOpen: isBistOpen });
   } catch (error: any) {
     console.error('Day trading error:', error);
     return NextResponse.json({ error: 'Day trading taraması yapılamadı' }, { status: 500 });

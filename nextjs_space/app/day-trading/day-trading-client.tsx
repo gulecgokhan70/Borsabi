@@ -44,12 +44,14 @@ export function DayTradingClient() {
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
+  const [marketOpen, setMarketOpen] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/day-trading');
       const json = await res.json();
       setData(json?.data ?? []);
+      if (json?.marketOpen !== undefined) setMarketOpen(json.marketOpen);
     } catch (e) {
       console.error('Day trading fetch error:', e);
     } finally {
@@ -146,6 +148,13 @@ export function DayTradingClient() {
           </button>
         </div>
       </div>
+
+      {!marketOpen && !loading && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
+          <span className="text-[#F59E0B] text-lg">🔔</span>
+          <p className="text-[#F59E0B] text-sm font-medium">Borsa şu an kapalı — son kapanış verileri üzerinden tarama yapılmıştır. Yarın açılışta güncel verilerle tekrar tarayın.</p>
+        </div>
+      )}
 
       {/* Info banner */}
       <div className="bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-xl p-4">

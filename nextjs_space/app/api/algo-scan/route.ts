@@ -66,15 +66,20 @@ export async function POST(req: NextRequest) {
           }).catch(() => null),
         ]);
 
-        if (!quote || !chart) return null;
+        if (!chart) return null;
 
         const closes = (chart.quotes || []).map((q: any) => q.close).filter(Boolean) as number[];
         const volumes = (chart.quotes || []).map((q: any) => q.volume).filter(Boolean) as number[];
         if (closes.length < 30) return null;
 
-        const price = (quote as any).regularMarketPrice || 0;
-        const change = (quote as any).regularMarketChangePercent || 0;
-        const volume = (quote as any).regularMarketVolume || 0;
+        // Borsa kapalıyken regularMarketPrice sıfır döner, fallback kullan
+        const lastClose = closes[closes.length - 1] ?? 0;
+        const rawPrice = (quote as any)?.regularMarketPrice || 0;
+        const price = rawPrice > 0 ? rawPrice : ((quote as any)?.regularMarketPreviousClose || lastClose);
+        if (price <= 0) return null;
+        const change = (quote as any)?.regularMarketChangePercent || 0;
+        const rawVol = (quote as any)?.regularMarketVolume || 0;
+        const volume = rawVol > 0 ? rawVol : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
         const avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
         const volRatio = avgVolume > 0 ? volume / avgVolume : 1;
 
