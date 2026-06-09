@@ -1,9 +1,20 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, TrendingUp, TrendingDown, Loader2, Activity, DollarSign, Volume2, ArrowUpDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { formatCurrency, formatNumber, formatPercent, toTradingViewSymbol } from '@/lib/constants';
+import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+interface OHLCData {
+  time: number;
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
 
 interface StockData {
   symbol: string;
@@ -22,17 +33,27 @@ interface StockData {
   fiftyTwoWeekLow: number;
   currency: string;
   indicators: { rsi: number | null; ema20: number | null; ema50: number | null; avgVolume: number };
+  ohlc: OHLCData[];
 }
+
+const PERIODS = [
+  { label: '1H', value: '1w' },
+  { label: '1A', value: '1mo' },
+  { label: '3A', value: '3mo' },
+  { label: '6A', value: '6mo' },
+  { label: '1Y', value: '1y' },
+];
 
 export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
-  const tvContainerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('1mo');
+
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=1mo`);
+      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=${period}`);
       const json = await res.json();
       if (!json.error) setData(json);
     } catch (e: any) {
@@ -40,7 +61,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } finally {
       setLoading(false);
     }
-  }, [symbol]);
+  }, [symbol, period]);
 
   useEffect(() => {
     fetchData();
@@ -48,62 +69,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // TradingView Advanced Chart Widget
-  useEffect(() => {
-    if (!tvContainerRef.current) return;
-    const container = tvContainerRef.current;
-    container.innerHTML = '';
-
-    const tvSymbol = toTradingViewSymbol(symbol);
-
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: tvSymbol,
-      interval: 'D',
-      timezone: 'Europe/Istanbul',
-      theme: 'dark',
-      style: '1',
-      locale: 'tr',
-      backgroundColor: '#0F172A',
-      gridColor: '#1E293B',
-      hide_top_toolbar: false,
-      hide_legend: false,
-      allow_symbol_change: true,
-      save_image: false,
-      calendar: false,
-      hide_volume: false,
-      support_host: 'https://www.tradingview.com',
-      studies: ['RSI@tv-basicstudies', 'MAExp@tv-basicstudies'],
-    });
-
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.height = '100%';
-    widgetDiv.style.width = '100%';
-
-    container.appendChild(widgetDiv);
-    container.appendChild(script);
-
-    return () => {
-      container.innerHTML = '';
-    };
-  }, [symbol]);
-
   const isPositive = (data?.change ?? 0) >= 0;
+  const chartData = (data?.ohlc ?? []).map((d: OHLCData) => ({
+    date: new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
+    close: d.close,
+    volume: d.volume,
+  }));
+  const chartPositive = chartData.length >= 2 ? chartData[chartData.length - 1]?.close >= chartData[0]?.close : true;
 
-  if (loading && !data) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#0F172A]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#3B82F6]" />
-      </div>
-    );
-  }
-
-  if (!data) {
+  if (!loading && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-[#0F172A] text-white">
         <p className="text-[#94A3B8] mb-4">Hisse verisi bulunamadı</p>
@@ -115,41 +89,80 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   return (
     <div className="min-h-screen bg-[#0F172A] p-4 md:p-6 space-y-6">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 rounded-lg bg-[#1E293B] hover:bg-[#334155] transition-colors">
-            <ArrowLeft className="w-5 h-5 text-[#94A3B8]" />
-          </button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl md:text-3xl font-bold text-white">{data.shortName}</h1>
-              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isPositive ? 'bg-[#22C55E]/20 text-[#22C55E]' : 'bg-[#EF4444]/20 text-[#EF4444]'}`}>
-                {isPositive ? '+' : ''}{formatPercent(data.changePercent)}
-              </span>
+      {data ? (
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button onClick={() => router.back()} className="p-2 rounded-lg bg-[#1E293B] hover:bg-[#334155] transition-colors">
+              <ArrowLeft className="w-5 h-5 text-[#94A3B8]" />
+            </button>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl md:text-3xl font-bold text-white">{data.shortName}</h1>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isPositive ? 'bg-[#22C55E]/20 text-[#22C55E]' : 'bg-[#EF4444]/20 text-[#EF4444]'}`}>
+                  {isPositive ? '+' : ''}{formatPercent(data.changePercent)}
+                </span>
+              </div>
+              <p className="text-[#64748B] text-sm mt-1">{data.name}</p>
             </div>
-            <p className="text-[#64748B] text-sm mt-1">{data.name}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-bold text-white">{formatCurrency(data.price)}</p>
+            <p className={`text-sm font-medium ${isPositive ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+              {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
+              {isPositive ? '+' : ''}{formatCurrency(data.change)}
+            </p>
+          </div>
+        </motion.div>
+      ) : (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 className="w-8 h-8 animate-spin text-[#3B82F6]" />
+        </div>
+      )}
+
+      {/* Price Chart */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+        className="bg-[#1E293B] rounded-xl border border-[#334155] p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold text-sm">Fiyat Grafiği</h3>
+          <div className="flex gap-1">
+            {PERIODS.map((p: any) => (
+              <button key={p.value} onClick={() => setPeriod(p.value)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  period === p.value ? 'bg-[#3B82F6] text-white' : 'bg-[#0F172A] text-[#94A3B8] hover:text-white'
+                }`}>{p.label}</button>
+            ))}
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-bold text-white">{formatCurrency(data.price)}</p>
-          <p className={`text-sm font-medium ${isPositive ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-            {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-            {isPositive ? '+' : ''}{formatCurrency(data.change)}
-          </p>
+        <div style={{ height: '400px' }}>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartPositive ? '#22C55E' : '#EF4444'} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={chartPositive ? '#22C55E' : '#EF4444'} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={60} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }}
+                  labelStyle={{ color: '#94A3B8' }}
+                  formatter={(value: any) => [formatCurrency(value), 'Fiyat']}
+                />
+                <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} fill="url(#stockGradient)" strokeWidth={2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" />
+            </div>
+          )}
         </div>
-      </motion.div>
-
-      {/* TradingView Chart */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
-        <div
-          ref={tvContainerRef}
-          className="tradingview-widget-container w-full"
-          style={{ height: '500px' }}
-        />
       </motion.div>
 
       {/* Info cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {data && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Açılış', value: formatCurrency(data.open), icon: DollarSign },
           { label: 'Önceki Kapanış', value: formatCurrency(data.prevClose), icon: ArrowUpDown },
@@ -174,10 +187,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             <p className="text-white font-semibold">{item.value}</p>
           </motion.div>
         ))}
-      </div>
+      </div>}
 
       {/* Technical indicators from Yahoo */}
-      {(data.indicators?.rsi || data.indicators?.ema20 || data.indicators?.ema50) && (
+      {data && (data.indicators?.rsi || data.indicators?.ema20 || data.indicators?.ema50) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#1E293B] rounded-xl border border-[#334155] p-6">
           <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5 text-[#3B82F6]" />

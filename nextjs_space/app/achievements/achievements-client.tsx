@@ -119,10 +119,10 @@ export default function AchievementsClient() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {locked.map((badge: any) => (
-              <div key={badge.id} className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 text-center opacity-50">
+              <div key={badge.id} className="bg-[#1E293B] rounded-xl border border-[#334155] p-4 text-center opacity-70">
                 <div className="text-3xl mb-2 grayscale">{badge.icon}</div>
-                <p className="text-sm font-bold text-[#94A3B8]">{badge.name}</p>
-                <p className="text-xs text-[#64748B] mt-1">{badge.desc}</p>
+                <p className="text-sm font-bold text-[#CBD5E1]">{badge.name}</p>
+                <p className="text-xs text-[#94A3B8] mt-1">{badge.desc}</p>
               </div>
             ))}
           </div>
