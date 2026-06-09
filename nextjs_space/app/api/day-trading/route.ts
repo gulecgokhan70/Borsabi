@@ -218,10 +218,17 @@ function scoreDayTrade(
 
   // ===== 5. RİSK/ÖDÜL ORANI (20 Puan) =====
   let riskOdulPuan = 0;
-  const stopDistance = atr > 0 ? atr * 1.5 : price * 0.015;
-  const stopLevel = price - stopDistance;
-  const target1 = price + (stopDistance * 2);
-  const target2 = price + (stopDistance * 3);
+  // BIST günlük tavan/taban limiti: %10
+  const tavanLimit = prevClose > 0 ? prevClose * 1.10 : price * 1.10;
+  const tabanLimit = prevClose > 0 ? prevClose * 0.90 : price * 0.90;
+  const stopDistance = atr > 0 ? Math.min(atr * 1.5, price - tabanLimit) : price * 0.015;
+  const stopLevel = Math.max(price - stopDistance, tabanLimit);
+  let target1 = Math.min(price + (stopDistance * 2), tavanLimit);
+  let target2 = Math.min(price + (stopDistance * 3), tavanLimit);
+  if (target1 >= tavanLimit) {
+    target1 = price + (tavanLimit - price) * 0.75;
+    target2 = price + (tavanLimit - price) * 0.95;
+  }
   const rr = stopDistance > 0 ? (target1 - price) / stopDistance : 0;
 
   if (rr >= 3) { riskOdulPuan = 20; signals.push(`R:R ${rr.toFixed(1)} - Mükemmel`); }
@@ -296,13 +303,22 @@ export async function GET(request: NextRequest) {
         );
 
         // Minimum R:R 1:2 altındaki hisseleri ele (prompttaki kural)
-        const stopDistance = atr > 0 ? atr * 1.5 : price * 0.015;
-        const stopLevel = price - stopDistance;
-        const target1 = price + (stopDistance * 2);
-        const target2 = price + (stopDistance * 3);
+        // BIST günlük tavan/taban limiti: %10
+        const prevClose = quote?.regularMarketPreviousClose ?? price;
+        const tavanFiyat = prevClose * 1.10;
+        const tabanFiyat = prevClose * 0.90;
+        const stopDistance = atr > 0 ? Math.min(atr * 1.5, price - tabanFiyat) : price * 0.015;
+        const stopLevel = Math.max(price - stopDistance, tabanFiyat);
+        let target1 = Math.min(price + (stopDistance * 2), tavanFiyat);
+        let target2 = Math.min(price + (stopDistance * 3), tavanFiyat);
+        // Hedef tavanı aşıyorsa, tavanın %75 ve %95'ini hedef al
+        if (target1 >= tavanFiyat) {
+          target1 = price + (tavanFiyat - price) * 0.75;
+          target2 = price + (tavanFiyat - price) * 0.95;
+        }
         const riskReward = stopDistance > 0 ? (target1 - price) / stopDistance : 0;
 
-        if (riskReward < 1.5) return null;
+        if (riskReward < 1.2) return null;
 
         let quality = 'İşlem Yok';
         if (result.score >= 85) quality = 'Elite Kurulum';
@@ -331,6 +347,9 @@ export async function GET(request: NextRequest) {
           formasyonPuan: result.formasyonPuan,
           riskOdulPuan: result.riskOdulPuan,
           entry: price,
+          prevClose,
+          tavan: Math.round(tavanFiyat * 100) / 100,
+          taban: Math.round(tabanFiyat * 100) / 100,
           stop: Math.round(stopLevel * 100) / 100,
           target1: Math.round(target1 * 100) / 100,
           target2: Math.round(target2 * 100) / 100,

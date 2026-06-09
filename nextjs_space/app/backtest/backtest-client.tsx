@@ -175,7 +175,7 @@ export function BacktestClient() {
           <div className="flex items-end">
             <button
               onClick={runBacktest}
-              disabled={loading}
+              disabled={loading || !selectedStrategy}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
               <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />

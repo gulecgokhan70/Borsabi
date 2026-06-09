@@ -33,6 +33,9 @@ interface DayTradeResult {
   target1: number;
   target2: number;
   riskReward: number;
+  prevClose?: number;
+  tavan?: number;
+  taban?: number;
   rsi: number;
   rsi14: number;
   vwap: number;
@@ -164,7 +167,7 @@ export function DayTradingClient() {
             <p className="text-sm font-medium text-[#F59E0B]">Day Trading Uyarısı</p>
             <p className="text-xs text-[#94A3B8] mt-1">
               Filtre: Hacim {'>'} 20 günlük ort. | VWAP üstü | EMA9 {'>'} EMA21 | RSI(5) {'>'} 55 | MACD pozitif | Değişim {'>'} %1. 
-              Minimum R:R 1:2. Stop loss olmadan işlem açmayın.
+              Minimum R:R 1:1.2. Hedef fiyatlar tavan/taban limitlerine göre sınırlandırılmıştır. Stop loss olmadan işlem açmayın.
             </p>
           </div>
         </div>
@@ -278,8 +281,8 @@ export function DayTradingClient() {
                     { label: 'Hedef 1', value: formatCurrency(item.target1), icon: Target, color: '#22C55E' },
                     { label: 'Hedef 2', value: formatCurrency(item.target2), icon: Target, color: '#22C55E' },
                     { label: 'R/G', value: `1:${item.riskReward}`, icon: Activity, color: '#F59E0B' },
-                    { label: 'RSI(5)', value: (item.rsi ?? 0).toString(), icon: BarChart3, color: '#94A3B8' },
-                    { label: 'VWAP', value: formatNumber(item.vwap), icon: Activity, color: '#94A3B8' },
+                    { label: 'Tavan', value: item.tavan ? formatCurrency(item.tavan) : '-', icon: TrendingUp, color: '#F97316' },
+                    { label: 'Taban', value: item.taban ? formatCurrency(item.taban) : '-', icon: TrendingDown, color: '#EF4444' },
                   ].map((field: any, fIdx: number) => (
                     <div key={fIdx} className="bg-[#0F172A]/50 rounded-lg p-2.5">
                       <div className="flex items-center gap-1 mb-1">

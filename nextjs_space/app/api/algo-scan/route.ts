@@ -36,7 +36,8 @@ function calculateMACD(closes: number[]): { macd: number; signal: number; histog
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: any = {};
+    try { body = await req.json(); } catch { body = {}; }
     const {
       market = 'BIST',
       rsiMin = 0,
