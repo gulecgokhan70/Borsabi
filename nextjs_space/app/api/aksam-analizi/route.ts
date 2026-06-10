@@ -4,7 +4,7 @@ import { cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore, type CandleData, type CandlePattern } from '@/lib/candle-patterns';
-import { getNewsImpact, adjustScoreWithNews, getStockNewsWarning, type NewsImpact } from '@/lib/news-analysis';
+
 
 // ===== CACHE =====
 let cachedResult: any = null;
@@ -475,33 +475,6 @@ export async function GET(request: NextRequest) {
 
     await Promise.allSettled(promises);
 
-    // 3) Haber analizi al ve puanları düzelt
-    let newsImpact: NewsImpact | null = null;
-    try {
-      newsImpact = await getNewsImpact();
-    } catch (e) {
-      console.warn('[AksamAnalizi] Haber analizi alınamadı');
-    }
-
-    // Haber bazlı puan düzeltmesi
-    const applyNewsToResults = (results: any[]) => {
-      for (const r of results) {
-        if (newsImpact) {
-          r.score = adjustScoreWithNews(r.score, r.symbol, newsImpact);
-          const warning = getStockNewsWarning(r.symbol, newsImpact);
-          if (warning.uyari) {
-            r.haberUyari = warning.uyari;
-            r.haberSebep = warning.sebep;
-            if (warning.uyari === 'GİRME') r.signals.unshift('⚠️ Haber: GİRME');
-            else if (warning.uyari === 'DİKKATLİ OL') r.signals.unshift('⚠️ Dikkat: Haber Riski');
-            else if (warning.uyari === 'GİR') r.signals.unshift('✅ Haber: Olumlu');
-          }
-        }
-      }
-    };
-    applyNewsToResults(dayResults);
-    applyNewsToResults(swingResults);
-
     // Puanlara göre sırala, en iyi 10'u al
     dayResults.sort((a, b) => b.score - a.score);
     swingResults.sort((a, b) => b.score - a.score);
@@ -520,7 +493,7 @@ export async function GET(request: NextRequest) {
       toplamSwing: swingResults.length,
       dayTrade: top10Day,
       swingTrade: top10Swing,
-      newsImpact,
+
     };
 
     // Sonucu önbelleğe al

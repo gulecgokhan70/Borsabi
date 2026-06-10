@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Moon, Sun, RefreshCw, TrendingUp, TrendingDown, Target, Shield,
   BarChart3, Activity, Zap, Waves, AlertTriangle, Clock, ArrowRight,
-  ChevronDown, ChevronUp, Star, DollarSign, ExternalLink, Newspaper, CheckCircle, ShieldAlert
+  ChevronDown, ChevronUp, Star, DollarSign, ExternalLink
 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 
@@ -43,8 +43,6 @@ interface TradeResult {
   marketValue?: number;
   volatility?: number;
   candlePatterns?: Array<{ name: string; type: 'bullish' | 'bearish' | 'neutral'; strength: number }>;
-  haberUyari?: string;
-  haberSebep?: string;
 }
 
 interface AnalysisData {
@@ -54,16 +52,6 @@ interface AnalysisData {
   toplamSwing: number;
   dayTrade: TradeResult[];
   swingTrade: TradeResult[];
-  newsImpact?: {
-    genelDurum: string;
-    genelAciklama: string;
-    riskSeviyesi: string;
-    kritikUyarilar: string[];
-    sektorEtkileri: Array<{ sektor: string; etki: string; aciklama: string }>;
-    hisseUyarilari: Array<{ sembol: string; uyari: string; sebep: string }>;
-    pileseFaktoru: number;
-    analizZamani: string;
-  };
 }
 
 export default function AksamAnaliziClient() {
@@ -73,7 +61,7 @@ export default function AksamAnaliziClient() {
   const [error, setError] = useState('');
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [expandedSwing, setExpandedSwing] = useState<string | null>(null);
-  const [showNewsDetail, setShowNewsDetail] = useState(false);
+
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -163,15 +151,6 @@ export default function AksamAnaliziClient() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[120px]">{t.name}</span>
-                    {t.haberUyari && (
-                      <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${
-                        t.haberUyari === 'GİRME' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                        t.haberUyari === 'GİR' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
-                        'bg-[#F59E0B]/15 text-[#F59E0B]'
-                      }`} title={t.haberSebep || ''}>
-                        📰{t.haberUyari}
-                      </span>
-                    )}
                   </div>
                 </td>
                 <td className="py-3 px-3 text-right">
@@ -230,13 +209,7 @@ export default function AksamAnaliziClient() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-slate-400 dark:text-slate-500">{t.name}</span>
-                      {t.haberUyari && (
-                        <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${
-                          t.haberUyari === 'GİRME' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                          t.haberUyari === 'GİR' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
-                          'bg-[#F59E0B]/15 text-[#F59E0B]'
-                        }`}>📰{t.haberUyari}</span>
-                      )}
+
                     </div>
                   </div>
                 </div>
@@ -429,122 +402,6 @@ export default function AksamAnaliziClient() {
               </div>
             ))}
           </div>
-
-          {/* HABER ANALİZİ */}
-          {data.newsImpact && (
-            <div className={`rounded-xl p-5 border ${
-              data.newsImpact.genelDurum === 'negatif' ? 'bg-[#EF4444]/5 border-[#EF4444]/20' :
-              data.newsImpact.genelDurum === 'pozitif' ? 'bg-[#22C55E]/5 border-[#22C55E]/20' :
-              'bg-[#3B82F6]/5 border-[#3B82F6]/20'
-            }`}>
-              <div className="flex items-start gap-3">
-                <div className={`p-2.5 rounded-lg ${
-                  data.newsImpact.genelDurum === 'negatif' ? 'bg-[#EF4444]/10' :
-                  data.newsImpact.genelDurum === 'pozitif' ? 'bg-[#22C55E]/10' : 'bg-[#3B82F6]/10'
-                }`}>
-                  <Newspaper className={`w-6 h-6 ${
-                    data.newsImpact.genelDurum === 'negatif' ? 'text-[#EF4444]' :
-                    data.newsImpact.genelDurum === 'pozitif' ? 'text-[#22C55E]' : 'text-[#3B82F6]'
-                  }`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    <h3 className="text-base font-bold text-foreground">📰 Haber Bazlı Piyasa Analizi</h3>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      data.newsImpact.riskSeviyesi === 'yüksek' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                      data.newsImpact.riskSeviyesi === 'orta' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
-                      'bg-[#22C55E]/15 text-[#22C55E]'
-                    }`}>
-                      Risk: {data.newsImpact.riskSeviyesi?.toUpperCase()}
-                    </span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      data.newsImpact.pileseFaktoru > 0 ? 'bg-[#22C55E]/15 text-[#22C55E]' :
-                      data.newsImpact.pileseFaktoru < 0 ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                      'bg-[#64748B]/15 text-[#64748B]'
-                    }`}>
-                      Piyasa Etkisi: {data.newsImpact.pileseFaktoru > 0 ? '+' : ''}{data.newsImpact.pileseFaktoru}/10
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{data.newsImpact.genelAciklama}</p>
-
-                  {/* Kritik Uyarılar */}
-                  {(data.newsImpact.kritikUyarilar?.length ?? 0) > 0 && (
-                    <div className="mt-3 space-y-1.5">
-                      {data.newsImpact.kritikUyarilar.map((u: string, i: number) => (
-                        <div key={i} className="flex items-start gap-2 bg-[#F59E0B]/5 rounded-lg px-3 py-2">
-                          <AlertTriangle className="w-4 h-4 text-[#F59E0B] mt-0.5 shrink-0" />
-                          <span className="text-xs text-[#F59E0B] font-medium">{u}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Sektör & Hisse detayları */}
-                  <button
-                    onClick={() => setShowNewsDetail(!showNewsDetail)}
-                    className="text-xs text-[#3B82F6] mt-3 hover:underline font-medium flex items-center gap-1"
-                  >
-                    {showNewsDetail ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    {showNewsDetail ? 'Detayları Gizle' : 'Sektör Etkileri & Hisse Uyarıları'}
-                  </button>
-
-                  {showNewsDetail && (
-                    <div className="mt-3 space-y-4">
-                      {(data.newsImpact.sektorEtkileri?.length ?? 0) > 0 && (
-                        <div>
-                          <p className="text-[11px] text-muted-foreground font-semibold mb-2">SEKTÖR ETKİLERİ</p>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {data.newsImpact.sektorEtkileri.map((s: any, i: number) => (
-                              <div key={i} className={`px-3 py-2 rounded-lg border text-xs ${
-                                s.etki === 'pozitif' ? 'bg-[#22C55E]/5 border-[#22C55E]/20' :
-                                s.etki === 'negatif' ? 'bg-[#EF4444]/5 border-[#EF4444]/20' :
-                                'glass-inner'
-                              }`}>
-                                <span className={`font-semibold ${
-                                  s.etki === 'pozitif' ? 'text-[#22C55E]' :
-                                  s.etki === 'negatif' ? 'text-[#EF4444]' : 'text-muted-foreground'
-                                }`}>
-                                  {s.etki === 'pozitif' ? '↑' : s.etki === 'negatif' ? '↓' : '↔'} {s.sektor}
-                                </span>
-                                <p className="text-muted-foreground text-[10px] mt-0.5">{s.aciklama}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {(data.newsImpact.hisseUyarilari?.length ?? 0) > 0 && (
-                        <div>
-                          <p className="text-[11px] text-muted-foreground font-semibold mb-2">İŞLEME GİR/GİRME UYARILARI</p>
-                          <div className="space-y-1.5">
-                            {data.newsImpact.hisseUyarilari.map((h: any, i: number) => (
-                              <div key={i} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                                h.uyari === 'GİR' ? 'bg-[#22C55E]/5' :
-                                h.uyari === 'GİRME' ? 'bg-[#EF4444]/5' :
-                                'bg-[#F59E0B]/5'
-                              }`}>
-                                {h.uyari === 'GİR' ? <CheckCircle className={`w-4 h-4 text-[#22C55E]`} /> :
-                                 h.uyari === 'GİRME' ? <AlertTriangle className={`w-4 h-4 text-[#EF4444]`} /> :
-                                 <ShieldAlert className={`w-4 h-4 text-[#F59E0B]`} />}
-                                <span className={`font-bold text-sm ${
-                                  h.uyari === 'GİR' ? 'text-[#22C55E]' :
-                                  h.uyari === 'GİRME' ? 'text-[#EF4444]' : 'text-[#F59E0B]'
-                                }`}>{h.sembol}</span>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                  h.uyari === 'GİR' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
-                                  h.uyari === 'GİRME' ? 'bg-[#EF4444]/15 text-[#EF4444]' : 'bg-[#F59E0B]/15 text-[#F59E0B]'
-                                }`}>{h.uyari}</span>
-                                <span className="text-xs text-muted-foreground">{h.sebep}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* DAY TRADING TABLOSU */}
           <div className="glass-card rounded-xl overflow-hidden">

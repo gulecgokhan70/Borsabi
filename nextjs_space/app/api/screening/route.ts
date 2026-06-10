@@ -5,7 +5,7 @@ import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore, type CandlePattern } from '@/lib/candle-patterns';
 import { cachedScan } from '@/lib/scan-cache';
-import { getNewsImpact, adjustScoreWithNews, getStockNewsWarning, type NewsImpact } from '@/lib/news-analysis';
+
 
 function calculateRSI(closes: number[], period = 14): number {
   if ((closes?.length ?? 0) < period + 1) return 50;
@@ -273,7 +273,7 @@ function screenStock(
   };
 }
 
-async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean; newsImpact: NewsImpact | null }> {
+async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }> {
     const results: any[] = [];
 
     // Midas'tan tüm BIST verilerini al (primary source)
@@ -441,34 +441,6 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean; n
       if (r?.status === 'fulfilled' && r?.value) results.push(r.value);
     }
 
-    // Haber analizi al (paralel olarak zaten çekilmiş olabilir)
-    let newsImpact: NewsImpact | null = null;
-    try {
-      newsImpact = await getNewsImpact();
-    } catch (e) {
-      console.warn('[Screening] Haber analizi alınamadı');
-    }
-
-    // Haber bazlı puan düzeltmesi ve uyarı ekleme
-    for (const r of results) {
-      if (newsImpact) {
-        const originalScore = r.score;
-        r.score = adjustScoreWithNews(r.score, r.yahooSymbol || r.symbol, newsImpact);
-        const warning = getStockNewsWarning(r.yahooSymbol || r.symbol, newsImpact);
-        if (warning.uyari) {
-          r.haberUyari = warning.uyari;
-          r.haberSebep = warning.sebep;
-          if (warning.uyari === 'GİRME') r.signals.unshift('⚠️ Haber: GİRME');
-          else if (warning.uyari === 'DİKKATLİ OL') r.signals.unshift('⚠️ Dikkat: Haber Riski');
-          else if (warning.uyari === 'GİR') r.signals.unshift('✅ Haber: Olumlu');
-        }
-        // Puan değişikliği varsa quality'yi güncelle
-        if (r.score !== originalScore) {
-          r.quality = r.score >= 80 ? 'Elite' : r.score >= 65 ? 'Güçlü' : r.score >= 50 ? 'İzleme' : 'Zayıf';
-        }
-      }
-    }
-
     // En yüksek puanlı 10 hisse, zayıfları listeleme
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
     const top10 = results.filter((r: any) => (r?.score ?? 0) >= 30).slice(0, 10);
@@ -479,7 +451,7 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean; n
       const pc = r.prevClose ?? 0;
       return rp !== pc && rp > 0;
     });
-    return { data: top10, marketOpen: isBistOpen, newsImpact };
+    return { data: top10, marketOpen: isBistOpen };
 }
 
 export async function GET(request: NextRequest) {
