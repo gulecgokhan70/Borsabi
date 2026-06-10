@@ -140,7 +140,6 @@ export function DayTradingClient() {
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 mt-0.5"><span className="text-[#F59E0B]">⏱</span> Veriler 15 dakikada bir otomatik güncellenir</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex glass-card rounded-lg p-1 gap-1">

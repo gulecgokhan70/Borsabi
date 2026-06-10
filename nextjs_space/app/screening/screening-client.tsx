@@ -61,7 +61,6 @@ export function ScreeningClient() {
               </span>
             )}
           </div>
-          <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 mt-1"><span className="text-[#F59E0B]">⏱</span> Veriler 15 dakikada bir otomatik güncellenir</p>
         </div>
         <button onClick={fetchScreening} disabled={loading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tara
