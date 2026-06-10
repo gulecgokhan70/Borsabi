@@ -1,4 +1,4 @@
-const CACHE_NAME = 'borsabi-v1';
+const CACHE_NAME = 'borsabi-v2';
 const STATIC_ASSETS = [
   '/favicon.svg',
   '/favicon.ico',
@@ -8,7 +8,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
 ];
 
-// Install - cache static assets
+// Install - cache only essential static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -18,7 +18,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate - clean old caches
+// Activate - clean ALL old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -30,7 +30,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch - network first, fallback to cache
+// Fetch - minimal interception, network-first for everything
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -38,33 +38,23 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // Skip API requests and auth routes
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/login') || url.pathname.startsWith('/signup')) return;
+  // Skip API requests, auth routes, and all _next requests (CSS/JS bundles)
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/login') ||
+    url.pathname.startsWith('/signup') ||
+    url.pathname.startsWith('/_next/')
+  ) return;
 
-  // For navigation requests - network first
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/dashboard')))
-    );
-    return;
-  }
+  // For navigation requests - always network, no caching
+  if (request.mode === 'navigate') return;
 
-  // For static assets - cache first
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.match(/\.(png|jpg|jpeg|svg|ico|woff2?)$/)) {
+  // For pre-cached static assets only (icons, manifest) - cache first
+  if (STATIC_ASSETS.includes(url.pathname)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
-        return fetch(request).then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        });
+        return fetch(request);
       })
     );
     return;
