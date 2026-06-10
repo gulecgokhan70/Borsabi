@@ -14,6 +14,7 @@ model User {
   email          String        @unique
   name           String?
   password       String
+  avatar         String?       // emoji avatar identifier
   role           String        @default("user")
   tier           String        @default("free") // free, pro, elite
   balance        Float         @default(100000)

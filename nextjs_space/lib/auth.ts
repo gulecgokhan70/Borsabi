@@ -31,11 +31,12 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.name = user.name;
       }
-      // Her token yenilemede DB'den güncel adı çek
+      // Her token yenilemede DB'den güncel adı ve avatarı çek
       if (token.id) {
         try {
-          const dbUser = await prisma.user.findUnique({ where: { id: token.id as string }, select: { name: true } });
+          const dbUser = await prisma.user.findUnique({ where: { id: token.id as string }, select: { name: true, avatar: true } });
           if (dbUser?.name) token.name = dbUser.name;
+          token.avatar = dbUser?.avatar ?? null;
         } catch (_) {}
       }
       return token;
@@ -44,6 +45,7 @@ export const authOptions: NextAuthOptions = {
       if (session?.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
+        (session.user as any).avatar = token.avatar;
         session.user.name = token.name;
       }
       return session;

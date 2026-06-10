@@ -99,6 +99,7 @@ export async function GET() {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatar: user.avatar,
       tier: user.tier,
       role: user.role,
       balance: user.balance,
@@ -126,18 +127,19 @@ export async function PUT(req: NextRequest) {
     if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { name, tier } = body;
+    const { name, tier, avatar } = body;
 
     const updateData: any = {};
     if (name) updateData.name = name;
     if (tier && ['free', 'pro'].includes(tier)) updateData.tier = tier;
+    if (avatar !== undefined) updateData.avatar = avatar;
 
     const user = await prisma.user.update({
       where: { email: session.user.email },
       data: updateData,
     });
 
-    return NextResponse.json({ success: true, tier: user.tier, name: user.name });
+    return NextResponse.json({ success: true, tier: user.tier, name: user.name, avatar: user.avatar });
   } catch (err: any) {
     console.error('Profile update error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

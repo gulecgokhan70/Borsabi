@@ -11,6 +11,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
 
+const AVATAR_MAP: Record<string, string> = {
+  bear: '🐻', bull: '🐂', eagle: '🦅', wolf: '🐺', lion: '🦁', shark: '🦈', dragon: '🐉', fox: '🦊',
+  rocket: '🚀', gem: '💎', fire: '🔥', lightning: '⚡', star: '⭐', crown: '👑', money: '💰', chart: '📈',
+  cool: '😎', nerd: '🤓', ninja: '🥷', alien: '👽', robot: '🤖', ghost: '👻', pirate: '🏴\u200d☠️', wizard: '🧙',
+};
+
 
 /* ── Global Quick Search ── */
 function GlobalSearch() {
@@ -227,7 +233,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             <div className="flex items-center gap-3 px-3 py-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                {(session?.user?.name ?? 'T').charAt(0).toUpperCase()}
+                {(session?.user as any)?.avatar ? (
+                  <span className="text-lg leading-none">{AVATAR_MAP[(session?.user as any)?.avatar] ?? (session?.user?.name ?? 'T').charAt(0).toUpperCase()}</span>
+                ) : (
+                  (session?.user?.name ?? 'T').charAt(0).toUpperCase()
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground truncate">{session?.user?.name ?? 'Trader'}</p>

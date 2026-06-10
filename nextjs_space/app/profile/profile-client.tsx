@@ -1,9 +1,45 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { formatCurrency, formatPercent } from '@/lib/constants';
+
+const AVATARS = [
+  // Hayvanlar
+  { id: 'bear', emoji: '🐻', label: 'Ayı' },
+  { id: 'bull', emoji: '🐂', label: 'Boğa' },
+  { id: 'eagle', emoji: '🦅', label: 'Kartal' },
+  { id: 'wolf', emoji: '🐺', label: 'Kurt' },
+  { id: 'lion', emoji: '🦁', label: 'Aslan' },
+  { id: 'shark', emoji: '🦈', label: 'Köpekbalığı' },
+  { id: 'dragon', emoji: '🐉', label: 'Ejderha' },
+  { id: 'fox', emoji: '🦊', label: 'Tilki' },
+  // Trader temaları
+  { id: 'rocket', emoji: '🚀', label: 'Roket' },
+  { id: 'gem', emoji: '💎', label: 'Elmas' },
+  { id: 'fire', emoji: '🔥', label: 'Ateş' },
+  { id: 'lightning', emoji: '⚡', label: 'Şimşek' },
+  { id: 'star', emoji: '⭐', label: 'Yıldız' },
+  { id: 'crown', emoji: '👑', label: 'Taç' },
+  { id: 'money', emoji: '💰', label: 'Para' },
+  { id: 'chart', emoji: '📈', label: 'Grafik' },
+  // Yüzler
+  { id: 'cool', emoji: '😎', label: 'Havalı' },
+  { id: 'nerd', emoji: '🤓', label: 'Zeki' },
+  { id: 'ninja', emoji: '🥷', label: 'Ninja' },
+  { id: 'alien', emoji: '👽', label: 'Uzaylı' },
+  { id: 'robot', emoji: '🤖', label: 'Robot' },
+  { id: 'ghost', emoji: '👻', label: 'Hayalet' },
+  { id: 'pirate', emoji: '🏴\u200d☠️', label: 'Korsan' },
+  { id: 'wizard', emoji: '🧙', label: 'Büyücü' },
+];
+
+function getAvatarEmoji(avatarId: string | null | undefined): string | null {
+  if (!avatarId) return null;
+  const found = AVATARS.find(a => a.id === avatarId);
+  return found?.emoji ?? null;
+}
 
 const TIERS = [
   {
@@ -28,6 +64,8 @@ export default function ProfileClient() {
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [upgrading, setUpgrading] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   useEffect(() => {
     fetch('/api/profile').then(r => r.json()).then(d => {
@@ -47,6 +85,20 @@ export default function ProfileClient() {
       setProfile((p: any) => ({ ...p, name: newName }));
       setEditingName(false);
     }
+  };
+
+  const handleAvatarSelect = async (avatarId: string) => {
+    setSavingAvatar(true);
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar: avatarId }),
+    });
+    if (res.ok) {
+      setProfile((p: any) => ({ ...p, avatar: avatarId }));
+    }
+    setSavingAvatar(false);
+    setAvatarPickerOpen(false);
   };
 
   const handleUpgrade = async (tier: string) => {
@@ -91,9 +143,20 @@ export default function ProfileClient() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="glass-card rounded-xl p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `${currentTier.color}20`, border: `2px solid ${currentTier.color}` }}>
-            <TierIcon className="w-8 h-8" style={{ color: currentTier.color }} />
-          </div>
+          <button
+            onClick={() => setAvatarPickerOpen(true)}
+            className="relative w-20 h-20 rounded-2xl flex items-center justify-center group transition-all duration-200 hover:scale-105"
+            style={{ background: `${currentTier.color}15`, border: `2px solid ${currentTier.color}40` }}
+          >
+            {getAvatarEmoji(profile.avatar) ? (
+              <span className="text-4xl">{getAvatarEmoji(profile.avatar)}</span>
+            ) : (
+              <TierIcon className="w-10 h-10" style={{ color: currentTier.color }} />
+            )}
+            <div className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Edit3 className="w-5 h-5 text-white" />
+            </div>
+          </button>
           <div className="flex-1">
             <div className="flex items-center gap-2">
               {editingName ? (
@@ -205,6 +268,101 @@ export default function ProfileClient() {
           Çıkış Yap
         </button>
       </motion.div>
+
+      {/* Avatar Picker Modal */}
+      <AnimatePresence>
+        {avatarPickerOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[70] bg-black/50"
+              onClick={() => setAvatarPickerOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] w-[92vw] max-w-[420px] glass-card rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <h3 className="text-base font-bold text-foreground">Avatar Seç</h3>
+                <button onClick={() => setAvatarPickerOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 max-h-[60vh] overflow-y-auto">
+                {/* Hayvanlar */}
+                <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">🐾 Hayvanlar</p>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {AVATARS.filter((_, i) => i < 8).map((av) => (
+                    <button
+                      key={av.id}
+                      onClick={() => handleAvatarSelect(av.id)}
+                      disabled={savingAvatar}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-150 ${
+                        profile.avatar === av.id
+                          ? 'bg-[#3B82F6]/15 border-2 border-[#3B82F6] scale-105'
+                          : 'glass-inner hover:bg-black/[0.05] dark:hover:bg-white/[0.05] border-2 border-transparent hover:border-[#3B82F6]/30'
+                      }`}
+                    >
+                      <span className="text-2xl">{av.emoji}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">{av.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Trader */}
+                <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">💹 Trader</p>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {AVATARS.filter((_, i) => i >= 8 && i < 16).map((av) => (
+                    <button
+                      key={av.id}
+                      onClick={() => handleAvatarSelect(av.id)}
+                      disabled={savingAvatar}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-150 ${
+                        profile.avatar === av.id
+                          ? 'bg-[#3B82F6]/15 border-2 border-[#3B82F6] scale-105'
+                          : 'glass-inner hover:bg-black/[0.05] dark:hover:bg-white/[0.05] border-2 border-transparent hover:border-[#3B82F6]/30'
+                      }`}
+                    >
+                      <span className="text-2xl">{av.emoji}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">{av.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Karakterler */}
+                <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">🎭 Karakterler</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {AVATARS.filter((_, i) => i >= 16).map((av) => (
+                    <button
+                      key={av.id}
+                      onClick={() => handleAvatarSelect(av.id)}
+                      disabled={savingAvatar}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-150 ${
+                        profile.avatar === av.id
+                          ? 'bg-[#3B82F6]/15 border-2 border-[#3B82F6] scale-105'
+                          : 'glass-inner hover:bg-black/[0.05] dark:hover:bg-white/[0.05] border-2 border-transparent hover:border-[#3B82F6]/30'
+                      }`}
+                    >
+                      <span className="text-2xl">{av.emoji}</span>
+                      <span className="text-[10px] text-muted-foreground font-medium">{av.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {savingAvatar && (
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-2xl">
+                  <div className="w-8 h-8 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <p className="text-xs text-center text-[#F59E0B]/70 pb-4">⚠️ Bu platform eğitim ve simülasyon amaçlıdır, yatırım tavsiyesi değildir.</p>
     </div>
