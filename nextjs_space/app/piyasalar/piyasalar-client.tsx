@@ -259,7 +259,7 @@ function CryptoSection({ data }: { data: any[] }) {
 /* ── Emtia Section ── */
 function CommoditySection({ data }: { data: any[] }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {data.map((c: any) => (
         <motion.div
           key={c.symbol}
@@ -273,7 +273,7 @@ function CommoditySection({ data }: { data: any[] }) {
               <p className="text-xs text-muted-foreground">{c.name}</p>
             </div>
           </div>
-          <p className="text-xl font-bold text-foreground">${formatNumber(c.price, 2)}</p>
+          <p className="text-xl font-bold text-foreground">{c.currency === 'TRY' ? `₺${formatNumber(c.price, 2)}` : `$${formatNumber(c.price, 2)}`}</p>
           <div className="flex items-center justify-between mt-2">
             <span className={`text-xs font-medium px-2 py-0.5 rounded-lg ${c.changePercent >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'}`}>
               {formatPercent(c.changePercent)}

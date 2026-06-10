@@ -97,6 +97,49 @@ export async function GET() {
       };
     });
 
+    // Gram Altın ve Çeyrek Altın (TL) hesapla
+    const goldQuote: any = commData.get('GC=F') || {};
+    const usdTryQuote: any = currData.get('USDTRY=X') || {};
+    const goldOnsUsd = goldQuote.regularMarketPrice ?? 0;
+    const usdTry = usdTryQuote.regularMarketPrice ?? 0;
+    const goldOnsChangePercent = goldQuote.regularMarketChangePercent ?? 0;
+    const usdTryChangePercent = usdTryQuote.regularMarketChangePercent ?? 0;
+    const combinedChangePercent = goldOnsChangePercent + usdTryChangePercent;
+
+    if (goldOnsUsd > 0 && usdTry > 0) {
+      const gramAltin = (goldOnsUsd / 31.1035) * usdTry;
+      const ceyrekAltin = gramAltin * 1.75;
+
+      // Önceki kapanıştan tahmini değişim
+      const prevGramAltin = gramAltin / (1 + combinedChangePercent / 100);
+      const prevCeyrekAltin = ceyrekAltin / (1 + combinedChangePercent / 100);
+
+      commodities.splice(1, 0,
+        {
+          symbol: 'GRAM-ALTIN',
+          name: 'Gram Altın',
+          shortName: 'Gram Altın',
+          icon: '✨',
+          price: Math.round(gramAltin * 100) / 100,
+          change: Math.round((gramAltin - prevGramAltin) * 100) / 100,
+          changePercent: Math.round(combinedChangePercent * 100) / 100,
+          currency: 'TRY',
+          sparkline: [] as number[],
+        },
+        {
+          symbol: 'CEYREK-ALTIN',
+          name: 'Çeyrek Altın',
+          shortName: 'Çeyrek Altın',
+          icon: '🪙',
+          price: Math.round(ceyrekAltin * 100) / 100,
+          change: Math.round((ceyrekAltin - prevCeyrekAltin) * 100) / 100,
+          changePercent: Math.round(combinedChangePercent * 100) / 100,
+          currency: 'TRY',
+          sparkline: [] as number[],
+        },
+      );
+    }
+
     // Format crypto
     const crypto = CRYPTO_ASSETS.slice(0, 8).map(ca => {
       const q: any = cryptoData.get(ca.symbol) || {};
