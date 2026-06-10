@@ -174,6 +174,7 @@ export function DashboardClient() {
                 <Newspaper className="w-4 h-4 text-[#F59E0B]" />
               </div>
               <h2 className="text-sm font-semibold text-foreground">Piyasa Uyarıları</h2>
+              <span className="text-[9px] text-muted-foreground hidden sm:inline">Haber + Tarama + Akşam Analizi</span>
               {!alertsLoading && marketAlerts.length > 0 && (
                 <span className="text-[10px] font-bold bg-[#EF4444]/10 text-[#EF4444] px-1.5 py-0.5 rounded-full">
                   {marketAlerts.length}
@@ -212,7 +213,7 @@ export function DashboardClient() {
           {alertsLoading && (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="w-4 h-4 animate-spin text-[#F59E0B] mr-2" />
-              <span className="text-xs text-muted-foreground">Haberler analiz ediliyor...</span>
+              <span className="text-xs text-muted-foreground">Haberler ve tarama verileri analiz ediliyor...</span>
             </div>
           )}
 
