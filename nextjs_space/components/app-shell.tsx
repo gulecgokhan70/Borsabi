@@ -390,7 +390,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {[
               { href: '/dashboard', label: 'Ana Sayfa', icon: Home },
               { href: '/piyasalar', label: 'Piyasalar', icon: BarChart3 },
-              { href: '/ai-assistant', label: 'AI Analiz', icon: Brain, center: true },
+              { href: '/ai-assistant', label: 'AI Asistan', icon: Brain, center: true },
               { href: '/portfolio', label: 'Portföyüm', icon: Briefcase },
               { href: '/kesfet', label: 'Keşfet', icon: Compass },
             ].map((item) => {
