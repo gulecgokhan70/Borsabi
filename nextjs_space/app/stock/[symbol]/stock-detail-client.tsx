@@ -74,7 +74,7 @@ interface StockData {
 
 const PERIODS = [
   { label: 'Günlük', value: '1d', interval: '5m' },
-  { label: '1H', value: '1w', interval: '1d' },
+  { label: '1H', value: '1w', interval: '1h' },
   { label: '1A', value: '1mo', interval: '1d' },
   { label: '3A', value: '3mo', interval: '1d' },
   { label: '6A', value: '6mo', interval: '1d' },
@@ -120,8 +120,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('1mo');
-  const [chartInterval, setChartInterval] = useState('1d');
+  const [period, setPeriod] = useState('1d');
+  const [chartInterval, setChartInterval] = useState('5m');
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
   const [chartType, setChartType] = useState<ChartType>('line');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
