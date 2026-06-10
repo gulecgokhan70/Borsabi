@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Compass, TrendingUp, TrendingDown, Flame, Eye, Bitcoin, Shield, Target,
   Brain, BarChart3, Scale, Loader2, RefreshCw, ArrowUpRight, ArrowDownRight,
-  Lightbulb, Users, Activity
+  Lightbulb, Users, Activity, Newspaper, ExternalLink, Clock
 } from 'lucide-react';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 
@@ -25,6 +25,8 @@ export function KesfetClient() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tipIdx, setTipIdx] = useState(0);
+  const [news, setNews] = useState<any[]>([]);
+  const [newsTab, setNewsTab] = useState<'genel' | 'bist' | 'kripto' | 'kap'>('genel');
 
   const fetchData = useCallback(async () => {
     try {
@@ -38,11 +40,23 @@ export function KesfetClient() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const fetchNews = useCallback(async () => {
+    try {
+      const res = await fetch('/api/news?limit=30');
+      const json = await res.json();
+      setNews(json?.news ?? []);
+    } catch (e) { console.error('News fetch error:', e); }
+  }, []);
+
+  useEffect(() => { fetchData(); fetchNews(); }, [fetchData, fetchNews]);
   useEffect(() => {
     const iv = setInterval(fetchData, 90000);
     return () => clearInterval(iv);
   }, [fetchData]);
+  useEffect(() => {
+    const iv = setInterval(fetchNews, 10 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [fetchNews]);
 
   // Rotate tips
   useEffect(() => {
@@ -285,6 +299,62 @@ export function KesfetClient() {
           </motion.div>
         )}
       </div>
+
+      {/* Güncel Haberler */}
+      <motion.div {...fadeIn} className="glass-card rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2">
+            <Newspaper className="w-5 h-5 text-[#8B5CF6]" />
+            <h3 className="text-sm font-bold text-foreground">Güncel Haberler</h3>
+          </div>
+        </div>
+        <div className="flex gap-1 px-5 pb-3">
+          {([['genel', 'Tümü'], ['bist', 'BIST'], ['kripto', 'Kripto'], ['kap', 'KAP']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setNewsTab(key)}
+              className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                newsTab === key ? 'bg-[#8B5CF6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] max-h-[420px] overflow-y-auto">
+          {(newsTab === 'genel' ? news : news.filter(n => n.category === newsTab)).length === 0 ? (
+            <div className="px-5 py-8 text-center text-xs text-muted-foreground">Haber yükleniyor...</div>
+          ) : (
+            (newsTab === 'genel' ? news : news.filter(n => n.category === newsTab)).slice(0, 15).map((n: any, i: number) => (
+              <a
+                key={i}
+                href={n.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 px-5 py-3 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  n.sentiment === 'positive' ? 'bg-[#22C55E]/10' : n.sentiment === 'negative' ? 'bg-[#EF4444]/10' : n.category === 'kap' ? 'bg-[#F59E0B]/10' : 'bg-[#8B5CF6]/10'
+                }`}>
+                  {n.sentiment === 'positive' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
+                   n.sentiment === 'negative' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
+                   n.category === 'kap' ? <Shield className="w-4 h-4 text-[#F59E0B]" /> :
+                   <Newspaper className="w-4 h-4 text-[#8B5CF6]" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] text-muted-foreground">{n.source}</span>
+                    <span className="text-[10px] text-muted-foreground">•</span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{n.date ? new Date(n.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                  </div>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-1" />
+              </a>
+            ))
+          )}
+        </div>
+      </motion.div>
 
       {/* Quick Navigation */}
       <motion.div {...fadeIn} className="glass-card rounded-2xl p-5">

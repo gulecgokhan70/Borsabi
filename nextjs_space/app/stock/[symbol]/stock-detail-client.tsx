@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, TrendingUp, TrendingDown, Loader2, Activity, DollarSign, Volume2,
   ArrowUpDown, BarChart3, Shield, Target, Gauge, Layers, ChevronDown, ChevronUp,
-  Info, Percent, Building2, LineChart
+  Info, Percent, Building2, LineChart, Newspaper, ExternalLink, Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
@@ -128,6 +128,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [showFundamentals, setShowFundamentals] = useState(true);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
+  const [news, setNews] = useState<any[]>([]);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
@@ -149,6 +151,16 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const interval = setInterval(fetchData, refreshMs);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Fetch news for this symbol
+  useEffect(() => {
+    setNewsLoading(true);
+    fetch(`/api/news?symbol=${encodeURIComponent(symbol)}&limit=10`)
+      .then(r => r.json())
+      .then(d => setNews(d?.news ?? []))
+      .catch(() => {})
+      .finally(() => setNewsLoading(false));
+  }, [symbol]);
 
   const isPositive = (data?.change ?? 0) >= 0;
   const isIntraday = period === '1d';
@@ -728,6 +740,57 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           </div>
         </motion.div>
       )}
+
+      {/* Haberler & KAP */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="glass-card rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-2 px-5 pt-5 pb-3">
+          <Newspaper className="w-5 h-5 text-[#8B5CF6]" />
+          <h3 className="text-sm font-bold text-foreground">
+            {symbol.endsWith('.IS') ? 'Haberler & KAP Bildirimleri' : 'Haberler'}
+          </h3>
+        </div>
+        <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] max-h-[360px] overflow-y-auto">
+          {newsLoading ? (
+            <div className="px-5 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6] mx-auto" /></div>
+          ) : news.length === 0 ? (
+            <div className="px-5 py-8 text-center text-xs text-muted-foreground">
+              {symbol.endsWith('.IS') ? 'Bu hisse için güncel haber veya KAP bildirimi bulunamadı' : 'Güncel haber bulunamadı'}
+            </div>
+          ) : (
+            news.map((n: any, i: number) => (
+              <a
+                key={i}
+                href={n.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 px-5 py-3 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  n.category === 'kap' ? 'bg-[#F59E0B]/10' : n.sentiment === 'positive' ? 'bg-[#22C55E]/10' : n.sentiment === 'negative' ? 'bg-[#EF4444]/10' : 'bg-[#8B5CF6]/10'
+                }`}>
+                  {n.category === 'kap' ? <Shield className="w-4 h-4 text-[#F59E0B]" /> :
+                   n.sentiment === 'positive' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
+                   n.sentiment === 'negative' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
+                   <Newspaper className="w-4 h-4 text-[#8B5CF6]" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      n.category === 'kap' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                    }`}>{n.source}</span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      {n.date ? new Date(n.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
+                  </div>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-1" />
+              </a>
+            ))
+          )}
+        </div>
+      </motion.div>
 
       {/* Disclaimer */}
       <p className="text-center text-xs text-[#475569] py-4">

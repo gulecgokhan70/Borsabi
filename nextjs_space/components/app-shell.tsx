@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
+import { BreakingNewsBanner } from '@/components/breaking-news';
 import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
 
 const AVATAR_MAP: Record<string, string> = {
@@ -378,6 +379,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* Breaking News Popup */}
+      <BreakingNewsBanner />
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
