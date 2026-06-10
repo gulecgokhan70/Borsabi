@@ -70,14 +70,24 @@ export async function GET(
   { params }: { params: { symbol: string } }
 ) {
   try {
-    const symbol = decodeURIComponent(params.symbol);
+    let symbol = decodeURIComponent(params.symbol);
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') ?? '1mo';
     const interval = searchParams.get('interval') ?? '1d';
 
     // Find stock info
     const allAssets = [...BIST_ALL_ASSETS, ...CRYPTO_ASSETS];
-    const assetInfo = allAssets.find((a: any) => a.symbol === symbol);
+    let assetInfo = allAssets.find((a: any) => a.symbol === symbol);
+
+    // Sembol normalizasyonu: .IS veya -USD eki yoksa BIST_ALL_ASSETS'ten ara
+    if (!assetInfo && !symbol.endsWith('.IS') && !symbol.endsWith('-USD')) {
+      const bistMatch = BIST_ALL_ASSETS.find((a: any) => a.symbol === `${symbol}.IS`);
+      if (bistMatch) {
+        symbol = bistMatch.symbol; // AGESA -> AGESA.IS
+        assetInfo = bistMatch;
+        console.log(`[StockDetail] Sembol normalize edildi: ${params.symbol} -> ${symbol}`);
+      }
+    }
 
     // Midas primary (BIST only), Yahoo fallback
     const isBist = symbol.endsWith('.IS');
