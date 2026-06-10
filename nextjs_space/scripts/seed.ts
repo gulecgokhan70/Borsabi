@@ -13,7 +13,7 @@ async function main() {
     update: {},
     create: {
       email: 'john@doe.com',
-      name: 'BorsaBi Trader',
+      name: 'Trader',
       password: hashedPassword,
       role: 'admin',
       balance: 100000,
