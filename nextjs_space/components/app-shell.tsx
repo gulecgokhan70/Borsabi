@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { BorsaBiLogoFull } from './logo';
+import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
 
 
 /* ── Global Quick Search ── */
@@ -255,6 +255,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto">
         {/* Desktop top bar */}
         <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
+            <BorsaBiLogoFull size={28} />
+          </Link>
           <div className="flex-1" />
           <GlobalSearch />
           <div className="flex-1" />
@@ -264,6 +267,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
             <Menu className="w-5 h-5" />
           </button>
+          <Link href="/dashboard" className="shrink-0">
+            <BorsaBiLogo size={28} />
+          </Link>
           <div className="flex-1">
             <GlobalSearch />
           </div>
