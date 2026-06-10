@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { cachedQuoteBatch } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { BIST_ALL_ASSETS } from '@/lib/constants';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,9 +20,22 @@ export async function GET(request: NextRequest) {
     // Açık pozisyonlar için güncel fiyatları çek
     let enrichedPositions = positions.map((p: any) => ({ ...p }));
     if (positions.length > 0) {
-      const symbols = positions.map((p: any) => p.symbol);
-      const bistSymbols = symbols.filter((s: string) => s.endsWith('.IS'));
-      const otherSymbols = symbols.filter((s: string) => !s.endsWith('.IS'));
+      // Sembol normalizasyonu: .IS eki olmayan BIST sembollerini düzelt
+      const normalizeSymbol = (sym: string): string => {
+        if (sym.endsWith('.IS') || sym.endsWith('-USD')) return sym;
+        const bistMatch = BIST_ALL_ASSETS.find((a: any) => a.symbol === `${sym}.IS`);
+        return bistMatch ? bistMatch.symbol : sym;
+      };
+
+      // Her pozisyon için normalize edilmiş sembol haritası oluştur
+      const symbolMap = new Map<string, string>(); // original -> normalized
+      positions.forEach((p: any) => {
+        symbolMap.set(p.symbol, normalizeSymbol(p.symbol));
+      });
+
+      const normalizedSymbols = [...new Set(Array.from(symbolMap.values()))];
+      const bistSymbols = normalizedSymbols.filter((s: string) => s.endsWith('.IS'));
+      const otherSymbols = normalizedSymbols.filter((s: string) => !s.endsWith('.IS'));
 
       // Midas'tan BIST fiyatlarını çek
       let midasMap = new Map<string, MidasStock>();
@@ -33,7 +47,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Yahoo'dan diğer fiyatları çek
+      // Yahoo'dan diğer fiyatları çek (Midas'ta bulunamayanlar)
       let yahooMap = new Map<string, any>();
       const yahooNeeded = otherSymbols.concat(
         bistSymbols.filter((s: string) => !midasMap.has(s.replace('.IS', '').toUpperCase()))
@@ -48,14 +62,16 @@ export async function GET(request: NextRequest) {
 
       enrichedPositions = positions.map((p: any) => {
         let livePrice = p.currentPrice;
-        const cleanSym = p.symbol.replace('.IS', '').toUpperCase();
-        const midas = p.symbol.endsWith('.IS') ? midasMap.get(cleanSym) : null;
+        const normalized = symbolMap.get(p.symbol) ?? p.symbol;
+        const cleanSym = normalized.replace('.IS', '').toUpperCase();
+        const midas = normalized.endsWith('.IS') ? midasMap.get(cleanSym) : null;
 
         if (midas) {
-          const mp = midas.Last || midas.Close || 0;
+          const mp = midas.Last || midas.Close || midas.PreviousClose || 0;
           if (mp > 0) livePrice = mp;
         } else {
-          const yq: any = yahooMap.get(p.symbol);
+          // Yahoo: normalized veya orijinal sembolle dene
+          const yq: any = yahooMap.get(normalized) ?? yahooMap.get(p.symbol);
           if (yq) {
             const yp = yq?.regularMarketPrice ?? 0;
             if (yp > 0) livePrice = yp;
