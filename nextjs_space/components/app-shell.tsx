@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe
+  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
@@ -82,17 +82,18 @@ function GlobalSearch() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, y: '100%' }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-              className="fixed z-[80] glass-card shadow-2xl overflow-hidden inset-x-0 bottom-0 rounded-t-2xl sm:rounded-2xl sm:inset-auto sm:top-[15%] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[480px]"
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ duration: 0.15 }}
+              className="fixed z-[80] inset-0 sm:inset-auto sm:top-[12%] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[480px] bg-background sm:bg-transparent flex flex-col sm:block"
             >
-              <div className="flex justify-center pt-2 pb-0 sm:hidden">
-                <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
-              </div>
-              <div className="p-3 pt-2 sm:pt-3 border-b border-black/[0.06] dark:border-white/[0.06]">
-                <div className="relative">
+              {/* Mobile top bar */}
+              <div className="flex items-center gap-2 p-3 sm:hidden">
+                <button onClick={() => { setOpen(false); setQ(''); }} className="p-2 -ml-1 rounded-lg text-muted-foreground hover:text-foreground">
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     ref={inputRef}
@@ -100,7 +101,8 @@ function GlobalSearch() {
                     onChange={e => setQ(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && results.length > 0) go(results[0].symbol); }}
                     placeholder="Hisse veya kripto ara..."
-                    className="w-full pl-10 pr-10 py-3 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
+                    autoFocus
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
                   />
                   {q && (
                     <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -109,23 +111,71 @@ function GlobalSearch() {
                   )}
                 </div>
               </div>
-              <div className="max-h-[320px] overflow-y-auto">
+
+              {/* Desktop search box */}
+              <div className="hidden sm:block glass-card rounded-2xl shadow-2xl overflow-hidden">
+                <div className="p-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      ref={inputRef}
+                      value={q}
+                      onChange={e => setQ(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && results.length > 0) go(results[0].symbol); }}
+                      placeholder="Hisse veya kripto ara..."
+                      className="w-full pl-10 pr-10 py-3 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
+                    />
+                    {q && (
+                      <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-[320px] overflow-y-auto">
+                  {term.length < 1 ? (
+                    <div className="px-4 py-8 text-center text-xs text-muted-foreground">Aramak istediğiniz hisseyi veya kriptoyu yazın</div>
+                  ) : results.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-xs text-muted-foreground">Sonuç bulunamadı</div>
+                  ) : (
+                    results.map((item, i) => (
+                      <button
+                        key={item.symbol}
+                        onClick={() => go(item.symbol)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors border-b border-black/[0.03] dark:border-white/[0.03] last:border-0"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-[#3B82F6]">{item.shortName.slice(0, 3)}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{item.shortName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{item.name}</p>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">{item.type}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile results */}
+              <div className="flex-1 overflow-y-auto sm:hidden">
                 {term.length < 1 ? (
-                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">Aramak istediğiniz hisseyi veya kriptoyu yazın</div>
+                  <div className="px-4 py-12 text-center text-xs text-muted-foreground">Aramak istediğiniz hisseyi veya kriptoyu yazın</div>
                 ) : results.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">Sonuç bulunamadı</div>
+                  <div className="px-4 py-12 text-center text-xs text-muted-foreground">Sonuç bulunamadı</div>
                 ) : (
                   results.map((item, i) => (
                     <button
                       key={item.symbol}
                       onClick={() => go(item.symbol)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors border-b border-black/[0.03] dark:border-white/[0.03] last:border-0"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.04] active:bg-black/[0.08] dark:active:bg-white/[0.08] transition-colors border-b border-black/[0.04] dark:border-white/[0.04] last:border-0"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-[#3B82F6]">{item.shortName.slice(0, 3)}</span>
+                      <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-[#3B82F6]">{item.shortName.slice(0, 3)}</span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{item.shortName}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{item.shortName}</p>
                         <p className="text-xs text-muted-foreground truncate">{item.name}</p>
                       </div>
                       <span className="text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">{item.type}</span>
