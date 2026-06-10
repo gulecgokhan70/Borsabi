@@ -60,7 +60,7 @@ async function fetchKapNews(): Promise<NewsItem[]> {
       sentiment: 'neutral' as const,
     }));
   } catch (e) {
-    console.error('KAP RSS error:', e);
+    // KAP RSS may be unavailable - silent fallback
     return [];
   }
 }

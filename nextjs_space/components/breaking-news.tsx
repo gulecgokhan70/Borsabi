@@ -18,6 +18,26 @@ export function BreakingNewsBanner() {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [minimized, setMinimized] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [sessionDismissed, setSessionDismissed] = useState(false);
+
+  // Check sessionStorage on mount — only show once per session
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('bn_dismissed')) {
+        setSessionDismissed(true);
+        return;
+      }
+    } catch { /* silent */ }
+    // Show after 8s delay
+    const t = setTimeout(() => setReady(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const dismissSession = useCallback(() => {
+    setSessionDismissed(true);
+    try { sessionStorage.setItem('bn_dismissed', '1'); } catch { /* silent */ }
+  }, []);
 
   const fetchBreaking = useCallback(async () => {
     try {
@@ -57,6 +77,9 @@ export function BreakingNewsBanner() {
     return () => clearInterval(iv);
   }, [news, dismissed]);
 
+  // Don't render if session-dismissed or not ready yet
+  if (sessionDismissed || !ready) return null;
+
   const visibleNews = news.filter(n => !dismissed.has(n.title));
   if (visibleNews.length === 0 || minimized) {
     if (minimized && visibleNews.length > 0) {
@@ -69,6 +92,8 @@ export function BreakingNewsBanner() {
         </button>
       );
     }
+    // All dismissed individually → mark session dismissed
+    if (visibleNews.length === 0 && news.length > 0) dismissSession();
     return null;
   }
 
@@ -115,7 +140,7 @@ export function BreakingNewsBanner() {
                 <X className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setMinimized(true)}
+                onClick={() => { setMinimized(true); dismissSession(); }}
                 className="p-1 rounded-lg hover:bg-white/20 text-white/60 hover:text-white transition-colors text-[10px] font-bold"
               >
                 −
