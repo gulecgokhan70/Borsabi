@@ -131,3 +131,12 @@ model Achievement {
   @@unique([userId, badge])
   @@index([userId])
 }
+
+model ScanCache {
+  id        String   @id
+  data      String   // JSON stringified scan results
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([id])
+}

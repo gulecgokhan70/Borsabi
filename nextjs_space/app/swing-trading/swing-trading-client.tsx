@@ -38,6 +38,13 @@ interface SwingTradeResult {
   macd: { macd: number; signal: number; histogram: number };
 }
 
+function formatTimeAgo(isoStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+  if (diff < 60) return 'Az önce';
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  return `${Math.floor(diff / 3600)} sa önce`;
+}
+
 export function SwingTradingClient() {
   const router = useRouter();
   const [data, setData] = useState<SwingTradeResult[]>([]);
@@ -45,6 +52,8 @@ export function SwingTradingClient() {
   const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
   const [marketOpen, setMarketOpen] = useState(true);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [isFresh, setIsFresh] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
@@ -52,6 +61,8 @@ export function SwingTradingClient() {
       const json = await res.json();
       setData(json?.data ?? []);
       if (json?.marketOpen !== undefined) setMarketOpen(json.marketOpen);
+      if (json?.cachedAt) setCachedAt(json.cachedAt);
+      if (json?.fresh !== undefined) setIsFresh(json.fresh);
     } catch (e) {
       console.error('Swing trading fetch error:', e);
     } finally {
@@ -99,7 +110,15 @@ export function SwingTradingClient() {
             </div>
             Swing Trading Motoru
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Sapan & Dip-Bip Sistemleri ile Orta Vadeli Fırsat Analizi</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-muted-foreground text-sm">Sapan & Dip-Bip Sistemleri ile Orta Vadeli Fırsat Analizi</p>
+            {cachedAt && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
+                <span className={`w-1.5 h-1.5 rounded-full ${isFresh ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'}`} />
+                {formatTimeAgo(cachedAt)}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex glass-card rounded-lg p-1 gap-1">

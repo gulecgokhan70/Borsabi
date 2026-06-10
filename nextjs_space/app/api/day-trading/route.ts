@@ -4,6 +4,7 @@ import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
+import { cachedScan } from '@/lib/scan-cache';
 
 // ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
 
@@ -249,8 +250,7 @@ function scoreDayTrade(
   };
 }
 
-export async function GET(request: NextRequest) {
-  try {
+async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }> {
     const results: any[] = [];
 
     // Midas'tan tüm BIST verilerini al (primary source)
@@ -434,7 +434,13 @@ export async function GET(request: NextRequest) {
       const pc = r.prevClose ?? 0;
       return rp !== pc && rp > 0;
     });
-    return NextResponse.json({ data: top10, marketOpen: isBistOpen });
+    return { data: top10, marketOpen: isBistOpen };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { result, cachedAt, fresh } = await cachedScan('day-trading', runDayTradingScan);
+    return NextResponse.json({ ...result, cachedAt, fresh });
   } catch (error: any) {
     console.error('Day trading error:', error);
     return NextResponse.json({ error: 'Day trading taraması yapılamadı' }, { status: 500 });

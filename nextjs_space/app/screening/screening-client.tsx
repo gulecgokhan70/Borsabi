@@ -6,28 +6,39 @@ import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, Arrow
 import { formatNumber, formatPercent, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 
+function formatTimeAgo(isoStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
+  if (diff < 60) return 'Az önce';
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  return `${Math.floor(diff / 3600)} sa önce`;
+}
+
 export function ScreeningClient() {
   const router = useRouter();
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
   const [marketOpen, setMarketOpen] = useState(true);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [isFresh, setIsFresh] = useState(true);
 
   const fetchScreening = useCallback(async () => {
-    setLoading(true);
+    if (!cachedAt) setLoading(true); // Only show loader on first load
     try {
       const res = await fetch('/api/screening');
       const data = await res.json();
       setResults(data?.data ?? []);
       if (data?.marketOpen !== undefined) setMarketOpen(data.marketOpen);
+      if (data?.cachedAt) setCachedAt(data.cachedAt);
+      if (data?.fresh !== undefined) setIsFresh(data.fresh);
     } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  }, []);
+  }, [cachedAt]);
 
   useEffect(() => {
     fetchScreening();
     const interval = setInterval(() => { fetchScreening(); }, 60000);
     return () => clearInterval(interval);
-  }, [fetchScreening]);
+  }, []);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return '#22C55E';
@@ -41,7 +52,15 @@ export function ScreeningClient() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Hisse Tarama Motoru</h1>
-          <p className="text-sm text-muted-foreground">BIST hisseleri için 5 kategori puanlama + Sapan/Dip-Bip/Formasyon tespiti</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">BIST hisseleri için 5 kategori puanlama + Sapan/Dip-Bip/Formasyon tespiti</p>
+            {cachedAt && (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
+                <span className={`w-1.5 h-1.5 rounded-full ${isFresh ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'}`} />
+                {formatTimeAgo(cachedAt)}
+              </span>
+            )}
+          </div>
         </div>
         <button onClick={fetchScreening} disabled={loading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tara

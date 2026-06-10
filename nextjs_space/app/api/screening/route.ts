@@ -4,6 +4,7 @@ import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore, type CandlePattern } from '@/lib/candle-patterns';
+import { cachedScan } from '@/lib/scan-cache';
 
 function calculateRSI(closes: number[], period = 14): number {
   if ((closes?.length ?? 0) < period + 1) return 50;
@@ -271,8 +272,7 @@ function screenStock(
   };
 }
 
-export async function GET(request: NextRequest) {
-  try {
+async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }> {
     const results: any[] = [];
 
     // Midas'tan tüm BIST verilerini al (primary source)
@@ -450,7 +450,13 @@ export async function GET(request: NextRequest) {
       const pc = r.prevClose ?? 0;
       return rp !== pc && rp > 0;
     });
-    return NextResponse.json({ data: top10, marketOpen: isBistOpen });
+    return { data: top10, marketOpen: isBistOpen };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { result, cachedAt, fresh } = await cachedScan('screening', runScreeningScan);
+    return NextResponse.json({ ...result, cachedAt, fresh });
   } catch (error: any) {
     console.error('Screening error:', error);
     return NextResponse.json({ error: 'Tarama yapılamadı' }, { status: 500 });
