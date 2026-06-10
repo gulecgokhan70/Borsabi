@@ -1,304 +1,158 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
+interface NewsItem {
+  title: string;
+  summary: string;
+  source: string;
+  url: string;
+  date: string;
+  category: string;
+  sentiment?: string;
+  importance?: number;
+}
+
 interface MarketAlert {
   id: string;
   title: string;
   summary: string;
-  impact: 'yüksek' | 'orta' | 'düşük';
   direction: 'pozitif' | 'negatif' | 'nötr';
-  category: 'gece' | 'gün_içi';
+  impact: 'yüksek' | 'orta' | 'düşük';
+  category: 'gece' | 'gün';
+  source: string;
   affectedSectors: string[];
   affectedSymbols: string[];
   actionSuggestion: string;
-  source: string;
-  timestamp: string;
 }
 
-interface AlertsCache {
-  alerts: MarketAlert[];
-  generatedAt: number;
+/* ── Sektör tespiti ── */
+const SECTOR_KEYWORDS: [RegExp, string][] = [
+  [/banka|finans|kredi|faiz|tcmb|merkez bankas/i, 'Bankacılık'],
+  [/enerji|petrol|doğalgaz|elektrik|güneş|rüzgar/i, 'Enerji'],
+  [/otomotiv|araç|otomobil|togg/i, 'Otomotiv'],
+  [/inşaat|konut|gayrimenkul|emlak/i, 'İnşaat'],
+  [/teknoloji|yazılım|dijital|siber/i, 'Teknoloji'],
+  [/sağlık|ilaç|hastane|tıp/i, 'Sağlık'],
+  [/gıda|tarım|hayvancılık/i, 'Gıda'],
+  [/madencilik|çelik|demir|altın|metal/i, 'Madencilik'],
+  [/savunma|askeri|aselsan|roketsan/i, 'Savunma'],
+  [/perakende|mağaza|tüketici/i, 'Perakende'],
+  [/telekomünikasyon|telekom|turkcell|avea/i, 'Telekom'],
+  [/turizm|otel|havayolu|uçuş/i, 'Turizm'],
+  [/lojistik|nakliye|denizcilik/i, 'Lojistik'],
+];
+
+/* ── Hisse tespiti ── */
+const BIST_SYMBOLS = [
+  'THYAO', 'GARAN', 'AKBNK', 'YKBNK', 'EREGL', 'ASELS', 'KCHOL', 'BIMAS', 'SAHOL',
+  'TUPRS', 'SISE', 'TAVHL', 'PETKM', 'TCELL', 'ENKAI', 'HEKTS', 'FROTO', 'TOASO',
+  'KOZAL', 'GUBRF', 'TTKOM', 'VESTL', 'MGROS', 'DOHOL', 'ARCLK', 'TKFEN', 'PGSUS',
+  'EKGYO', 'GESAN', 'KRDMD', 'SASA', 'OYAKC', 'KONTR', 'AEFES', 'BRYAT', 'EUPWR',
+  'ODAS', 'BTCTURK', 'MPARK', 'CIMSA',
+];
+
+/* ── Aksiyon önerisi oluştur ── */
+function generateAction(item: NewsItem): string {
+  const text = (item.title + ' ' + item.summary).toLowerCase();
+
+  if (/faiz.*art|faiz.*yükselt/i.test(text))
+    return 'Faiz artışı banka hisselerini olumlu etkileyebilir. Banka sektörünü takip edin.';
+  if (/faiz.*indir|faiz.*düşür/i.test(text))
+    return 'Faiz indirimi büyüme hisselerini destekleyebilir. İnşaat ve perakende sektörüne bakın.';
+  if (/enflasyon.*yüksel|tüfe.*art/i.test(text))
+    return 'Yükselen enflasyon portföyünüzü etkileyebilir. Reel sektör hisselerine dikkat edin.';
+  if (/dolar.*yüksel|dolar.*art|kur.*sert/i.test(text))
+    return 'Dolar yükselişi ihracatçıları olumlu, ithalatçıları olumsuz etkiler. Portföyünüzü gözden geçirin.';
+  if (/bist.*düş|borsa.*düş|endeks.*geril/i.test(text))
+    return 'Piyasa düşüşünde stop-loss seviyelerinizi kontrol edin. Panik satış yapmaktan kaçının.';
+  if (/bist.*yüksel|borsa.*yüksel|ralli/i.test(text))
+    return 'Yükseliş trendinde kar realizasyonu noktalarını belirleyin.';
+  if (/temettü|kar dağıt/i.test(text))
+    return 'Temettü haberi hisse fiyatını etkileyebilir. Dağıtım tarihini takip edin.';
+  if (/bitcoin.*yüksel|btc.*art/i.test(text))
+    return 'Kripto yükselişinde aşırı risk almaktan kaçının. Portföy dengesini koruyun.';
+  if (/bitcoin.*düş|kripto.*düş/i.test(text))
+    return 'Kripto düşüşünde DCA stratejisi değerlendirebilirsiniz.';
+
+  if (item.sentiment === 'positive') return 'Olumlu gelişmeleri takip edin, fırsatları değerlendirin.';
+  if (item.sentiment === 'negative') return 'Risk yönetimi uygulayın, stop-loss seviyelerinizi kontrol edin.';
+  return 'Piyasa gelişmelerini takip etmeye devam edin.';
 }
 
-let alertsCache: AlertsCache | null = null;
-const CACHE_TTL = 15 * 60 * 1000; // 15 min
+/* ── Haber → Alert dönüşümü ── */
+function newsToAlert(item: NewsItem, idx: number): MarketAlert {
+  const text = (item.title + ' ' + item.summary).toLowerCase();
 
-/* ── Haber verilerini topla ── */
-async function fetchNewsForAnalysis(): Promise<string> {
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/news?limit=30`, {
-      headers: { 'User-Agent': 'internal' },
-    });
-    if (!res.ok) throw new Error('News fetch failed');
-    const data = await res.json();
-    const news = data.news || [];
-    if (news.length === 0) return '';
-    return news.map((n: any, i: number) =>
-      `${i + 1}. [${n.source}] ${n.title}${n.summary ? ' - ' + n.summary.substring(0, 120) : ''} (${n.date?.substring(0, 16) || 'bilinmiyor'})`
-    ).join('\n');
-  } catch (e) {
-    console.error('fetchNewsForAnalysis error:', e);
-    return '';
+  // Direction
+  let direction: MarketAlert['direction'] = 'nötr';
+  if (item.sentiment === 'positive') direction = 'pozitif';
+  else if (item.sentiment === 'negative') direction = 'negatif';
+
+  // Impact
+  const importance = item.importance ?? 0;
+  let impact: MarketAlert['impact'] = 'düşük';
+  if (importance >= 7) impact = 'yüksek';
+  else if (importance >= 4) impact = 'orta';
+
+  // Category (gece vs gün)
+  const hour = new Date(item.date).getHours();
+  const category: MarketAlert['category'] = (hour >= 18 || hour < 9) ? 'gece' : 'gün';
+
+  // Affected sectors
+  const sectors: string[] = [];
+  for (const [regex, sector] of SECTOR_KEYWORDS) {
+    if (regex.test(text) && !sectors.includes(sector)) sectors.push(sector);
   }
-}
 
-/* ── Tarama verilerini topla ── */
-async function fetchScanData(): Promise<string> {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const sections: string[] = [];
-
-  // Day Trading tarama
-  try {
-    const res = await fetch(`${baseUrl}/api/day-trading`, { headers: { 'User-Agent': 'internal' } });
-    if (res.ok) {
-      const data = await res.json();
-      const items = (data.data || []).slice(0, 5);
-      if (items.length > 0) {
-        sections.push('=== DAY TRADING TARAMA (En İyi Fırsatlar) ===');
-        items.forEach((s: any, i: number) => {
-          const sym = s.symbol?.replace?.('.IS', '') || s.symbol;
-          sections.push(`${i + 1}. ${sym} - Puan: ${s.score}, Fiyat: ${s.price}, Değişim: %${(s.changePercent ?? 0).toFixed(1)}, Sinyaller: ${(s.signals || []).slice(0, 4).join(', ')}`);
-        });
-        sections.push(`Piyasa durumu: ${data.marketOpen ? 'Açık' : 'Kapalı'}`);
-      }
-    }
-  } catch (e) { console.error('Day trading fetch error:', e); }
-
-  // Swing Trading tarama
-  try {
-    const res = await fetch(`${baseUrl}/api/swing-trading`, { headers: { 'User-Agent': 'internal' } });
-    if (res.ok) {
-      const data = await res.json();
-      const items = (data.data || []).slice(0, 5);
-      if (items.length > 0) {
-        sections.push('\n=== SWING TRADING TARAMA (En İyi Fırsatlar) ===');
-        items.forEach((s: any, i: number) => {
-          const sym = s.symbol?.replace?.('.IS', '') || s.symbol;
-          sections.push(`${i + 1}. ${sym} - Puan: ${s.score}, Fiyat: ${s.price}, Değişim: %${(s.changePercent ?? 0).toFixed(1)}, Sinyaller: ${(s.signals || []).slice(0, 4).join(', ')}`);
-        });
-      }
-    }
-  } catch (e) { console.error('Swing trading fetch error:', e); }
-
-  // Genel tarama (screening)
-  try {
-    const res = await fetch(`${baseUrl}/api/screening`, { headers: { 'User-Agent': 'internal' } });
-    if (res.ok) {
-      const data = await res.json();
-      const items = (data.data || []).slice(0, 5);
-      if (items.length > 0) {
-        sections.push('\n=== GENEL TARAMA (Teknik Analiz) ===');
-        items.forEach((s: any, i: number) => {
-          const sym = s.symbol?.replace?.('.IS', '') || s.symbol;
-          const formations = (s.formations || []).join(', ');
-          sections.push(`${i + 1}. ${sym} - Puan: ${s.score}, Fiyat: ${s.price}, Değişim: %${(s.changePercent ?? 0).toFixed(1)}${formations ? ', Formasyonlar: ' + formations : ''}, Sinyaller: ${(s.signals || []).slice(0, 4).join(', ')}`);
-        });
-      }
-    }
-  } catch (e) { console.error('Screening fetch error:', e); }
-
-  return sections.join('\n');
-}
-
-/* ── Akşam analizi verilerini topla ── */
-async function fetchAksamAnalizi(): Promise<string> {
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const res = await fetch(`${baseUrl}/api/aksam-analizi?cached=true`, {
-      headers: { 'User-Agent': 'internal' },
-    });
-    if (!res.ok) return '';
-    const data = await res.json();
-    if (data.error) return '';
-
-    const sections: string[] = ['=== AKŞAM ANALİZİ ==='];
-    sections.push(`Analiz zamanı: ${data.analizZamani || 'bilinmiyor'}`);
-    sections.push(`Taranan hisse: ${data.tarananHisse || 0}`);
-
-    // Day trade fırsatları
-    const dayItems = (data.dayTrade || []).slice(0, 5);
-    if (dayItems.length > 0) {
-      sections.push(`\nAkşam Analizi - Day Trade Fırsatları (${data.toplamDayTrade || 0} toplam):`);
-      dayItems.forEach((s: any, i: number) => {
-        const sym = s.symbol?.replace?.('.IS', '') || s.symbol;
-        sections.push(`${i + 1}. ${sym} - Fiyat: ${s.price}, RSI: ${(s.rsi || 0).toFixed(0)}, MACD: ${s.macdHistogram > 0 ? 'Pozitif' : 'Negatif'}, Trend: ${s.trendDirection || 'Belirsiz'}`);
-      });
-    }
-
-    // Swing trade fırsatları
-    const swingItems = (data.swingTrade || []).slice(0, 5);
-    if (swingItems.length > 0) {
-      sections.push(`\nAkşam Analizi - Swing Trade Fırsatları (${data.toplamSwing || 0} toplam):`);
-      swingItems.forEach((s: any, i: number) => {
-        const sym = s.symbol?.replace?.('.IS', '') || s.symbol;
-        sections.push(`${i + 1}. ${sym} - Fiyat: ${s.price}, RSI: ${(s.rsi || 0).toFixed(0)}, Hedef: ${s.target1}, Stop: ${s.stopLoss}, R/R: ${s.riskReward}`);
-      });
-    }
-
-    return sections.join('\n');
-  } catch (e) {
-    console.error('fetchAksamAnalizi error:', e);
-    return '';
+  // Affected symbols
+  const symbols: string[] = [];
+  for (const sym of BIST_SYMBOLS) {
+    if (text.includes(sym.toLowerCase())) symbols.push(sym);
   }
+
+  return {
+    id: `alert-${idx}-${Date.now()}`,
+    title: item.title,
+    summary: item.summary,
+    direction,
+    impact,
+    category,
+    source: `${item.source} • ${new Date(item.date).toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}`,
+    affectedSectors: sectors.slice(0, 3),
+    affectedSymbols: symbols.slice(0, 5),
+    actionSuggestion: generateAction(item),
+  };
 }
 
-/* ── LLM ile uyarılar üret ── */
-async function generateAlerts(): Promise<MarketAlert[]> {
-  const apiKey = process.env.ABACUSAI_API_KEY;
-  if (!apiKey) return [];
-
-  // Tüm verileri paralel olarak topla
-  const [newsText, scanData, aksamData] = await Promise.allSettled([
-    fetchNewsForAnalysis(),
-    fetchScanData(),
-    fetchAksamAnalizi(),
-  ]);
-
-  const news = newsText.status === 'fulfilled' ? newsText.value : '';
-  const scans = scanData.status === 'fulfilled' ? scanData.value : '';
-  const aksam = aksamData.status === 'fulfilled' ? aksamData.value : '';
-
-  // Hiç veri yoksa varsayılan döndür
-  if (!news && !scans && !aksam) return getDefaultAlerts();
-
-  const now = new Date();
-  const hour = now.getUTCHours() + 3; // Turkey UTC+3
-  const isMarketHours = hour >= 10 && hour < 18;
-
-  const prompt = `Sen bir Türk borsası (BIST) uzmanısın. Aşağıdaki güncel verileri analiz et ve yatırımcıları uyaracak önemli piyasa uyarıları oluştur.
-
-Şu anki saat: ${now.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}
-Piyasa durumu: ${isMarketHours ? 'BIST açık' : 'BIST kapalı'}
-
-${news ? '📰 HABERLER:\n' + news + '\n\n' : ''}${scans ? '📊 TARAMA SİSTEMLERİ:\n' + scans + '\n\n' : ''}${aksam ? '🌙 ' + aksam + '\n\n' : ''}Yukarıdaki TÜM verileri (haberler + tarama sonuçları + akşam analizi) birlikte değerlendirerek EN ÖNEMLİ 3-6 piyasa uyarısı oluştur.
-
-Uyarı türleri:
-1. HABER BAZLI: Önemli haberlerin piyasaya etkisi
-2. TEKNİK: Tarama sistemlerinden gelen güçlü teknik sinyaller (formasyon, hacim patlaması, trend kırılımı vb.)
-3. FIRSATLAR: Day trade veya swing trade için öne çıkan hisseler
-4. RİSK: Aşırı alım/satım, negatif MACD, düşüş trendi gibi uyarılar
-5. AKŞAM ANALİZİ: Gece gelişmeleri ve ertesi gün için beklentiler
-
-Her uyarı için:
-- Haberin ve/veya teknik verinin borsaya etkisini değerlendir
-- Etkilenen sektörleri ve hisseleri belirle
-- Yatırımcıya kısa bir aksiyon önerisi ver
-- Gece mi gün içi mi geliştiğini belirle
-
-JSON formatında yanıt ver (başka hiçbir metin ekleme):
-[
-  {
-    "title": "Kısa başlık",
-    "summary": "2-3 cümle detaylı açıklama. Haberleri ve teknik verileri birlikte yorumla.",
-    "impact": "yüksek|orta|düşük",
-    "direction": "pozitif|negatif|nötr",
-    "category": "gece|gün_içi",
-    "affectedSectors": ["Bankacılık", "Enerji" vb.],
-    "affectedSymbols": ["GARAN", "THYAO" vb. BIST sembolleri],
-    "actionSuggestion": "Kısa aksiyon önerisi",
-    "source": "Haber/Teknik Analiz/Akşam Analizi"
-  }
-]
-
-ÖNEMLİ KURALLAR:
-- Sadece gerçekten önemli ve borsayı etkileyecek haberleri seç
-- Tarama sistemlerinden gelen güçlü sinyalleri (80+ puan, formasyon tespitleri) mutlaka dahil et
-- Akşam analizi verilerini ertesi gün beklentileri için kullan
-- Aynı hisseyi birden fazla uyarıda tekrarlama
-- Eğer yeterince önemli veri yoksa daha az uyarı oluştur`;
-
+export async function GET(req: Request) {
   try {
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.4-mini',
-        messages: [
-          { role: 'system', content: 'Sen bir finansal haber analisti ve BIST uzmanısın. Haber akışı, teknik tarama sonuçları ve akşam analizini birleştirerek kapsamlı piyasa uyarıları oluşturursun. Sadece JSON formatında yanıt ver.' },
-          { role: 'user', content: prompt },
-        ],
-        max_tokens: 3000,
-        temperature: 0.3,
-      }),
+    const baseUrl = req.url.split('/api/market-alerts')[0];
+    // Fetch news from our own news API
+    const newsRes = await fetch(`${baseUrl}/api/news?limit=30`, {
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    if (!response.ok) {
-      console.error('LLM API error:', response.status);
-      return getDefaultAlerts();
+    if (!newsRes.ok) {
+      return NextResponse.json({ alerts: [] });
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const newsData = await newsRes.json();
+    const newsItems: NewsItem[] = newsData?.news ?? [];
 
-    // Parse JSON from response
-    const jsonMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    if (!jsonMatch) {
-      console.error('Could not parse LLM JSON response');
-      return getDefaultAlerts();
-    }
+    // Filter: importance >= 3 for alerts (meaningful news only)
+    const significant = newsItems.filter(n => (n.importance ?? 0) >= 3);
 
-    const parsed = JSON.parse(jsonMatch[0]);
-    return parsed.map((a: any, i: number) => ({
-      id: `alert-${Date.now()}-${i}`,
-      title: a.title || 'Piyasa Uyarısı',
-      summary: a.summary || '',
-      impact: ['yüksek', 'orta', 'düşük'].includes(a.impact) ? a.impact : 'orta',
-      direction: ['pozitif', 'negatif', 'nötr'].includes(a.direction) ? a.direction : 'nötr',
-      category: a.category === 'gece' ? 'gece' : 'gün_içi',
-      affectedSectors: Array.isArray(a.affectedSectors) ? a.affectedSectors.slice(0, 4) : [],
-      affectedSymbols: Array.isArray(a.affectedSymbols) ? a.affectedSymbols.slice(0, 5) : [],
-      actionSuggestion: a.actionSuggestion || '',
-      source: a.source || '',
-      timestamp: now.toISOString(),
-    }));
-  } catch (e) {
-    console.error('generateAlerts error:', e);
-    return getDefaultAlerts();
-  }
-}
+    // Convert to alerts, max 10
+    const alerts: MarketAlert[] = significant.slice(0, 10).map((n, i) => newsToAlert(n, i));
 
-function getDefaultAlerts(): MarketAlert[] {
-  const now = new Date();
-  return [{
-    id: `default-${Date.now()}`,
-    title: 'Veriler analiz ediliyor',
-    summary: 'Haberler, tarama sonuçları ve akşam analizi birlikte değerlendiriliyor. Kısa bir süre sonra güncel uyarılar burada görünecek.',
-    impact: 'düşük',
-    direction: 'nötr',
-    category: 'gün_içi',
-    affectedSectors: [],
-    affectedSymbols: [],
-    actionSuggestion: 'Haberleri ve teknik analizleri takip etmeye devam edin.',
-    source: 'Sistem',
-    timestamp: now.toISOString(),
-  }];
-}
+    // Sort by impact (yüksek first)
+    const impactOrder = { 'yüksek': 0, 'orta': 1, 'düşük': 2 };
+    alerts.sort((a, b) => impactOrder[a.impact] - impactOrder[b.impact]);
 
-export async function GET() {
-  try {
-    // Return cached if fresh
-    if (alertsCache && Date.now() - alertsCache.generatedAt < CACHE_TTL) {
-      return NextResponse.json({
-        alerts: alertsCache.alerts,
-        generatedAt: new Date(alertsCache.generatedAt).toISOString(),
-        cached: true,
-      });
-    }
-
-    const alerts = await generateAlerts();
-    alertsCache = { alerts, generatedAt: Date.now() };
-
-    return NextResponse.json({
-      alerts,
-      generatedAt: new Date().toISOString(),
-      cached: false,
-    }, {
-      headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=600' },
-    });
+    return NextResponse.json(
+      { alerts, updatedAt: new Date().toISOString() },
+      { headers: { 'Cache-Control': 'private, max-age=120, stale-while-revalidate=300' } }
+    );
   } catch (e: any) {
     console.error('Market alerts API error:', e);
     return NextResponse.json({ alerts: [], error: e.message }, { status: 500 });
