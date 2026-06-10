@@ -69,6 +69,7 @@ export function DashboardClient() {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Merhaba, {session?.user?.name ?? 'Trader'} 👋</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Piyasa özeti ve portföy durumunuz</p>
+          <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 mt-1"><span className="text-[#F59E0B]">⏱</span> Piyasa verileri 15 dakikada bir otomatik güncellenir</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
