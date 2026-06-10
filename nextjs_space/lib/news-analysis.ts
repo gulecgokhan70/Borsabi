@@ -1,233 +1,156 @@
-/**
- * Haber Analiz Motoru
- * Borsayı etkileyen haberleri çeker, LLM ile analiz eder ve
- * hisse bazında işleme gir/girme uyarısı üretir.
- */
+/* Haber Analiz Motoru - AI destekli piyasa etki analizi */
 
-interface NewsItem {
-  title: string;
-  summary: string;
-  source: string;
-  category: string;
-  sentiment?: string;
-  importance?: number;
-  date: string;
+export interface StockWarning {
+  symbol: string;
+  warning: 'GİR' | 'GİRME' | 'DİKKATLİ OL';
+  reason: string;
+  impact: number; // -10 to +10
+}
+
+export interface SectorImpact {
+  sector: string;
+  direction: 'yukarı' | 'aşağı' | 'nötr';
+  reason: string;
 }
 
 export interface NewsImpact {
-  genelDurum: 'pozitif' | 'negatif' | 'nötr';
-  genelAciklama: string;
-  riskSeviyesi: 'düşük' | 'orta' | 'yüksek';
-  kritikUyarilar: string[];
-  sektorEtkileri: Array<{
-    sektor: string;
-    etki: 'pozitif' | 'negatif' | 'nötr';
-    aciklama: string;
-  }>;
-  hisseUyarilari: Array<{
-    sembol: string;
-    uyari: 'GİR' | 'GİRME' | 'DİKKATLİ OL';
-    sebep: string;
-  }>;
-  pileseFaktoru: number; // -10 ile +10 arası, puana eklenir/çıkarılır
-  analizZamani: string;
+  overallSentiment: 'olumlu' | 'olumsuz' | 'karışık' | 'nötr';
+  riskLevel: 'Düşük' | 'Orta' | 'Yüksek';
+  summary: string;
+  criticalWarnings: string[];
+  sectorImpacts: SectorImpact[];
+  stockWarnings: StockWarning[];
+  analyzedAt: string;
 }
 
-// Cache
-let newsImpactCache: { data: NewsImpact; ts: number } | null = null;
-const NEWS_IMPACT_TTL = 30 * 60 * 1000; // 30 dakika
+/* ── Cache ── */
+let analysisCache: { data: NewsImpact; ts: number } | null = null;
+const CACHE_TTL = 30 * 60 * 1000; // 30 dakika
 
-/**
- * Haberleri API'den çek
- */
-async function fetchLatestNews(baseUrl?: string): Promise<NewsItem[]> {
+/* ── Haberleri çek ── */
+async function fetchNewsForAnalysis(baseUrl: string): Promise<string> {
   try {
-    const url = baseUrl
-      ? `${baseUrl}/api/news?limit=25`
-      : '/api/news?limit=25';
-    
-    // Server-side'da tam URL gerekli
-    const fullUrl = url.startsWith('http') ? url : `http://localhost:${process.env.PORT || 3000}${url}`;
-    const res = await fetch(fullUrl, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data?.news ?? [];
-  } catch (e) {
-    console.error('[NewsAnalysis] Haber çekme hatası:', e);
-    return [];
-  }
-}
-
-/**
- * LLM ile haberleri analiz et ve piyasa etkisi çıkar
- */
-async function analyzeNewsWithLLM(news: NewsItem[]): Promise<NewsImpact | null> {
-  const apiKey = process.env.ABACUSAI_API_KEY;
-  if (!apiKey) {
-    console.error('[NewsAnalysis] API key yok');
-    return null;
-  }
-
-  if (news.length === 0) {
-    return {
-      genelDurum: 'nötr',
-      genelAciklama: 'Güncel haber verisi bulunamadı.',
-      riskSeviyesi: 'düşük',
-      kritikUyarilar: [],
-      sektorEtkileri: [],
-      hisseUyarilari: [],
-      pileseFaktoru: 0,
-      analizZamani: new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' }),
-    };
-  }
-
-  // Haberleri özet formatına dönüştür
-  const haberOzet = news.slice(0, 20).map((n, i) => 
-    `${i + 1}. [${n.source}] ${n.title}${n.summary ? ' - ' + n.summary.substring(0, 100) : ''} (${n.sentiment || 'nötr'}, önem: ${n.importance ?? 0})`
-  ).join('\n');
-
-  const prompt = `Sen bir Türk borsa uzmanısın. Aşağıdaki güncel haberleri analiz et ve BIST (Borsa İstanbul) üzerindeki etkilerini değerlendir.
-
-GÜNCEL HABERLER:
-${haberOzet}
-
-Aşağıdaki JSON formatında yanıt ver (başka hiçbir metin ekleme, sadece JSON):
-{
-  "genelDurum": "pozitif" | "negatif" | "nötr",
-  "genelAciklama": "Piyasanın genel durumu hakkında 1-2 cümle Türkçe açıklama",
-  "riskSeviyesi": "düşük" | "orta" | "yüksek",
-  "kritikUyarilar": ["Dikkat edilmesi gereken kritik uyarı mesajları - max 3 adet"],
-  "sektorEtkileri": [
-    {"sektor": "Bankacılık", "etki": "pozitif" | "negatif" | "nötr", "aciklama": "kısa açıklama"}
-  ],
-  "hisseUyarilari": [
-    {"sembol": "THYAO", "uyari": "GİR" | "GİRME" | "DİKKATLİ OL", "sebep": "kısa sebep"}
-  ],
-  "pileseFaktoru": 0
-}
-
-Kurallar:
-- pileseFaktoru: -10 ile +10 arası. Haberler çok olumsuzsa -10, çok olumlu ise +10.
-- hisseUyarilari: Sadece haberlerde doğrudan veya dolaylı etkilenen BIST hisselerini yaz. Semboller .IS olmadan (örn: THYAO, GARAN, AKBNK).
-- sektorEtkileri: Sadece haberlerde gerçekten etkilenen sektörleri yaz.
-- kritikUyarilar: Yatırımcının mutlaka bilmesi gereken risk uyarıları.
-- Genel piyasa ortamını değerlendir: faiz kararları, döviz hareketleri, jeopolitik riskler, sektörel gelişmeler.
-- "GİRME" uyarısı ver eğer: Şirketle ilgili olumsuz haber varsa, sektörde risk artmışsa, piyasa genel olarak çok olumsuzsa.
-- "GİR" uyarısı ver eğer: Şirketle ilgili olumlu haber varsa (temettü, güçlü bilanço, pozitif gelişme).
-- "DİKKATLİ OL" uyarısı ver eğer: Belirsizlik yüksekse.`;
-
-  try {
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.4-mini',
-        messages: [
-          { role: 'system', content: 'Sen bir Türk borsa analisti ve haber yorumcususun. Sadece JSON formatında yanıt ver.' },
-          { role: 'user', content: prompt },
-        ],
-        max_tokens: 2000,
-        temperature: 0.3,
-      }),
+    const res = await fetch(`${baseUrl}/api/news?limit=25`, {
+      headers: { 'Content-Type': 'application/json' },
     });
+    if (!res.ok) return '';
+    const data = await res.json();
+    const news = data?.news ?? [];
+    if (news.length === 0) return '';
 
-    if (!response.ok) {
-      console.error('[NewsAnalysis] LLM API error:', response.status);
-      return null;
-    }
+    return news.map((n: any, i: number) =>
+      `${i + 1}. [${n.category?.toUpperCase() ?? 'GENEL'}] ${n.title}${n.summary ? ' - ' + n.summary : ''} (Kaynak: ${n.source ?? 'Bilinmiyor'})`
+    ).join('\n');
+  } catch {
+    return '';
+  }
+}
 
-    const result = await response.json();
-    const content = result?.choices?.[0]?.message?.content ?? '';
-    
-    // JSON parse et
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('[NewsAnalysis] JSON parse edilemedi');
-      return null;
-    }
+/* ── AI ile analiz ── */
+async function analyzeWithAI(newsText: string): Promise<NewsImpact> {
+  const apiKey = process.env.ABACUSAI_API_KEY;
+  if (!apiKey) throw new Error('API key bulunamadı');
 
-    const parsed = JSON.parse(jsonMatch[0]) as NewsImpact;
-    parsed.analizZamani = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    
-    // pileseFaktoru sınırla
-    parsed.pileseFaktoru = Math.max(-10, Math.min(10, parsed.pileseFaktoru ?? 0));
+  const systemPrompt = `Sen bir finansal haber analisti ve borsa uzmanısın. Türkiye piyasalarını (BIST, döviz, kripto) çok iyi biliyorsun.
 
-    return parsed;
+Sana verilen haberleri analiz edip JSON formatında cevap ver. Analiz şunları içermeli:
+
+1. overallSentiment: Genel piyasa hissiyatı ("olumlu", "olumsuz", "karışık", "nötr")
+2. riskLevel: Piyasa risk seviyesi ("Düşük", "Orta", "Yüksek")
+3. summary: 1-2 cümlelik genel değerlendirme
+4. criticalWarnings: Kritik uyarılar dizisi (en fazla 3 madde)
+5. sectorImpacts: Etkilenen sektörler dizisi (en fazla 5)
+   - sector: Sektör adı
+   - direction: "yukarı" veya "aşağı" veya "nötr"
+   - reason: Kısa sebep
+6. stockWarnings: Belirli hisselere yönelik uyarılar (en fazla 8)
+   - symbol: Hisse kodu (THYAO, GARAN, EREGL vb.)
+   - warning: "GİR" (olumlu), "GİRME" (olumsuz), "DİKKATLİ OL" (riskli)
+   - reason: 1 cümle sebep
+   - impact: -10 ile +10 arası etki puanı
+
+Önemli BIST hisseleri: THYAO, GARAN, AKBNK, YKBNK, EREGL, ASELS, KCHOL, BIMAS, SAHOL, TUPRS, SISE, TAVHL, PETKM, TCELL, ENKAI, HEKTS, FROTO, TOASO, KOZAL, GUBRF, TTKOM, VESTL, MGROS, DOHOL, ARCLK, TKFEN, PGSUS, SASA, EUPWR
+
+Sadece haberlerde gerçekten değinilen veya doğrudan etkilenecek hisseler için uyarı ver. Tahmin etme.
+
+JSON formatında cevap ver, başka bir şey yazma.`;
+
+  const userPrompt = `Aşağıdaki güncel Türkiye finans haberlerini analiz et:\n\n${newsText}`;
+
+  const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-5.4-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 2000,
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    console.error('AI analysis error:', err);
+    throw new Error('AI analiz hatası');
+  }
+
+  const result = await response.json();
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('AI boş cevap döndü');
+
+  const parsed = JSON.parse(content);
+
+  return {
+    overallSentiment: parsed.overallSentiment ?? 'nötr',
+    riskLevel: parsed.riskLevel ?? 'Orta',
+    summary: parsed.summary ?? 'Analiz tamamlandı.',
+    criticalWarnings: parsed.criticalWarnings ?? [],
+    sectorImpacts: (parsed.sectorImpacts ?? []).slice(0, 5),
+    stockWarnings: (parsed.stockWarnings ?? []).slice(0, 8),
+    analyzedAt: new Date().toISOString(),
+  };
+}
+
+/* ── Ana fonksiyon: Haber analizi al (cache'li) ── */
+export async function getNewsImpact(baseUrl: string): Promise<NewsImpact | null> {
+  // Cache kontrol
+  if (analysisCache && Date.now() - analysisCache.ts < CACHE_TTL) {
+    return analysisCache.data;
+  }
+
+  try {
+    const newsText = await fetchNewsForAnalysis(baseUrl);
+    if (!newsText) return null;
+
+    const analysis = await analyzeWithAI(newsText);
+    analysisCache = { data: analysis, ts: Date.now() };
+    return analysis;
   } catch (e) {
-    console.error('[NewsAnalysis] Analiz hatası:', e);
+    console.error('News analysis error:', e);
+    // Cache varsa eski veriyi dön
+    if (analysisCache) return analysisCache.data;
     return null;
   }
 }
 
-/**
- * Ana fonksiyon: Haberleri analiz et ve cache'le
- */
-export async function getNewsImpact(): Promise<NewsImpact | null> {
-  // Cache kontrol
-  if (newsImpactCache && (Date.now() - newsImpactCache.ts) < NEWS_IMPACT_TTL) {
-    return newsImpactCache.data;
-  }
-
-  const news = await fetchLatestNews();
-  const impact = await analyzeNewsWithLLM(news);
-
-  if (impact) {
-    newsImpactCache = { data: impact, ts: Date.now() };
-  }
-
-  return impact;
+/* ── Yardımcı: Hisse için haber uyarısı bul ── */
+export function getStockNewsWarning(impact: NewsImpact | null, symbol: string): StockWarning | null {
+  if (!impact) return null;
+  const clean = symbol.replace('.IS', '').replace('-USD', '').toUpperCase();
+  return impact.stockWarnings.find(w => w.symbol.toUpperCase() === clean) ?? null;
 }
 
-/**
- * Belirli bir hisse için haber uyarısı kontrol et
- */
-export function getStockNewsWarning(
-  symbol: string,
-  impact: NewsImpact | null
-): { uyari: 'GİR' | 'GİRME' | 'DİKKATLİ OL' | null; sebep: string | null } {
-  if (!impact) return { uyari: null, sebep: null };
-
-  const cleanSymbol = symbol.replace('.IS', '').toUpperCase();
-  
-  // Direkt hisse uyarısı var mı?
-  const hisseUyari = impact.hisseUyarilari?.find(
-    h => h.sembol.toUpperCase() === cleanSymbol
-  );
-  if (hisseUyari) {
-    return { uyari: hisseUyari.uyari, sebep: hisseUyari.sebep };
-  }
-
-  // Genel piyasa çok negatifse
-  if (impact.riskSeviyesi === 'yüksek' && impact.genelDurum === 'negatif') {
-    return { uyari: 'DİKKATLİ OL', sebep: 'Piyasa genelinde yüksek risk' };
-  }
-
-  return { uyari: null, sebep: null };
-}
-
-/**
- * Haber bazlı puan düzeltmesi
- */
-export function adjustScoreWithNews(
-  score: number,
-  symbol: string,
-  impact: NewsImpact | null
-): number {
-  if (!impact) return score;
-
-  let adjustment = 0;
-  
-  // Genel piyasa faktörü (max ±5 puan)
-  adjustment += Math.round(impact.pileseFaktoru / 2);
-
-  // Hisse bazlı uyarı
-  const warning = getStockNewsWarning(symbol, impact);
-  if (warning.uyari === 'GİRME') adjustment -= 10;
-  else if (warning.uyari === 'DİKKATLİ OL') adjustment -= 3;
-  else if (warning.uyari === 'GİR') adjustment += 5;
-
+/* ── Yardımcı: Teknik puanı haber etkisiyle düzelt ── */
+export function adjustScoreWithNews(score: number, impact: NewsImpact | null, symbol: string): number {
+  const warning = getStockNewsWarning(impact, symbol);
+  if (!warning) return score;
+  const adjustment = Math.min(10, Math.max(-10, warning.impact));
   return Math.max(0, Math.min(100, score + adjustment));
 }

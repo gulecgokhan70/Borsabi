@@ -174,7 +174,7 @@ export function DashboardClient() {
                 <Newspaper className="w-4 h-4 text-[#F59E0B]" />
               </div>
               <h2 className="text-sm font-semibold text-foreground">Piyasa Uyarıları</h2>
-              <span className="text-[9px] text-muted-foreground">Haber + Tarama + Akşam Analizi</span>
+              <span className="text-[9px] text-muted-foreground">Son Haberler</span>
               {!alertsLoading && marketAlerts.length > 0 && (
                 <span className="text-[10px] font-bold bg-[#EF4444]/10 text-[#EF4444] px-1.5 py-0.5 rounded-full">
                   {marketAlerts.length}

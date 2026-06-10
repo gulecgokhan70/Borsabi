@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Moon, Sun, RefreshCw, TrendingUp, TrendingDown, Target, Shield,
   BarChart3, Activity, Zap, Waves, AlertTriangle, Clock, ArrowRight,
-  ChevronDown, ChevronUp, Star, DollarSign, ExternalLink
+  ChevronDown, ChevronUp, Star, DollarSign, ExternalLink, Newspaper, Loader2
 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
+import type { NewsImpact, StockWarning } from '@/lib/news-analysis';
 
 interface TradeResult {
   symbol: string;
@@ -61,7 +62,9 @@ export default function AksamAnaliziClient() {
   const [error, setError] = useState('');
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [expandedSwing, setExpandedSwing] = useState<string | null>(null);
-
+  const [newsImpact, setNewsImpact] = useState<NewsImpact | null>(null);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [showNewsPanel, setShowNewsPanel] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +82,23 @@ export default function AksamAnaliziClient() {
       }
     };
     loadCached();
+    // Haber analizi çek
+    const fetchNews = async () => {
+      setNewsLoading(true);
+      try {
+        const res = await fetch('/api/news-analysis');
+        const json = await res.json();
+        if (json?.impact) setNewsImpact(json.impact);
+      } catch {} finally { setNewsLoading(false); }
+    };
+    fetchNews();
   }, []);
+
+  const getStockWarning = (symbol: string): StockWarning | null => {
+    if (!newsImpact) return null;
+    const clean = symbol?.replace('.IS', '').replace('-USD', '').toUpperCase();
+    return newsImpact.stockWarnings.find(w => w.symbol.toUpperCase() === clean) ?? null;
+  };
 
   const runAnalysis = useCallback(async () => {
     setLoading(true);
@@ -151,6 +170,13 @@ export default function AksamAnaliziClient() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-[120px]">{t.name}</span>
+                    {(() => { const nw = getStockWarning(t.symbol); return nw ? (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
+                        nw.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30' :
+                        nw.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30' :
+                        'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                      }`} title={nw.reason}>📰 {nw.warning}</span>
+                    ) : null; })()}
                   </div>
                 </td>
                 <td className="py-3 px-3 text-right">
@@ -204,12 +230,18 @@ export default function AksamAnaliziClient() {
                     <span className={`text-sm font-bold ${getScoreColor(t.score)}`}>{t.score}</span>
                   </div>
                   <div>
-                    <div className="font-bold text-[#3B82F6] text-base cursor-pointer" onClick={() => router.push(`/stock/${encodeURIComponent(t.symbol + '.IS')}`)}>
+                    <div className="font-bold text-[#3B82F6] text-base cursor-pointer flex items-center gap-1.5" onClick={() => router.push(`/stock/${encodeURIComponent(t.symbol + '.IS')}`)}>
                       {t.symbol} <ExternalLink className="w-3 h-3 inline opacity-50" />
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                       <span className="text-xs text-slate-400 dark:text-slate-500">{t.name}</span>
-
+                      {(() => { const nw = getStockWarning(t.symbol); return nw ? (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
+                          nw.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30' :
+                          nw.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30' :
+                          'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                        }`}>📰 {nw.warning}</span>
+                      ) : null; })()}
                     </div>
                   </div>
                 </div>
@@ -362,6 +394,97 @@ export default function AksamAnaliziClient() {
           </div>
         </div>
       </div>
+
+      {/* AI Haber Analiz Paneli */}
+      {newsLoading && (
+        <div className="glass-card rounded-xl p-3 flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+          <span className="text-xs text-muted-foreground">AI haber analizi yükleniyor...</span>
+        </div>
+      )}
+      {newsImpact && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">
+          <button onClick={() => setShowNewsPanel(!showNewsPanel)} className="w-full p-4 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-5 h-5 text-[#8B5CF6]" />
+              <span className="text-sm font-bold text-foreground">AI Haber Analizi</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                newsImpact.overallSentiment === 'olumlu' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
+                newsImpact.overallSentiment === 'olumsuz' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                newsImpact.overallSentiment === 'karışık' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
+                'bg-slate-500/15 text-slate-400'
+              }`}>
+                {newsImpact.overallSentiment === 'olumlu' ? '📈 Olumlu' :
+                 newsImpact.overallSentiment === 'olumsuz' ? '📉 Olumsuz' :
+                 newsImpact.overallSentiment === 'karışık' ? '⚖️ Karışık' : '➖ Nötr'}
+              </span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                newsImpact.riskLevel === 'Yüksek' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                newsImpact.riskLevel === 'Orta' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
+                'bg-[#22C55E]/15 text-[#22C55E]'
+              }`}>
+                Risk: {newsImpact.riskLevel}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              {showNewsPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
+          </button>
+          <AnimatePresence>
+            {showNewsPanel && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <div className="px-4 pb-4 space-y-3">
+                  <p className="text-xs text-muted-foreground">{newsImpact.summary}</p>
+                  {newsImpact.criticalWarnings.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {newsImpact.criticalWarnings.map((w, i) => (
+                        <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/20 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> {w}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {newsImpact.sectorImpacts.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-foreground mb-2">Sektör Etkileri</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {newsImpact.sectorImpacts.map((s, i) => (
+                          <div key={i} className="flex items-center gap-2 glass-inner rounded-lg p-2">
+                            <span className="text-sm">{s.direction === 'yukarı' ? '📈' : s.direction === 'aşağı' ? '📉' : '➖'}</span>
+                            <div>
+                              <span className="text-xs font-semibold text-foreground">{s.sector}</span>
+                              <p className="text-[10px] text-muted-foreground">{s.reason}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {newsImpact.stockWarnings.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold text-foreground mb-2">İşleme Gir/Girme Uyarıları</p>
+                      <div className="space-y-1">
+                        {newsImpact.stockWarnings.map((sw, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <span className={`font-bold w-14 ${
+                              sw.warning === 'GİR' ? 'text-[#22C55E]' : sw.warning === 'GİRME' ? 'text-[#EF4444]' : 'text-[#F59E0B]'
+                            }`}>{sw.symbol}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                              sw.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E]' : sw.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                            }`}>{sw.warning}</span>
+                            <span className="text-muted-foreground flex-1">{sw.reason}</span>
+                            <span className={`font-mono text-[10px] ${sw.impact >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{sw.impact > 0 ? '+' : ''}{sw.impact}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      )}
 
       {error && (
         <div className="bg-[#EF4444]/10 border border-[#EF4444]/30 rounded-xl p-4 text-[#EF4444] text-sm">
