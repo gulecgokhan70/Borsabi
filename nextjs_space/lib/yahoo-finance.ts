@@ -12,8 +12,8 @@ const quoteCache = new Map<string, CacheEntry>();
 const chartCache = new Map<string, CacheEntry>();
 
 // Cache TTL (ms)
-const QUOTE_TTL = 120_000;  // 2 dakika
-const CHART_TTL = 300_000;  // 5 dakika
+const QUOTE_TTL = 180_000;  // 3 dakika
+const CHART_TTL = 600_000;  // 10 dakika
 
 // Request queue for rate limiting
 let requestQueue: Promise<void> = Promise.resolve();
@@ -87,8 +87,8 @@ export async function cachedQuoteBatch(symbols: string[]): Promise<Map<string, a
   
   if (toFetch.length === 0) return results;
 
-  // Paralel gruplar halinde fetch (4'lü gruplar)
-  const BATCH_SIZE = 4;
+  // Paralel gruplar halinde fetch (6'lı gruplar)
+  const BATCH_SIZE = 6;
   for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
     const batch = toFetch.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.allSettled(

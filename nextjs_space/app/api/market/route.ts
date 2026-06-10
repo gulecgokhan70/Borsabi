@@ -105,7 +105,9 @@ export async function GET(request: NextRequest) {
     });
 
     const anyMarketOpen = results.some((r: any) => r.marketOpen === true);
-    return NextResponse.json({ data: results, marketOpen: anyMarketOpen });
+    return NextResponse.json({ data: results, marketOpen: anyMarketOpen }, {
+      headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=120' },
+    });
   } catch (error: any) {
     console.error('Market API error:', error);
     return NextResponse.json({ error: 'Piyasa verileri alınamadı' }, { status: 500 });

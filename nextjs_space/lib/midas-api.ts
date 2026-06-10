@@ -80,7 +80,7 @@ const MIDAS_BASE = 'https://www.getmidas.com/wp-json/midas-api/v1/midas_table_da
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // Cache
-const STOCK_CACHE_TTL = 120_000; // 2 dakika
+const STOCK_CACHE_TTL = 180_000; // 3 dakika
 const FOREX_CACHE_TTL = 30_000; // 30 saniye (döviz daha sık güncellenir)
 
 let stockCache: { data: MidasStock[]; ts: number } | null = null;

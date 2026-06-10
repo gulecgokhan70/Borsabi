@@ -264,6 +264,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       news: news.slice(0, limit),
       updatedAt: newsCache?.ts ? new Date(newsCache.ts).toISOString() : new Date().toISOString(),
+    }, {
+      headers: { 'Cache-Control': 'private, max-age=120, stale-while-revalidate=300' },
     });
   } catch (e: any) {
     console.error('News API error:', e);
