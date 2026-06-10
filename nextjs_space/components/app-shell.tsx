@@ -87,7 +87,7 @@ function GlobalSearch() {
           <>
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] bg-black/40"
+              className="fixed top-0 left-0 w-screen h-screen z-[70] bg-black/40"
               onClick={() => setOpen(false)}
             />
             <motion.div
@@ -95,7 +95,7 @@ function GlobalSearch() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.15 }}
-              className="fixed z-[80] inset-0 sm:inset-auto sm:top-[12%] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[480px] bg-background sm:bg-transparent flex flex-col sm:block"
+              className="fixed z-[80] top-0 left-0 w-screen h-[100dvh] sm:inset-auto sm:top-[12%] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[480px] sm:h-auto bg-background sm:bg-transparent flex flex-col sm:block"
             >
               {/* Mobile top bar */}
               <div className="flex items-center gap-2 p-3 sm:hidden">
