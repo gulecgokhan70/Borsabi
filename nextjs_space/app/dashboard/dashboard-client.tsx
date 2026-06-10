@@ -11,6 +11,14 @@ import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPer
 import { PriceChart, MiniSparkline } from '@/components/price-chart';
 import { TradeModal } from '@/components/trade-modal';
 
+function formatTimeAgo(ts: number): string {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 10) return 'Az önce';
+  if (diff < 60) return `${diff} sn önce`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  return `${Math.floor(diff / 3600)} sa önce`;
+}
+
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
 
 export function DashboardClient() {
@@ -25,7 +33,8 @@ export function DashboardClient() {
   const [tradeModal, setTradeModal] = useState<any>(null);
   const [stockSort, setStockSort] = useState<'alpha' | 'change' | 'price'>('alpha');
 
-  const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+  const [, setTick] = useState(0);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -43,7 +52,7 @@ export function DashboardClient() {
       if (stockRes?.status === 'fulfilled') setStocks(stockRes?.value?.data ?? []);
       if (cryptoRes?.status === 'fulfilled') setCryptos(cryptoRes?.value?.data ?? []);
       if (portRes?.status === 'fulfilled') setPortfolio(portRes?.value ?? null);
-      setLastUpdate(new Date().toLocaleTimeString('tr-TR'));
+      setLastUpdate(Date.now());
     } catch (e: any) {
       console.error('Dashboard fetch error:', e);
     } finally {
@@ -53,11 +62,17 @@ export function DashboardClient() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Otomatik yenileme - 30 saniye
+  // Otomatik yenileme - 60 saniye
   useEffect(() => {
     const interval = setInterval(() => { fetchData(); }, 60000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Tick every 30s to update relative time display
+  useEffect(() => {
+    const t = setInterval(() => setTick(v => v + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const gainers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) > 0).sort((a: any, b: any) => (b?.changePercent ?? 0) - (a?.changePercent ?? 0)).slice(0, 5);
   const losers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) < 0).sort((a: any, b: any) => (a?.changePercent ?? 0) - (b?.changePercent ?? 0)).slice(0, 5);
@@ -74,7 +89,7 @@ export function DashboardClient() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
             <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-            <span>Canlı{lastUpdate ? ` • ${lastUpdate}` : ''}</span>
+            <span>Canlı{lastUpdate ? ` • ${formatTimeAgo(lastUpdate)}` : ''}</span>
           </div>
           <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />

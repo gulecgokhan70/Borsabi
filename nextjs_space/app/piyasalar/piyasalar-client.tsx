@@ -9,6 +9,14 @@ import {
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency } from '@/lib/constants';
 
+function formatTimeAgo(ts: number): string {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 10) return 'Az önce';
+  if (diff < 60) return `${diff} sn önce`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} dk önce`;
+  return `${Math.floor(diff / 3600)} sa önce`;
+}
+
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
 
 function MiniSparkSvg({ data, positive }: { data: number[]; positive: boolean }) {
@@ -38,14 +46,15 @@ export function PiyasalarClient() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('doviz');
-  const [lastUpdate, setLastUpdate] = useState('');
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+  const [, setTick] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/piyasalar');
       const json = await res.json();
       setData(json);
-      setLastUpdate(new Date().toLocaleTimeString('tr-TR'));
+      setLastUpdate(Date.now());
     } catch (e) {
       console.error('Piyasalar fetch error:', e);
     } finally {
@@ -58,6 +67,11 @@ export function PiyasalarClient() {
     const iv = setInterval(fetchData, 60000);
     return () => clearInterval(iv);
   }, [fetchData]);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick(v => v + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const tabs: { key: Tab; label: string; icon: any }[] = [
     { key: 'doviz', label: 'Döviz', icon: DollarSign },
@@ -88,7 +102,7 @@ export function PiyasalarClient() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-            <span>Canlı{lastUpdate ? ` • ${lastUpdate}` : ''}</span>
+            <span>Canlı{lastUpdate ? ` • ${formatTimeAgo(lastUpdate)}` : ''}</span>
           </div>
           <button onClick={() => { setLoading(true); fetchData(); }} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
