@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight, Crosshair, BarChart3, Activity } from 'lucide-react';
+import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight, Crosshair, BarChart3, Activity, Newspaper, AlertTriangle, CheckCircle } from 'lucide-react';
 import { formatNumber, formatPercent, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 
@@ -21,6 +21,8 @@ export function ScreeningClient() {
   const [marketOpen, setMarketOpen] = useState(true);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [isFresh, setIsFresh] = useState(true);
+  const [newsImpact, setNewsImpact] = useState<any>(null);
+  const [showNewsDetail, setShowNewsDetail] = useState(false);
 
   const fetchScreening = useCallback(async () => {
     if (!cachedAt) setLoading(true); // Only show loader on first load
@@ -31,6 +33,7 @@ export function ScreeningClient() {
       if (data?.marketOpen !== undefined) setMarketOpen(data.marketOpen);
       if (data?.cachedAt) setCachedAt(data.cachedAt);
       if (data?.fresh !== undefined) setIsFresh(data.fresh);
+      if (data?.newsImpact) setNewsImpact(data.newsImpact);
     } catch (e: any) { console.error(e); } finally { setLoading(false); }
   }, [cachedAt]);
 
@@ -66,6 +69,119 @@ export function ScreeningClient() {
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tara
         </button>
       </div>
+
+      {/* Haber Analizi Banner */}
+      {newsImpact && !loading && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-xl p-4 border ${
+            newsImpact.genelDurum === 'negatif' ? 'bg-[#EF4444]/5 border-[#EF4444]/20' :
+            newsImpact.genelDurum === 'pozitif' ? 'bg-[#22C55E]/5 border-[#22C55E]/20' :
+            'bg-[#3B82F6]/5 border-[#3B82F6]/20'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className={`p-2 rounded-lg ${
+                newsImpact.genelDurum === 'negatif' ? 'bg-[#EF4444]/10' :
+                newsImpact.genelDurum === 'pozitif' ? 'bg-[#22C55E]/10' : 'bg-[#3B82F6]/10'
+              }`}>
+                <Newspaper className={`w-5 h-5 ${
+                  newsImpact.genelDurum === 'negatif' ? 'text-[#EF4444]' :
+                  newsImpact.genelDurum === 'pozitif' ? 'text-[#22C55E]' : 'text-[#3B82F6]'
+                }`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h3 className="text-sm font-bold text-foreground">📰 Haber Analizi</h3>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                    newsImpact.riskSeviyesi === 'yüksek' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                    newsImpact.riskSeviyesi === 'orta' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
+                    'bg-[#22C55E]/15 text-[#22C55E]'
+                  }`}>
+                    Risk: {newsImpact.riskSeviyesi?.toUpperCase()}
+                  </span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                    newsImpact.pileseFaktoru > 0 ? 'bg-[#22C55E]/15 text-[#22C55E]' :
+                    newsImpact.pileseFaktoru < 0 ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                    'bg-[#64748B]/15 text-[#64748B]'
+                  }`}>
+                    Etki: {newsImpact.pileseFaktoru > 0 ? '+' : ''}{newsImpact.pileseFaktoru}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{newsImpact.genelAciklama}</p>
+
+                {/* Kritik Uyarılar */}
+                {(newsImpact.kritikUyarilar?.length ?? 0) > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {newsImpact.kritikUyarilar.map((u: string, i: number) => (
+                      <div key={i} className="flex items-start gap-1.5">
+                        <AlertTriangle className="w-3 h-3 text-[#F59E0B] mt-0.5 shrink-0" />
+                        <span className="text-[11px] text-[#F59E0B] font-medium">{u}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Detay toggle */}
+                {((newsImpact.sektorEtkileri?.length ?? 0) > 0 || (newsImpact.hisseUyarilari?.length ?? 0) > 0) && (
+                  <button
+                    onClick={() => setShowNewsDetail(!showNewsDetail)}
+                    className="text-[11px] text-[#3B82F6] mt-2 hover:underline font-medium"
+                  >
+                    {showNewsDetail ? 'Detayları Gizle' : 'Sektör & Hisse Detayları →'}
+                  </button>
+                )}
+
+                {showNewsDetail && (
+                  <div className="mt-3 space-y-3">
+                    {/* Sektör Etkileri */}
+                    {(newsImpact.sektorEtkileri?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground font-semibold mb-1.5">SEKTÖR ETKİLERİ</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {newsImpact.sektorEtkileri.map((s: any, i: number) => (
+                            <span key={i} className={`text-[10px] px-2 py-1 rounded-lg border ${
+                              s.etki === 'pozitif' ? 'bg-[#22C55E]/5 border-[#22C55E]/20 text-[#22C55E]' :
+                              s.etki === 'negatif' ? 'bg-[#EF4444]/5 border-[#EF4444]/20 text-[#EF4444]' :
+                              'glass-inner text-muted-foreground'
+                            }`} title={s.aciklama}>
+                              {s.etki === 'pozitif' ? '↑' : s.etki === 'negatif' ? '↓' : '↔'} {s.sektor}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Hisse Uyarıları */}
+                    {(newsImpact.hisseUyarilari?.length ?? 0) > 0 && (
+                      <div>
+                        <p className="text-[10px] text-muted-foreground font-semibold mb-1.5">HİSSE UYARILARI</p>
+                        <div className="space-y-1">
+                          {newsImpact.hisseUyarilari.map((h: any, i: number) => (
+                            <div key={i} className={`flex items-center gap-2 text-[11px] px-2 py-1 rounded-lg ${
+                              h.uyari === 'GİR' ? 'bg-[#22C55E]/5 text-[#22C55E]' :
+                              h.uyari === 'GİRME' ? 'bg-[#EF4444]/5 text-[#EF4444]' :
+                              'bg-[#F59E0B]/5 text-[#F59E0B]'
+                            }`}>
+                              {h.uyari === 'GİR' ? <CheckCircle className="w-3 h-3" /> :
+                               h.uyari === 'GİRME' ? <AlertTriangle className="w-3 h-3" /> :
+                               <ShieldAlert className="w-3 h-3" />}
+                              <span className="font-bold">{h.sembol}</span>
+                              <span className="font-semibold">{h.uyari}</span>
+                              <span className="text-muted-foreground">- {h.sebep}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {!marketOpen && !loading && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
@@ -141,6 +257,15 @@ export function ScreeningClient() {
                         {stock?.dipBipDetected && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30 font-semibold">
                             ⚡ Dip-Bip
+                          </span>
+                        )}
+                        {stock?.haberUyari && (
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
+                            stock.haberUyari === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30' :
+                            stock.haberUyari === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30' :
+                            'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
+                          }`} title={stock.haberSebep || ''}>
+                            📰 {stock.haberUyari}
                           </span>
                         )}
                       </div>
