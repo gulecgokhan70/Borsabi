@@ -132,7 +132,7 @@ function GlobalSearch() {
 }
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Ana Sayfa', icon: Home },
   { href: '/piyasalar', label: 'Piyasalar', icon: Globe },
   { href: '/portfolio', label: 'Portföy', icon: Briefcase },
   { href: '/day-trading', label: 'Day Trading', icon: Zap },
