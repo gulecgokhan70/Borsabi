@@ -253,8 +253,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   if (!loading && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-foreground">
-        <p className="text-muted-foreground mb-4">Hisse verisi bulunamadı</p>
-        <button onClick={() => router.back()} className="text-[#3B82F6] hover:underline">Geri Dön</button>
+        <BarChart3 className="w-12 h-12 text-[#475569] mb-3" />
+        <p className="text-muted-foreground mb-2 text-lg font-medium">Hisse verisi bulunamadı</p>
+        <p className="text-sm text-[#475569] mb-4">Bu sembol için şu an veri alınamıyor</p>
+        <button onClick={() => router.back()} className="px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-medium hover:bg-[#2563EB] transition-colors">Geri Dön</button>
       </div>
     );
   }
@@ -272,7 +274,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground">{data.shortName}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isPositive ? 'bg-[#22C55E]/20 text-[#22C55E]' : 'bg-[#EF4444]/20 text-[#F87171]'}`}>
-                  {isPositive ? '+' : ''}{formatPercent(data.changePercent)}
+                  {formatPercent(data.changePercent)}
                 </span>
               </div>
               <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">{data.name}</p>
@@ -283,7 +285,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               <p className="text-3xl font-bold text-foreground">{formatCurrency(data.price)}</p>
               <p className={`text-sm font-medium ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                 {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-                {isPositive ? '+' : ''}{formatCurrency(data.change)}
+                {isPositive ? '+' : ''}{formatCurrency(Math.abs(data.change))}
               </p>
             </div>
             <div className="flex flex-col gap-2">

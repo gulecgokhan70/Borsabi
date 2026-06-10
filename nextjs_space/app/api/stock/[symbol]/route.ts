@@ -87,8 +87,13 @@ export async function GET(
     if (isBist) {
       try {
         midasData = await getMidasStock(symbol);
+        if (midasData) {
+          console.log(`[StockDetail] Midas OK: ${symbol}, Last=${midasData.Last}, Close=${midasData.Close}`);
+        } else {
+          console.warn(`[StockDetail] Midas: ${symbol} bulunamadı`);
+        }
       } catch (e) {
-        console.warn('[StockDetail] Midas başarısız');
+        console.warn('[StockDetail] Midas başarısız:', symbol);
       }
     }
 
@@ -96,7 +101,7 @@ export async function GET(
     try {
       quote = await cachedQuote(symbol);
     } catch (e: any) {
-      console.error('Quote fetch error:', e?.message);
+      console.warn(`[StockDetail] Yahoo Quote başarısız: ${symbol}`, e?.message);
     }
 
     // Fetch chart data (try/catch — chart hatası sayfayı kırmasın)
@@ -216,19 +221,25 @@ export async function GET(
 
     // Midas verisinden veya Yahoo'dan response oluştur
     const m = midasData;
+    // Fiyat fallback zinciri: Midas Last > Midas Close > Midas PreviousClose > Yahoo > OHLC son close > 0
+    const midasPrice = m ? (m.Last || m.Close || m.PreviousClose || 0) : 0;
+    const yahooPrice = quote?.regularMarketPrice ?? 0;
+    const ohlcPrice = closes.length > 0 ? closes[closes.length - 1] : 0;
+    const finalPrice = midasPrice || yahooPrice || ohlcPrice;
+
     return NextResponse.json({
       symbol,
       name: assetInfo?.name ?? quote?.shortName ?? symbol,
       shortName: assetInfo?.shortName ?? symbol.replace('.IS', '').replace('-USD', ''),
-      price: m ? (m.Last || m.Close) : (quote?.regularMarketPrice ?? (closes.length > 0 ? closes[closes.length - 1] : 0)),
-      change: m ? m.DailyChange : (quote?.regularMarketChange ?? 0),
-      changePercent: m ? m.DailyChangePercent : (quote?.regularMarketChangePercent ?? 0),
-      high: m ? m.High : (quote?.regularMarketDayHigh ?? 0),
-      low: m ? m.Low : (quote?.regularMarketDayLow ?? 0),
-      open: m ? m.Open : (quote?.regularMarketOpen ?? 0),
-      prevClose: m ? m.PreviousClose : (quote?.regularMarketPreviousClose ?? 0),
-      volume: m ? m.TotalVolume : (quote?.regularMarketVolume ?? 0),
-      marketCap: m ? m.MarketValue : (quote?.marketCap ?? 0),
+      price: finalPrice,
+      change: m ? (m.DailyChange ?? 0) : (quote?.regularMarketChange ?? 0),
+      changePercent: m ? (m.DailyChangePercent ?? 0) : (quote?.regularMarketChangePercent ?? 0),
+      high: m ? (m.High || m.PreviousClose || 0) : (quote?.regularMarketDayHigh ?? 0),
+      low: m ? (m.Low || m.PreviousClose || 0) : (quote?.regularMarketDayLow ?? 0),
+      open: m ? (m.Open || m.PreviousClose || 0) : (quote?.regularMarketOpen ?? 0),
+      prevClose: m ? (m.PreviousClose || 0) : (quote?.regularMarketPreviousClose ?? 0),
+      volume: m ? (m.TotalVolume ?? 0) : (quote?.regularMarketVolume ?? 0),
+      marketCap: m ? (m.MarketValue ?? 0) : (quote?.marketCap ?? 0),
       fiftyTwoWeekHigh: quote?.fiftyTwoWeekHigh ?? 0,
       fiftyTwoWeekLow: quote?.fiftyTwoWeekLow ?? 0,
       currency: quote?.currency ?? 'TRY',
