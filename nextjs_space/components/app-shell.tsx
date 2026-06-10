@@ -231,6 +231,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Mobile overlay */}
@@ -242,6 +247,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-40 bg-black/[0.35] backdrop-blur-[2px] lg:hidden"
             onClick={() => setSidebarOpen(false)}
+            onTouchEnd={() => setSidebarOpen(false)}
           />
         )}
       </AnimatePresence>
