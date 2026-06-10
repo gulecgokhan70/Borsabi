@@ -99,7 +99,7 @@ export async function GET(
       console.error('Quote fetch error:', e?.message);
     }
 
-    // Fetch chart data
+    // Fetch chart data (try/catch — chart hatası sayfayı kırmasın)
     const endDate = new Date();
     let startDate = new Date();
     switch (period) {
@@ -113,21 +113,27 @@ export async function GET(
       default: startDate.setMonth(endDate.getMonth() - 1);
     }
 
-    const chartResult: any = await cachedChart(symbol, {
-      period1: startDate,
-      period2: endDate,
-      interval: interval as any,
-    });
+    let ohlc: any[] = [];
+    try {
+      const chartResult: any = await cachedChart(symbol, {
+        period1: startDate,
+        period2: endDate,
+        interval: interval as any,
+      });
 
-    let ohlc = (chartResult?.quotes ?? []).map((q: any) => ({
-      time: q?.date ? Math.floor(new Date(q.date).getTime() / 1000) : 0,
-      date: q?.date?.toISOString?.() ?? '',
-      open: q?.open ?? 0,
-      high: q?.high ?? 0,
-      low: q?.low ?? 0,
-      close: q?.close ?? 0,
-      volume: q?.volume ?? 0,
-    })).filter((q: any) => q.close > 0 && q.time > 0);
+      ohlc = (chartResult?.quotes ?? []).map((q: any) => ({
+        time: q?.date ? Math.floor(new Date(q.date).getTime() / 1000) : 0,
+        date: q?.date?.toISOString?.() ?? '',
+        open: q?.open ?? 0,
+        high: q?.high ?? 0,
+        low: q?.low ?? 0,
+        close: q?.close ?? 0,
+        volume: q?.volume ?? 0,
+      })).filter((q: any) => q.close > 0 && q.time > 0);
+    } catch (chartErr: any) {
+      console.warn('[StockDetail] Chart verisi alınamadı:', chartErr?.message);
+      // ohlc boş kalır, sayfa yine de fiyat/temel verileri gösterir
+    }
 
     // Günlük grafik: sadece bugünün borsa seansını göster (09:30 İstanbul)
     if (period === '1d' && ohlc.length > 0) {
@@ -253,6 +259,29 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Stock detail API error:', error);
-    return NextResponse.json({ error: 'Hisse verisi alınamadı' }, { status: 500 });
+    // Son çare: en azından sembol bilgisiyle dön, 500 yerine kısmi veri ver
+    const symbol = decodeURIComponent(params.symbol);
+    const allAssets = [...BIST_ALL_ASSETS, ...CRYPTO_ASSETS];
+    const assetInfo = allAssets.find((a: any) => a.symbol === symbol);
+    return NextResponse.json({
+      symbol,
+      name: assetInfo?.name ?? symbol,
+      shortName: assetInfo?.shortName ?? symbol.replace('.IS', '').replace('-USD', ''),
+      price: 0,
+      change: 0,
+      changePercent: 0,
+      high: 0,
+      low: 0,
+      open: 0,
+      prevClose: 0,
+      volume: 0,
+      marketCap: 0,
+      fiftyTwoWeekHigh: 0,
+      fiftyTwoWeekLow: 0,
+      currency: 'TRY',
+      indicators: { rsi: null, ema20: null, ema50: null, ema200: null, avgVolume: 0, macd: null, macdSignal: null, macdHistogram: null, bbUpper: null, bbMiddle: null, bbLower: null },
+      ohlc: [],
+      _partialError: 'Hisse verisi kısmen alınamadı',
+    });
   }
 }

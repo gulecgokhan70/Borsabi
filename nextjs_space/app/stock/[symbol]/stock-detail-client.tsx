@@ -133,7 +133,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     try {
       const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=${period}&interval=${chartInterval}`);
       const json = await res.json();
-      if (!json.error) setData(json);
+      // error alanı olmasa veya kısmi veri geldiyse setData yap
+      if (json && json.symbol) setData(json);
     } catch (e: any) {
       console.error('Stock data error:', e);
     } finally {
@@ -391,9 +392,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
-          ) : (
+          ) : loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center gap-2">
+              <BarChart3 className="w-10 h-10 text-[#475569]" />
+              <p className="text-sm text-muted-foreground">Grafik verisi şu an mevcut değil</p>
+              <p className="text-xs text-[#475569]">Bu hisse için geçmiş fiyat verisi alınamadı</p>
             </div>
           )}
         </div>
