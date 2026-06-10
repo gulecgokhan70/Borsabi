@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun
+  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
@@ -153,10 +153,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
         </div>
-        <div className="p-4 lg:p-6 max-w-[1400px] mx-auto">
+        <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
+        <div className="glass-nav border-t border-black/[0.06] dark:border-white/[0.06] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-end justify-around">
+            {[
+              { href: '/dashboard', label: 'Ana Sayfa', icon: Home },
+              { href: '/screening', label: 'Piyasalar', icon: BarChart3 },
+              { href: '/ai-assistant', label: 'AI Analiz', icon: Brain, center: true },
+              { href: '/portfolio', label: 'Portföyüm', icon: Briefcase },
+              { href: '/watchlist', label: 'Keşfet', icon: Compass },
+            ].map((item) => {
+              const isActive = pathname === item.href || pathname?.startsWith?.(item.href + '/');
+              const Icon = item.icon;
+              if (item.center) {
+                return (
+                  <Link key={item.href} href={item.href} className="flex flex-col items-center -mt-5 relative">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
+                      isActive
+                        ? 'bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] shadow-[#8B5CF6]/30'
+                        : 'bg-gradient-to-br from-[#6D28D9] to-[#3B82F6] shadow-[#3B82F6]/20'
+                    }`}>
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <span className={`text-[10px] mt-1 font-medium ${
+                      isActive ? 'text-[#8B5CF6]' : 'text-muted-foreground'
+                    }`}>{item.label}</span>
+                  </Link>
+                );
+              }
+              return (
+                <Link key={item.href} href={item.href} className="flex flex-col items-center py-1.5 min-w-[56px]">
+                  <Icon className={`w-5 h-5 transition-colors duration-200 ${
+                    isActive ? 'text-[#3B82F6]' : 'text-muted-foreground'
+                  }`} />
+                  <span className={`text-[10px] mt-1 font-medium transition-colors duration-200 ${
+                    isActive ? 'text-[#3B82F6]' : 'text-muted-foreground'
+                  }`}>{item.label}</span>
+                  {isActive && (
+                    <div className="w-1 h-1 rounded-full bg-[#3B82F6] mt-0.5" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
     </div>
   );
 }
