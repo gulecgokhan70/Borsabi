@@ -305,10 +305,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
               </button>
             )}
-            <div className="flex items-center gap-3 px-3 py-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white text-xs font-bold shrink-0">
+            <Link href="/profile" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-all duration-200 cursor-pointer">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-md">
                 {(session?.user as any)?.avatar ? (
-                  <span className="text-lg leading-none">{AVATAR_MAP[(session?.user as any)?.avatar] ?? (session?.user?.name ?? 'T').charAt(0).toUpperCase()}</span>
+                  <span className="text-xl leading-none">{AVATAR_MAP[(session?.user as any)?.avatar] ?? (session?.user?.name ?? 'T').charAt(0).toUpperCase()}</span>
                 ) : (
                   (session?.user?.name ?? 'T').charAt(0).toUpperCase()
                 )}
@@ -317,7 +317,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-sm font-medium text-foreground truncate">{session?.user?.name ?? 'Trader'}</p>
                 <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email ?? ''}</p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={() => signOut?.({ callbackUrl: '/login' })}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-all duration-200"
