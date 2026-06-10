@@ -84,12 +84,11 @@ export function DashboardClient() {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Merhaba, {session?.user?.name ?? 'Trader'} 👋</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Piyasa özeti ve portföy durumunuz</p>
-          <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 mt-1"><span className="text-[#F59E0B]">⏱</span> Piyasa verileri 15 dakikada bir otomatik güncellenir</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
-            <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-            <span>Canlı{lastUpdate ? ` • ${formatTimeAgo(lastUpdate)}` : ''}</span>
+            <span className={`w-2 h-2 rounded-full ${lastUpdate && (Date.now() - lastUpdate) > 120000 ? 'bg-[#F59E0B]' : 'bg-[#22C55E] animate-pulse'}`} />
+            <span>{lastUpdate ? `${formatTimeAgo(lastUpdate)} güncellendi` : 'Yükleniyor...'}</span>
           </div>
           <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
