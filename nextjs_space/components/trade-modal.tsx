@@ -92,7 +92,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -101,13 +101,17 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           onClick={onClose}
         />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="relative w-full max-w-md glass-card rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto"
+          initial={{ opacity: 0, y: '100%' }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+          className="absolute inset-x-0 bottom-0 glass-card rounded-t-2xl shadow-2xl max-h-[92vh] overflow-y-auto sm:rounded-2xl sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-md sm:max-h-[90vh]"
         >
+          <div className="flex justify-center pt-2 pb-0 sm:hidden">
+            <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
+          </div>
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-black/[0.08] dark:border-white/[0.08]">
+          <div className="flex items-center justify-between p-4 pt-2 sm:pt-4 border-b border-black/[0.08] dark:border-white/[0.08]">
             <div>
               <h3 className="text-lg font-bold text-foreground">{symbol}</h3>
               <p className="text-xs text-muted-foreground">{name}</p>
@@ -278,7 +282,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             <button
               onClick={handleTrade}
               disabled={loading || qty <= 0}
-              className={`w-full py-3 rounded-lg font-semibold text-foreground transition-all disabled:opacity-50 ${
+              className={`w-full py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50 ${
                 type === 'BUY' ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-[#EF4444] hover:bg-[#DC2626]'
               }`}
             >

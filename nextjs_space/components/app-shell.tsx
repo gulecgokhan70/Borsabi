@@ -82,13 +82,16 @@ function GlobalSearch() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              transition={{ duration: 0.15 }}
-              className="fixed top-[15%] left-1/2 -translate-x-1/2 z-[80] w-[90vw] max-w-[480px] glass-card rounded-2xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+              className="fixed z-[80] glass-card shadow-2xl overflow-hidden inset-x-0 bottom-0 rounded-t-2xl sm:rounded-2xl sm:inset-auto sm:top-[15%] sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[480px]"
             >
-              <div className="p-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <div className="flex justify-center pt-2 pb-0 sm:hidden">
+                <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
+              </div>
+              <div className="p-3 pt-2 sm:pt-3 border-b border-black/[0.06] dark:border-white/[0.06]">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
