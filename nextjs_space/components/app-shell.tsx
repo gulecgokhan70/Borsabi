@@ -88,7 +88,7 @@ function GlobalSearch() {
           <>
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed top-0 left-0 w-screen h-screen z-[70] bg-black/40"
+              className="fixed top-0 left-0 w-screen h-screen z-[70] bg-black/[0.65]"
               onClick={() => setOpen(false)}
             />
             <motion.div

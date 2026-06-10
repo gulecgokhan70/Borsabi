@@ -97,7 +97,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/70"
+          className="absolute inset-0 bg-black/[0.65]"
           onClick={onClose}
         />
         <motion.div
