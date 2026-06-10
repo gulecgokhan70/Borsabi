@@ -28,7 +28,7 @@ export function AcademyClient() {
             <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-[#8B5CF6]" />
             </div>
-            Master Academy
+            BorsaBi Academy
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Profesyonel trader olmak için gereken tüm bilgiler</p>
         </div>

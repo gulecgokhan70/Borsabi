@@ -102,7 +102,7 @@ export function AiAssistantClient() {
             <Bot className="w-5 h-5 text-[#3B82F6]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Master AI Asistan</h1>
+            <h1 className="text-xl font-bold text-foreground">BorsaBi AI Asistan</h1>
             <p className="text-xs text-muted-foreground">Gerçek verilerle teknik analiz, piyasa önerileri ve risk yönetimi</p>
           </div>
         </div>
@@ -142,7 +142,7 @@ export function AiAssistantClient() {
                 {msg?.role === 'assistant' && (
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Bot className="w-3.5 h-3.5 text-[#3B82F6]" />
-                    <span className="text-[10px] font-semibold text-[#3B82F6]">Master AI</span>
+                    <span className="text-[10px] font-semibold text-[#3B82F6]">BorsaBi AI</span>
                   </div>
                 )}
                 <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>

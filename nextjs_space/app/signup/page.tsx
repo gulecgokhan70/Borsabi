@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { TrendingUp, Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
+import { BorsaBiLogo } from '@/components/logo';
 import { toast } from 'sonner';
 
 export default function SignupPage() {
@@ -42,10 +43,10 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[#3B82F6]/10 mb-4">
-            <TrendingUp className="w-7 h-7 text-[#3B82F6]" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-4">
+            <BorsaBiLogo size={56} />
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Master Trader</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">BorsaBi Trader</h1>
           <p className="text-sm text-muted-foreground mt-1">100.000 TL sanal bakiye ile başla</p>
         </div>
 

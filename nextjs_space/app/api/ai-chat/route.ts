@@ -339,7 +339,7 @@ async function fetchScreeningData(): Promise<string> {
 // ============================
 // Ana Route Handler
 // ============================
-const SYSTEM_PROMPT_BASE = `Sen Master Trader platformunun yapay zeka asistanısın. Adın "Master AI".
+const SYSTEM_PROMPT_BASE = `Sen BorsaBi Trader platformunun yapay zeka asistanısın. Adın "BorsaBi AI".
 Türkçe konuşuyorsun ve Türkiye piyasaları (BIST) ve kripto piyasaları konusunda uzmansın.
 
 Görevlerin:

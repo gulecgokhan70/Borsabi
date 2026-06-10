@@ -1,14 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" fill="#0F172A"/>
-  <path d="M80 140h16v40H80z" fill="#22C55E"/>
-  <rect x="84" y="130" width="8" height="10" fill="#22C55E"/>
-  <rect x="84" y="180" width="8" height="10" fill="#22C55E"/>
-  <path d="M120 100h16v60h-16z" fill="#EF4444"/>
-  <rect x="124" y="90" width="8" height="10" fill="#EF4444"/>
-  <rect x="124" y="160" width="8" height="10" fill="#EF4444"/>
-  <path d="M160 80h16v50h-16z" fill="#22C55E"/>
-  <rect x="164" y="70" width="8" height="10" fill="#22C55E"/>
-  <rect x="164" y="130" width="8" height="10" fill="#22C55E"/>
-  <path d="M190 50l20 20h-12v30h-16V70h-12z" fill="#3B82F6"/>
-  <text x="40" y="220" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#3B82F6" opacity="0.3">MT</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="chart" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22C55E" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#22C55E"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- Chart line (uptrend) -->
+  <polyline points="12,44 22,38 30,42 38,28 46,32 52,18" fill="none" stroke="url(#chart)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Arrow tip -->
+  <polyline points="47,16 52,18 50,23" fill="none" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- B letter -->
+  <text x="32" y="56" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="800" font-size="14" fill="white" opacity="0.95">Bi</text>
 </svg>

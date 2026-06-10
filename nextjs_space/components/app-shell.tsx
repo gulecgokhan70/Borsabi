@@ -4,11 +4,12 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical,
+  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, Shield, Zap, Waves, GraduationCap, FlaskConical,
   User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
+import { BorsaBiLogoFull } from './logo';
 
 
 /* ── Global Quick Search ── */
@@ -137,7 +138,7 @@ const NAV_ITEMS = [
   { href: '/portfolio', label: 'Portföy', icon: Briefcase },
   { href: '/day-trading', label: 'Day Trading', icon: Zap },
   { href: '/swing-trading', label: 'Swing Trading', icon: Waves },
-  { href: '/ai-assistant', label: 'Master AI', icon: Bot },
+  { href: '/ai-assistant', label: 'BorsaBi AI', icon: Bot },
   { href: '/screening', label: 'Tarama', icon: Search },
   { href: '/kesfet', label: 'Keşfet', icon: Compass },
   { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
@@ -183,14 +184,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-black/[0.06] dark:border-white/[0.06]">
-            <div className="w-9 h-9 rounded-lg bg-[#3B82F6] flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground tracking-tight">Master Trader</h1>
-              <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Simülasyon</p>
-            </div>
+          <div className="flex items-center px-6 py-5 border-b border-black/[0.06] dark:border-white/[0.06]">
+            <BorsaBiLogoFull size={36} />
             <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
               <X className="w-5 h-5" />
             </button>

@@ -12,14 +12,14 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mon
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
-  title: 'Master Trader | Profesyonel Trader Gibi Düşün',
+  title: 'BorsaBi Trader | Profesyonel Trader Gibi Düşün',
   description: 'Türkiye odaklı yapay zeka destekli trading simülasyon platformu. BIST ve kripto piyasalarını takip edin, sanal portföy yönetin.',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
   },
   openGraph: {
-    title: 'Master Trader | Profesyonel Trader Gibi Düşün',
+    title: 'BorsaBi Trader | Profesyonel Trader Gibi Düşün',
     description: 'Türkiye odaklı yapay zeka destekli trading simülasyon platformu.',
     images: ['/og-image.png'],
   },
