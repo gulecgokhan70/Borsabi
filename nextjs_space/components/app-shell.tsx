@@ -24,8 +24,8 @@ function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-  const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
+  const proxyInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -44,7 +44,13 @@ function GlobalSearch() {
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
-  useEffect(() => { if (open) setTimeout(() => { const isMobile = window.innerWidth < 640; if (isMobile) mobileInputRef.current?.focus(); else desktopInputRef.current?.focus(); }, 100); }, [open]);
+  useEffect(() => { if (open && window.innerWidth >= 640) setTimeout(() => desktopInputRef.current?.focus(), 100); }, [open]);
+
+  /* On mobile iOS, .focus() only opens keyboard if called synchronously from a user gesture.
+     We focus a hidden proxy input on tap, then transfer focus when the real input mounts. */
+  const mobileInputRef = useCallback((node: HTMLInputElement | null) => {
+    if (node) { node.focus(); }
+  }, []);
 
   const [allItems, setAllItems] = useState<any[]>([]);
   useEffect(() => {
@@ -65,8 +71,10 @@ function GlobalSearch() {
 
   return (
     <div ref={ref} className="relative">
+      {/* Hidden proxy input for iOS keyboard capture */}
+      <input ref={proxyInputRef} className="sr-only" aria-hidden="true" tabIndex={-1} readOnly />
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { if (window.innerWidth < 640 && proxyInputRef.current) proxyInputRef.current.focus(); setOpen(true); }}
         className="flex items-center gap-2 px-3 py-2 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-[#3B82F6]/30 transition-all text-sm min-w-[180px] lg:min-w-[260px]"
       >
         <Search className="w-4 h-4 flex-shrink-0" />
