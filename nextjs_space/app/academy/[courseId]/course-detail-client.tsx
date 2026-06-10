@@ -27,7 +27,7 @@ function MarkdownRenderer({ content }: { content: string }) {
       if (match && match.index !== undefined) {
         if (match.index > 0) parts.push(<span key={key++}>{remaining.slice(0, match.index)}</span>);
         if (match === boldMatch) parts.push(<strong key={key++} className="text-foreground font-semibold">{match[1]}</strong>);
-        else parts.push(<code key={key++} className="bg-slate-100 dark:bg-[#0F172A] px-1.5 py-0.5 rounded text-[#3B82F6] text-xs">{match[1]}</code>);
+        else parts.push(<code key={key++} className="glass-inner px-1.5 py-0.5 rounded text-[#3B82F6] text-xs">{match[1]}</code>);
         remaining = remaining.slice(match.index + match[0].length);
       } else {
         parts.push(<span key={key++}>{remaining}</span>);
@@ -178,11 +178,11 @@ function QuizComponent({ questions, onComplete }: { questions: QuizQuestion[]; o
       </h4>
       <div className="space-y-2">
         {q.options.map((opt, oi) => {
-          let bg = 'bg-slate-100 dark:bg-[#0F172A] border-black/[0.08] dark:border-white/[0.08] hover:border-[#3B82F6]/50';
+          let bg = 'glass-inner hover:border-[#3B82F6]/50';
           if (showResult) {
             if (oi === q.correctIndex) bg = 'bg-[#22C55E]/10 border-[#22C55E]';
             else if (oi === selected) bg = 'bg-[#EF4444]/10 border-[#EF4444]';
-            else bg = 'bg-slate-100 dark:bg-[#0F172A] border-black/[0.08] dark:border-white/[0.08] opacity-50';
+            else bg = 'glass-inner opacity-50';
           } else if (oi === selected) {
             bg = 'bg-[#3B82F6]/10 border-[#3B82F6]';
           }

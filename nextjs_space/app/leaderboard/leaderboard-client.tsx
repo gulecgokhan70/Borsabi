@@ -83,7 +83,7 @@ export default function LeaderboardClient() {
             return (
               <motion.div key={idx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.03 }}
                 className="px-5 py-3 flex items-center gap-4 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : idx === 1 ? 'bg-[#94A3B8]/20 text-[#C0C0C0]' : idx === 2 ? 'bg-[#B45309]/20 text-[#CD7F32]' : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : idx === 1 ? 'bg-[#94A3B8]/20 text-[#C0C0C0]' : idx === 2 ? 'bg-[#B45309]/20 text-[#CD7F32]' : 'glass-inner text-muted-foreground'}`}>
                   {user.rank}
                 </div>
                 <div className="flex-1 min-w-0">

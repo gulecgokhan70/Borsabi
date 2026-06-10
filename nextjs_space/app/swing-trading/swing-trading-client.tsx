@@ -260,7 +260,7 @@ export function SwingTradingClient() {
                 {/* Signals + Formations */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(item.signals ?? []).filter((s: string) => !s.startsWith('🕯')).map((signal: string, sIdx: number) => (
-                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#0F172A] text-muted-foreground border border-black/[0.08] dark:border-white/[0.08]">
+                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full glass-inner text-muted-foreground">
                       {signal}
                     </span>
                   ))}

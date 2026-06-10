@@ -285,7 +285,7 @@ export default function StrategyBuilderClient() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   period === p.id
                     ? 'bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/20'
-                    : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground hover:text-foreground border border-black/[0.08] dark:border-white/[0.08] hover:border-[#3B82F6]/30'
+                    : 'glass-inner text-muted-foreground hover:text-foreground hover:border-[#3B82F6]/30'
                 }`}>
                 <span className="mr-1">{p.icon}</span> {p.name}
               </button>

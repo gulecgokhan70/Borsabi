@@ -320,7 +320,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           <div className="flex flex-wrap gap-1">
             {PERIODS.map((p: any) => (
               <button key={p.value} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-[#3B82F6] text-white' : 'bg-slate-100 dark:bg-[#0F172A] text-muted-foreground hover:text-foreground'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
                 {p.label}
               </button>
             ))}
@@ -331,20 +331,20 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         <div className="flex flex-wrap gap-2 mb-3">
           <button onClick={() => setOverlay(overlay === 'ema' ? 'none' : 'ema')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
-              overlay === 'ema' ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40' : 'bg-slate-100 dark:bg-[#0F172A] text-slate-400 dark:text-slate-500 border border-transparent hover:text-muted-foreground'
+              overlay === 'ema' ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>EMA</button>
           <button onClick={() => setOverlay(overlay === 'bb' ? 'none' : 'bb')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
-              overlay === 'bb' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40' : 'bg-slate-100 dark:bg-[#0F172A] text-slate-400 dark:text-slate-500 border border-transparent hover:text-muted-foreground'
+              overlay === 'bb' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>Bollinger</button>
           <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
           <button onClick={() => setBottomIndicator('volume')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
-              bottomIndicator === 'volume' ? 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/40' : 'bg-slate-100 dark:bg-[#0F172A] text-slate-400 dark:text-slate-500 border border-transparent hover:text-muted-foreground'
+              bottomIndicator === 'volume' ? 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>Hacim</button>
           <button onClick={() => setBottomIndicator('macd')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
-              bottomIndicator === 'macd' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40' : 'bg-slate-100 dark:bg-[#0F172A] text-slate-400 dark:text-slate-500 border border-transparent hover:text-muted-foreground'
+              bottomIndicator === 'macd' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>MACD</button>
         </div>
 

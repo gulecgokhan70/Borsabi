@@ -180,7 +180,7 @@ export default function AlgoScanClient() {
                   className="px-5 py-3 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div className="flex items-center gap-3 min-w-[180px]">
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-[#0F172A] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg glass-inner flex items-center justify-center">
                         <span className="text-xs font-bold" style={{ color: r.score >= 80 ? '#22C55E' : r.score >= 60 ? '#3B82F6' : '#F59E0B' }}>{r.score}</span>
                       </div>
                       <div>

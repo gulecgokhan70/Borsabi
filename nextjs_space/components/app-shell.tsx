@@ -83,10 +83,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={item?.href}
                   href={item?.href ?? '#'}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-[#3B82F6]/10 text-[#3B82F6] shadow-[0_0_12px_rgba(59,130,246,0.15)]'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
+                      ? 'bg-[#3B82F6]/10 text-[#3B82F6] shadow-[0_0_12px_rgba(59,130,246,0.12)] dark:shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
                   }`}
                 >
                   {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           {/* Risk info */}
-          <div className="px-4 py-3 mx-3 mb-3 rounded-lg glass-inner">
+          <div className="px-4 py-3 mx-3 mb-3 rounded-xl glass-inner">
             <div className="flex items-center gap-2 mb-1">
               <Shield className="w-4 h-4 text-[#F59E0B]" />
               <span className="text-xs font-semibold text-[#F59E0B]">Risk Yönetimi</span>
@@ -110,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {mounted && (
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="w-full flex items-center gap-3 px-3 py-2 mb-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.05] transition-all duration-200"
+                className="w-full flex items-center gap-3 px-3 py-2 mb-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-all duration-200"
               >
                 {theme === 'dark' ? <Sun className="w-5 h-5 text-[#F59E0B]" /> : <Moon className="w-5 h-5 text-[#3B82F6]" />}
                 {theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
@@ -137,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto">
         {/* Mobile header */}
         <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 glass-nav lg:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.05]">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 flex-1">
