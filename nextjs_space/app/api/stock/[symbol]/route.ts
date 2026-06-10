@@ -103,7 +103,7 @@ export async function GET(
     const endDate = new Date();
     let startDate = new Date();
     switch (period) {
-      case '1d': startDate.setDate(endDate.getDate() - 1); break;
+      case '1d': startDate.setDate(endDate.getDate() - 2); break; // 2 gün geri al, sonra filtrele
       case '5d': startDate.setDate(endDate.getDate() - 5); break;
       case '1w': startDate.setDate(endDate.getDate() - 7); break;
       case '1mo': startDate.setMonth(endDate.getMonth() - 1); break;
@@ -119,7 +119,7 @@ export async function GET(
       interval: interval as any,
     });
 
-    const ohlc = (chartResult?.quotes ?? []).map((q: any) => ({
+    let ohlc = (chartResult?.quotes ?? []).map((q: any) => ({
       time: q?.date ? Math.floor(new Date(q.date).getTime() / 1000) : 0,
       date: q?.date?.toISOString?.() ?? '',
       open: q?.open ?? 0,
@@ -128,6 +128,32 @@ export async function GET(
       close: q?.close ?? 0,
       volume: q?.volume ?? 0,
     })).filter((q: any) => q.close > 0 && q.time > 0);
+
+    // Günlük grafik: sadece bugünün borsa seansını göster (09:30 İstanbul)
+    if (period === '1d' && ohlc.length > 0) {
+      // Bugünün tarihini İstanbul saatine göre bul
+      const now = new Date();
+      // İstanbul UTC+3
+      const istanbulOffset = 3 * 60 * 60 * 1000;
+      const nowIstanbul = new Date(now.getTime() + istanbulOffset);
+      const todayStr = nowIstanbul.toISOString().slice(0, 10); // YYYY-MM-DD
+      
+      // Bugünün 09:30 İstanbul = 06:30 UTC
+      const marketOpenUTC = new Date(todayStr + 'T06:30:00.000Z');
+      const marketOpenTs = Math.floor(marketOpenUTC.getTime() / 1000);
+      
+      // Sadece bugünün seans verilerini al
+      const todayData = ohlc.filter((q: any) => q.time >= marketOpenTs);
+      
+      // Eğer bugün veri varsa sadece bugünü göster, yoksa son işlem gününü göster
+      if (todayData.length > 0) {
+        ohlc = todayData;
+      } else {
+        // Borsa kapalıysa son işlem gününün verilerini göster
+        const lastDate = new Date(ohlc[ohlc.length - 1].date).toISOString().slice(0, 10);
+        ohlc = ohlc.filter((q: any) => new Date(q.date).toISOString().slice(0, 10) === lastDate);
+      }
+    }
 
     // Calculate indicators
     const closes = ohlc.map((q: any) => q.close);
