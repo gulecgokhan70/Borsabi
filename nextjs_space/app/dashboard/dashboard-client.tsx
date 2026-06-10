@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, BarChart3, Activity, RefreshCw, Loader2,
-  ArrowUpRight, ArrowDownRight, DollarSign, PieChart, Zap
+  ArrowUpRight, ArrowDownRight, DollarSign, PieChart, Zap,
+  Newspaper, AlertTriangle, ChevronRight, Moon, Sun as SunIcon, Shield, Flame
 } from 'lucide-react';
 import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { PriceChart, MiniSparkline } from '@/components/price-chart';
@@ -35,6 +36,9 @@ export function DashboardClient() {
 
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [, setTick] = useState(0);
+  const [marketAlerts, setMarketAlerts] = useState<any[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [alertsExpanded, setAlertsExpanded] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -61,6 +65,27 @@ export function DashboardClient() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Fetch market alerts
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAlerts() {
+      try {
+        setAlertsLoading(true);
+        const res = await fetch('/api/market-alerts');
+        if (!res.ok) throw new Error('alerts fetch failed');
+        const data = await res.json();
+        if (!cancelled) setMarketAlerts(data.alerts || []);
+      } catch (e) {
+        console.error('Market alerts error:', e);
+      } finally {
+        if (!cancelled) setAlertsLoading(false);
+      }
+    }
+    loadAlerts();
+    const interval = setInterval(loadAlerts, 15 * 60 * 1000); // 15 min
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   // Otomatik yenileme - 60 saniye
   useEffect(() => {
@@ -134,6 +159,128 @@ export function DashboardClient() {
             <span className="text-xs text-muted-foreground">Kazanç Oranı</span>
           </div>
           <p className="text-lg font-bold font-mono text-foreground">{formatNumber(portfolio?.winRate, 1)}%</p>
+        </div>
+      </motion.div>
+
+      {/* Piyasa Uyarıları */}
+      <motion.div {...fadeIn} transition={{ delay: 0.05 }}>
+        <div className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">
+          <button
+            onClick={() => setAlertsExpanded(!alertsExpanded)}
+            className="w-full flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#F59E0B]/10 flex items-center justify-center">
+                <Newspaper className="w-4 h-4 text-[#F59E0B]" />
+              </div>
+              <h2 className="text-sm font-semibold text-foreground">Piyasa Uyarıları</h2>
+              {!alertsLoading && marketAlerts.length > 0 && (
+                <span className="text-[10px] font-bold bg-[#EF4444]/10 text-[#EF4444] px-1.5 py-0.5 rounded-full">
+                  {marketAlerts.length}
+                </span>
+              )}
+            </div>
+            <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${alertsExpanded ? 'rotate-90' : ''}`} />
+          </button>
+
+          {/* Preview - always show top alert */}
+          {!alertsExpanded && !alertsLoading && marketAlerts.length > 0 && (
+            <div className="px-4 py-2.5">
+              <div className="flex items-start gap-2">
+                <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                  marketAlerts[0].direction === 'pozitif' ? 'bg-[#22C55E]' :
+                  marketAlerts[0].direction === 'negatif' ? 'bg-[#EF4444]' : 'bg-[#F59E0B]'
+                }`} />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{marketAlerts[0].title}</p>
+                  <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{marketAlerts[0].summary}</p>
+                </div>
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                  marketAlerts[0].impact === 'yüksek' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                  marketAlerts[0].impact === 'orta' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'
+                }`}>
+                  {marketAlerts[0].impact === 'yüksek' ? '🔴 Yüksek' : marketAlerts[0].impact === 'orta' ? '🟡 Orta' : '🔵 Düşük'}
+                </span>
+              </div>
+              {marketAlerts.length > 1 && (
+                <p className="text-[10px] text-[#3B82F6] font-medium mt-1.5 cursor-pointer" onClick={() => setAlertsExpanded(true)}>+ {marketAlerts.length - 1} uyarı daha →</p>
+              )}
+            </div>
+          )}
+
+          {/* Loading */}
+          {alertsLoading && (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-4 h-4 animate-spin text-[#F59E0B] mr-2" />
+              <span className="text-xs text-muted-foreground">Haberler analiz ediliyor...</span>
+            </div>
+          )}
+
+          {/* Expanded view */}
+          {alertsExpanded && !alertsLoading && (
+            <div className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
+              {marketAlerts.length === 0 ? (
+                <div className="text-center py-6">
+                  <Shield className="w-8 h-8 text-[#22C55E] mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">Şu an önemli bir piyasa uyarısı yok.</p>
+                </div>
+              ) : (
+                marketAlerts.map((alert: any) => (
+                  <div key={alert.id} className="px-4 py-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+                    <div className="flex items-start gap-2.5">
+                      <div className={`mt-1 w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        alert.direction === 'pozitif' ? 'bg-[#22C55E]/10' :
+                        alert.direction === 'negatif' ? 'bg-[#EF4444]/10' : 'bg-[#F59E0B]/10'
+                      }`}>
+                        {alert.direction === 'pozitif' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
+                         alert.direction === 'negatif' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
+                         <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-foreground">{alert.title}</p>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                            alert.impact === 'yüksek' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                            alert.impact === 'orta' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'
+                          }`}>
+                            {alert.impact === 'yüksek' ? '🔴 Yüksek Etki' : alert.impact === 'orta' ? '🟡 Orta Etki' : '🔵 Düşük Etki'}
+                          </span>
+                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
+                            alert.category === 'gece' ? 'bg-[#8B5CF6]/10 text-[#8B5CF6]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'
+                          }`}>
+                            {alert.category === 'gece' ? '🌙 Gece' : '☀️ Gün İçi'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{alert.summary}</p>
+
+                        {/* Affected sectors & symbols */}
+                        {(alert.affectedSectors?.length > 0 || alert.affectedSymbols?.length > 0) && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {alert.affectedSectors?.map((s: string) => (
+                              <span key={s} className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] text-muted-foreground">{s}</span>
+                            ))}
+                            {alert.affectedSymbols?.map((s: string) => (
+                              <span key={s} onClick={() => router.push(`/stock/${encodeURIComponent(s + '.IS')}`)} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#3B82F6]/10 text-[#3B82F6] cursor-pointer hover:bg-[#3B82F6]/20 transition-colors">{s}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Action suggestion */}
+                        {alert.actionSuggestion && (
+                          <div className="flex items-start gap-1.5 mt-2 p-2 rounded-lg bg-black/[0.02] dark:bg-white/[0.03]">
+                            <Flame className="w-3 h-3 text-[#F59E0B] mt-0.5 flex-shrink-0" />
+                            <p className="text-[10px] text-foreground/80 leading-relaxed">{alert.actionSuggestion}</p>
+                          </div>
+                        )}
+
+                        <p className="text-[9px] text-slate-400 dark:text-slate-600 mt-1.5">{alert.source}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
 
