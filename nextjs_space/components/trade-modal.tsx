@@ -125,13 +125,13 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             <div className="grid grid-cols-2 gap-2 p-1 glass-inner rounded-lg">
               <button
                 onClick={() => setType('BUY')}
-                className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'BUY' ? 'bg-[#22C55E] text-white' : 'text-muted-foreground hover:text-white'}`}
+                className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'BUY' ? 'bg-[#22C55E] text-white' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <TrendingUp className="w-4 h-4 inline mr-1" /> Alış
               </button>
               <button
                 onClick={() => setType('SELL')}
-                className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'SELL' ? 'bg-[#EF4444] text-white' : 'text-muted-foreground hover:text-white'}`}
+                className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'SELL' ? 'bg-[#EF4444] text-white' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <TrendingDown className="w-4 h-4 inline mr-1" /> Satış
               </button>
@@ -150,7 +150,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     key={ot.value}
                     onClick={() => setOrderType(ot.value)}
                     className={`py-1.5 rounded-md text-xs font-semibold transition-all ${
-                      orderType === ot.value ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-white'
+                      orderType === ot.value ? 'bg-[#3B82F6] text-white' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {ot.label}
@@ -170,7 +170,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                       value={stopPrice}
                       onChange={(e: any) => setStopPrice(e?.target?.value ?? '')}
                       placeholder={`Ör: ${(price * (type === 'BUY' ? 1.02 : 0.98)).toFixed(2)}`}
-                      className="w-full px-3 py-2.5 bg-slate-100 dark:bg-[#0F172A] border border-[#F59E0B]/30 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent outline-none"
+                      className="w-full px-3 py-2.5 glass-inner border border-[#F59E0B]/30 rounded-lg text-foreground font-mono text-sm focus:ring-2 focus:ring-[#F59E0B] focus:border-transparent outline-none"
                     />
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                       {type === 'BUY' ? 'Fiyat bu seviyeye ulaştığında limit emir aktif olur' : 'Fiyat bu seviyenin altına düştüğünde limit emir aktif olur'}
@@ -184,7 +184,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     value={limitPrice}
                     onChange={(e: any) => setLimitPrice(e?.target?.value ?? '')}
                     placeholder={price?.toFixed(2)}
-                    className="w-full px-3 py-2.5 bg-slate-100 dark:bg-[#0F172A] border border-[#3B82F6]/30 rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                    className="w-full px-3 py-2.5 glass-inner border border-[#3B82F6]/30 rounded-lg text-foreground font-mono text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
                   />
                 </div>
               </div>
@@ -198,7 +198,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                 value={quantity}
                 onChange={(e: any) => setQuantity(e?.target?.value ?? '')}
                 placeholder="0"
-                className="w-full px-3 py-2.5 bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-white font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
               />
             </div>
 
@@ -222,7 +222,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                       value={stopLoss}
                       onChange={(e: any) => setStopLoss(e?.target?.value ?? '')}
                       placeholder="0.00"
-                      className="w-full px-3 py-2.5 bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#EF4444] focus:border-transparent outline-none"
+                      className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono text-sm focus:ring-2 focus:ring-[#EF4444] focus:border-transparent outline-none"
                     />
                   </div>
                   <div>
@@ -232,7 +232,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                       value={takeProfit}
                       onChange={(e: any) => setTakeProfit(e?.target?.value ?? '')}
                       placeholder="0.00"
-                      className="w-full px-3 py-2.5 bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-white font-mono text-sm focus:ring-2 focus:ring-[#22C55E] focus:border-transparent outline-none"
+                      className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono text-sm focus:ring-2 focus:ring-[#22C55E] focus:border-transparent outline-none"
                     />
                   </div>
                 </div>
@@ -245,7 +245,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     value={note}
                     onChange={(e: any) => setNote(e?.target?.value ?? '')}
                     placeholder="İşlem notu..."
-                    className="w-full px-3 py-2 bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-white text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                    className="w-full px-3 py-2 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
                   />
                 </div>
               </motion.div>

@@ -60,7 +60,7 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] text-white rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#475569] focus:border-[#3B82F6] focus:outline-none transition-colors"
+        className="w-full glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#3B82F6]/30 focus:border-[#3B82F6] focus:outline-none transition-colors"
       >
         <span className={selected ? 'text-foreground' : 'text-slate-400 dark:text-slate-500'}>
           {selected ? `${selected.shortName} - ${selected.name}` : 'Sembol seçin'}
@@ -80,7 +80,7 @@ export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ar
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-slate-100 dark:bg-[#0F172A] border border-black/[0.08] dark:border-white/[0.08] text-white rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-[#64748B]"
+                className="w-full glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
               />
               {search && (
                 <button

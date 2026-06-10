@@ -66,7 +66,7 @@ export function PortfolioClient() {
           <p className="text-lg font-bold font-mono text-foreground">{formatCurrency(totalPositionValue)}</p>
           {totalInvested > 0 && <p className={`text-xs font-mono ${unrealizedPnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(unrealizedPnl)} açık K/Z</p>}
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-xl p-4 border border-[#3B82F6]/30">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-4 border border-[#3B82F6]/20 bg-gradient-to-br from-[#3B82F6]/5 to-[#8B5CF6]/5 dark:from-[#1E293B] dark:to-[#0F172A] dark:border-[#3B82F6]/30">
           <div className="flex items-center gap-2 mb-2"><PieChart className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Toplam Portföy</span></div>
           <p className="text-lg font-bold font-mono text-foreground">{formatCurrency(totalPortfolioValue)}</p>
           <p className={`text-xs font-mono font-semibold ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{totalReturn >= 0 ? '+' : ''}{formatPercent(totalReturnPct)}</p>
