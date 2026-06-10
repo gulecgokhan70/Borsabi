@@ -146,13 +146,17 @@ export async function GET(request: NextRequest) {
     const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0;
 
     // Risk skoru (0-100)
-    let riskScore = 50;
-    if (noStopPositions.length > 0) riskScore += 15;
-    if (totalExposure > 80) riskScore += 10;
-    if (todayPnLPercent < -2) riskScore += 10;
-    if (sectorConcentration.length > 0) riskScore += 10;
-    if (openPositions.length > 8) riskScore += 5;
-    if (winRate < 40 && closedTrades.length > 5) riskScore += 10;
+    // Portföy boşsa ve işlem yoksa risk skoru 0
+    const hasActivity = openPositions.length > 0 || closedTrades.length > 0;
+    let riskScore = hasActivity ? 20 : 0;
+    if (hasActivity) {
+      if (noStopPositions.length > 0) riskScore += 20;
+      if (totalExposure > 80) riskScore += 15;
+      if (todayPnLPercent < -2) riskScore += 15;
+      if (sectorConcentration.length > 0) riskScore += 10;
+      if (openPositions.length > 8) riskScore += 10;
+      if (winRate < 40 && closedTrades.length > 5) riskScore += 10;
+    }
     riskScore = Math.min(100, riskScore);
 
     let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
