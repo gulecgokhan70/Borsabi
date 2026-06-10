@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { COMMISSION_RATE, formatCurrency } from '@/lib/constants';
@@ -90,14 +91,14 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
   const currencyCode = marketType === 'CRYPTO' ? 'USD' : 'TRY';
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       <div className="fixed inset-0 z-[70]">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60"
+          className="fixed inset-0 bg-black/60"
           onClick={onClose}
         />
         <motion.div
@@ -105,7 +106,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-          className="absolute inset-x-0 bottom-0 bg-white dark:bg-[#1E293B] rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-full lg:max-w-md lg:max-h-[90vh] lg:pb-0"
+          className="fixed inset-x-0 bottom-0 bg-white dark:bg-[#1E293B] rounded-t-2xl shadow-2xl max-h-[90dvh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-full lg:max-w-md lg:max-h-[90vh] lg:pb-0"
         >
           <div className="flex justify-center pt-2 pb-0 sm:hidden">
             <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
@@ -298,4 +299,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
       </div>
     </AnimatePresence>
   );
+
+  if (typeof document === 'undefined') return modalContent;
+  return createPortal(modalContent as any, document.body) as any;
 }
