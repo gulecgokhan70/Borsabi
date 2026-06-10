@@ -52,15 +52,16 @@ export function ScreeningClient() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Hisse Tarama Motoru</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm text-muted-foreground">BIST hisseleri için 5 kategori puanlama + Sapan/Dip-Bip/Formasyon tespiti</p>
             {cachedAt && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
                 <span className={`w-1.5 h-1.5 rounded-full ${isFresh ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'}`} />
                 {formatTimeAgo(cachedAt)}
               </span>
             )}
           </div>
+          <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 mt-1"><span className="text-[#F59E0B]">⏱</span> Veriler 15 dakikada bir otomatik güncellenir</p>
         </div>
         <button onClick={fetchScreening} disabled={loading} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tara

@@ -131,15 +131,16 @@ export function DayTradingClient() {
             </div>
             Day Trading Motoru
           </h1>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center gap-2 mt-1">
             <p className="text-muted-foreground text-sm">5 Kategori Puanlama Sistemi ile Gün İçi Fırsat Analizi</p>
             {cachedAt && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
                 <span className={`w-1.5 h-1.5 rounded-full ${isFresh ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'}`} />
                 {formatTimeAgo(cachedAt)}
               </span>
             )}
           </div>
+          <p className="text-[11px] text-muted-foreground/70 flex items-center gap-1 mt-0.5"><span className="text-[#F59E0B]">⏱</span> Veriler 15 dakikada bir otomatik güncellenir</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex glass-card rounded-lg p-1 gap-1">

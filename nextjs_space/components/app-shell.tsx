@@ -24,7 +24,8 @@ function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
+  const desktopInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -43,7 +44,7 @@ function GlobalSearch() {
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 100); }, [open]);
+  useEffect(() => { if (open) setTimeout(() => { const isMobile = window.innerWidth < 640; if (isMobile) mobileInputRef.current?.focus(); else desktopInputRef.current?.focus(); }, 100); }, [open]);
 
   const [allItems, setAllItems] = useState<any[]>([]);
   useEffect(() => {
@@ -96,12 +97,11 @@ function GlobalSearch() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
-                    ref={inputRef}
+                    ref={mobileInputRef}
                     value={q}
                     onChange={e => setQ(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && results.length > 0) go(results[0].symbol); }}
                     placeholder="Hisse veya kripto ara..."
-                    autoFocus
                     className="w-full pl-10 pr-10 py-2.5 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
                   />
                   {q && (
@@ -118,7 +118,7 @@ function GlobalSearch() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
-                      ref={inputRef}
+                      ref={desktopInputRef}
                       value={q}
                       onChange={e => setQ(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && results.length > 0) go(results[0].symbol); }}
