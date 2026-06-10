@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-react';
 
 const SUGGESTIONS = [
+  'Bugün borsa nasıldı?',
+  'Borsa durumu nasıl?',
   'THYAO teknik analizi yap',
-  'ASELS hissesini değerlendir',
   'Portföyüm nasıl görünüyor?',
-  'Bitcoin analizi yap',
   'En güçlü BIST hisseleri hangileri?',
-  'SISE ve EREGL karşılaştır',
+  'Piyasada neler oluyor?',
 ];
 
 interface ChatMsg {

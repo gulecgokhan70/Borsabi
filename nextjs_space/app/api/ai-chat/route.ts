@@ -304,13 +304,125 @@ async function fetchPortfolioData(userId: string): Promise<string> {
 // ============================
 // Mesaj analizinde konu tespiti
 // ============================
-function detectTopics(message: string): { wantsPortfolio: boolean; wantsScreening: boolean; wantsGeneral: boolean } {
+function detectTopics(message: string): { wantsPortfolio: boolean; wantsScreening: boolean; wantsMarket: boolean; wantsNews: boolean; wantsGeneral: boolean } {
   const lower = message.toLowerCase();
   return {
     wantsPortfolio: /portföy|pozisyon|bakiye|kar.*zarar|zarar.*kar|hesab|risk.*merkez|açık pozisyon/i.test(lower),
     wantsScreening: /en iyi|en güçlü|tarama|hisse öner|hangi hisse|güçlü hisse|fırsat|alınır mı|yükselen/i.test(lower),
-    wantsGeneral: !/portföy|pozisyon|bakiye|kar.*zarar|zarar.*kar|hesab|risk.*merkez|açık pozisyon/i.test(lower),
+    wantsMarket: /borsa|piyasa|bist|endeks|xu100|xu030|bugün|genel durum|piyasa durumu|nasıl.*borsa|borsa.*nasıl|bugün.*nasıl|nasıl.*bugün|gündem|döviz|dolar|euro/i.test(lower),
+    wantsNews: /haber|haberler|gündem|neler oluyor|son gelişme|kap|bildirim|ne oldu|neler oldu|piyasa.*haber|borsa.*haber|bugün.*borsa|borsa.*bugün/i.test(lower),
+    wantsGeneral: true,
   };
+}
+
+async function fetchMarketOverview(): Promise<string> {
+  try {
+    const lines: string[] = ['🏛️ Piyasa Genel Görünümü:'];
+
+    // Endeksler
+    const indices = ['XU100.IS', 'XU030.IS'];
+    for (const idx of indices) {
+      try {
+        const q = await cachedQuote(idx);
+        if (q) {
+          const name = idx === 'XU100.IS' ? 'BIST 100' : 'BIST 30';
+          const chg = q.regularMarketChangePercent ?? 0;
+          const dir = chg >= 0 ? '🟢' : '🔴';
+          lines.push(`${dir} ${name}: ${(q.regularMarketPrice ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} (${chg >= 0 ? '+' : ''}%${chg.toFixed(2)})`);
+        }
+      } catch (_e) { /* skip */ }
+    }
+
+    // Döviz / Kripto
+    const extras = [
+      { sym: 'USDTRY=X', name: 'Dolar/TL' },
+      { sym: 'EURTRY=X', name: 'Euro/TL' },
+      { sym: 'BTC-USD', name: 'Bitcoin' },
+    ];
+    for (const ex of extras) {
+      try {
+        const q = await cachedQuote(ex.sym);
+        if (q) {
+          const chg = q.regularMarketChangePercent ?? 0;
+          const dir = chg >= 0 ? '🟢' : '🔴';
+          const curr = ex.sym.includes('TRY') ? 'TL' : 'USD';
+          lines.push(`${dir} ${ex.name}: ${(q.regularMarketPrice ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${curr} (${chg >= 0 ? '+' : ''}%${chg.toFixed(2)})`);
+        }
+      } catch (_e) { /* skip */ }
+    }
+
+    // En likit 10 hisse durumu
+    const midasMap = await getMidasStockMap().catch(() => new Map());
+    const topStocks = BIST_TOP_STOCKS.slice(0, 10);
+    let upCount = 0, downCount = 0;
+    const topLines: string[] = [];
+    for (const stock of topStocks) {
+      const cleanSym = stock.shortName.toUpperCase();
+      const m = (midasMap as Map<string, any>).get(cleanSym);
+      if (m) {
+        const chg = m.DailyChangePercent ?? 0;
+        if (chg >= 0) upCount++; else downCount++;
+        const dir = chg >= 0 ? '🟢' : '🔴';
+        topLines.push(`${dir} ${stock.shortName}: ${(m.Last || m.Close).toFixed(2)} TL (%${chg >= 0 ? '+' : ''}${chg.toFixed(2)})`);
+      }
+    }
+    lines.push(`\nEn Likit 10 Hisse (${upCount} yükseliş, ${downCount} düşüş):`);
+    lines.push(...topLines);
+
+    return lines.join('\n');
+  } catch (error: any) {
+    console.error('[AI] Market overview hatası:', error?.message);
+    return '';
+  }
+}
+
+async function fetchNewsData(baseUrl: string): Promise<string> {
+  try {
+    const lines: string[] = ['📰 Son Haberler ve Gelişmeler:'];
+
+    // Haberleri çek
+    const newsRes = await fetch(`${baseUrl}/api/news?limit=10`, { headers: { 'Content-Type': 'application/json' } });
+    if (newsRes.ok) {
+      const newsData = await newsRes.json();
+      const news = newsData?.news ?? [];
+      if (news.length > 0) {
+        for (const n of news.slice(0, 10)) {
+          const cat = n.category?.toUpperCase() ?? 'GENEL';
+          const src = n.source ?? '';
+          lines.push(`• [${cat}] ${n.title}${src ? ` (${src})` : ''}`);
+          if (n.summary) lines.push(`  → ${n.summary}`);
+        }
+      }
+    }
+
+    // AI haber analizi çek
+    try {
+      const analysisRes = await fetch(`${baseUrl}/api/news-analysis`, { headers: { 'Content-Type': 'application/json' } });
+      if (analysisRes.ok) {
+        const analysisData = await analysisRes.json();
+        const impact = analysisData?.impact;
+        if (impact) {
+          lines.push('\n🤖 AI Haber Analiz Özeti:');
+          lines.push(`Genel Hissiyat: ${impact.overallSentiment} | Risk: ${impact.riskLevel}`);
+          lines.push(`Özet: ${impact.summary}`);
+          if (impact.criticalWarnings?.length > 0) {
+            lines.push(`Kritik Uyarılar: ${impact.criticalWarnings.join('; ')}`);
+          }
+          if (impact.sectorImpacts?.length > 0) {
+            lines.push('Sektör Etkileri: ' + impact.sectorImpacts.map((s: any) => `${s.sector} ${s.direction === 'yukarı' ? '↑' : s.direction === 'aşağı' ? '↓' : '→'}`).join(', '));
+          }
+          if (impact.stockWarnings?.length > 0) {
+            lines.push('Hisse Uyarıları: ' + impact.stockWarnings.map((w: any) => `${w.symbol}: ${w.warning}`).join(', '));
+          }
+        }
+      }
+    } catch (_e) { /* skip analysis */ }
+
+    return lines.join('\n');
+  } catch (error: any) {
+    console.error('[AI] News fetch hatası:', error?.message);
+    return '';
+  }
 }
 
 async function fetchScreeningData(): Promise<string> {
@@ -440,6 +552,7 @@ export async function POST(request: NextRequest) {
 
     // Paralel veri çekme
     const dataPromises: Promise<string>[] = [];
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
     // Hisse/kripto verileri
     for (const asset of detectedAssets) {
@@ -449,6 +562,16 @@ export async function POST(request: NextRequest) {
     // Portföy verisi
     if (topics.wantsPortfolio && userId) {
       dataPromises.push(fetchPortfolioData(userId));
+    }
+
+    // Piyasa genel görünümü
+    if (topics.wantsMarket || (topics.wantsNews && detectedAssets.length === 0)) {
+      dataPromises.push(fetchMarketOverview());
+    }
+
+    // Haber akışı + AI analiz
+    if (topics.wantsNews || topics.wantsMarket) {
+      dataPromises.push(fetchNewsData(baseUrl));
     }
 
     // Tarama/screening verisi
