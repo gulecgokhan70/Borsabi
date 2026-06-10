@@ -91,7 +91,9 @@
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     font-feature-settings: "rlig" 1, "calt" 1;
+    letter-spacing: 0.01em;
   }
   /* Dark mode body */
   .dark body {
@@ -140,8 +142,8 @@
 
   .glass-card {
     background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.85);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 2px 12px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   }
@@ -163,14 +165,14 @@
   }
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .glass-sidebar {
-      background: rgba(255, 255, 255, 0.72);
-      backdrop-filter: blur(48px) saturate(180%);
-      -webkit-backdrop-filter: blur(48px) saturate(180%);
+      background: rgba(255, 255, 255, 0.68);
+      backdrop-filter: blur(64px) saturate(180%);
+      -webkit-backdrop-filter: blur(64px) saturate(180%);
     }
     .dark .glass-sidebar {
-      background: rgba(22, 22, 30, 0.78);
-      backdrop-filter: blur(48px) saturate(160%);
-      -webkit-backdrop-filter: blur(48px) saturate(160%);
+      background: rgba(20, 20, 28, 0.72);
+      backdrop-filter: blur(64px) saturate(160%);
+      -webkit-backdrop-filter: blur(64px) saturate(160%);
     }
   }
 
@@ -187,11 +189,13 @@
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .glass-nav {
       background: rgba(255, 255, 255, 0.72);
-      backdrop-filter: blur(30px) saturate(180%);
-      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
     }
     .dark .glass-nav {
       background: rgba(11, 17, 32, 0.6);
+      backdrop-filter: blur(40px) saturate(160%);
+      -webkit-backdrop-filter: blur(40px) saturate(160%);
     }
   }
 
