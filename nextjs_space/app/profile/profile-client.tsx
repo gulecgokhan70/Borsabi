@@ -125,7 +125,7 @@ export default function ProfileClient() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
           {[
-            { label: 'Bakiye', value: formatCurrency(profile.balance), icon: Zap, color: '#3B82F6' },
+            { label: 'Portföy Değeri', value: formatCurrency(profile.totalPortfolioValue ?? profile.balance), icon: Zap, color: '#3B82F6' },
             { label: 'Toplam Getiri', value: formatPercent(profile.totalReturn), icon: TrendingUp, color: profile.totalReturn >= 0 ? '#22C55E' : '#EF4444' },
             { label: 'Kapatılan İşlem', value: profile.totalTrades.toString(), icon: BarChart3, color: '#8B5CF6' },
             { label: 'Kazanç Oranı', value: `%${profile.winRate.toFixed(1)}`, icon: Shield, color: '#F59E0B' },

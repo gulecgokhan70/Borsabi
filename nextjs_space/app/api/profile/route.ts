@@ -26,7 +26,10 @@ export async function GET() {
     const wins = closedPositions.filter((p: any) => (p.pnl ?? 0) > 0).length;
     const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
     const totalPnl = closedPositions.reduce((s: number, p: any) => s + (p.pnl || 0), 0);
-    const totalReturn = user.initialBalance > 0 ? ((user.balance - user.initialBalance) / user.initialBalance) * 100 : 0;
+    // Toplam getiri = (bakiye + açık pozisyon değeri - başlangıç bakiyesi) / başlangıç bakiyesi
+    const openPositionValue = openPositions.reduce((s: number, p: any) => s + ((p.currentPrice ?? p.entryPrice) * p.quantity), 0);
+    const totalPortfolioValue = user.balance + openPositionValue;
+    const totalReturn = user.initialBalance > 0 ? ((totalPortfolioValue - user.initialBalance) / user.initialBalance) * 100 : 0;
 
     // Monthly performance
     const now = new Date();
@@ -50,6 +53,7 @@ export async function GET() {
       role: user.role,
       balance: user.balance,
       initialBalance: user.initialBalance,
+      totalPortfolioValue,
       totalReturn,
       totalPnl,
       totalTrades,
