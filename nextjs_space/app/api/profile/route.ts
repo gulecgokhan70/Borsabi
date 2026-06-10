@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { cachedQuoteBatch } from '@/lib/yahoo-finance';
+import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { BIST_ALL_ASSETS } from '@/lib/constants';
 
 export async function GET() {
   try {
@@ -26,8 +29,55 @@ export async function GET() {
     const wins = closedPositions.filter((p: any) => (p.pnl ?? 0) > 0).length;
     const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
     const totalPnl = closedPositions.reduce((s: number, p: any) => s + (p.pnl || 0), 0);
-    // Toplam getiri = (bakiye + açık pozisyon değeri - başlangıç bakiyesi) / başlangıç bakiyesi
-    const openPositionValue = openPositions.reduce((s: number, p: any) => s + ((p.currentPrice ?? p.entryPrice) * p.quantity), 0);
+
+    // Açık pozisyonlar için canlı fiyatları çek (portföy API'si ile aynı mantık)
+    let openPositionValue = 0;
+    if (openPositions.length > 0) {
+      const normalizeSymbol = (sym: string): string => {
+        if (sym.endsWith('.IS') || sym.endsWith('-USD')) return sym;
+        const bistMatch = BIST_ALL_ASSETS.find((a: any) => a.symbol === `${sym}.IS`);
+        return bistMatch ? bistMatch.symbol : sym;
+      };
+
+      const symbolMap = new Map<string, string>();
+      openPositions.forEach((p: any) => { symbolMap.set(p.symbol, normalizeSymbol(p.symbol)); });
+
+      const normalizedSymbols = [...new Set(Array.from(symbolMap.values()))];
+      const bistSymbols = normalizedSymbols.filter((s: string) => s.endsWith('.IS'));
+      const otherSymbols = normalizedSymbols.filter((s: string) => !s.endsWith('.IS'));
+
+      let midasMap = new Map<string, MidasStock>();
+      if (bistSymbols.length > 0) {
+        try { midasMap = await getMidasStockMap(); } catch (e) { /* ignore */ }
+      }
+
+      let yahooMap = new Map<string, any>();
+      const yahooNeeded = otherSymbols.concat(
+        bistSymbols.filter((s: string) => !midasMap.has(s.replace('.IS', '').toUpperCase()))
+      );
+      if (yahooNeeded.length > 0) {
+        try { yahooMap = await cachedQuoteBatch(yahooNeeded); } catch (e) { /* ignore */ }
+      }
+
+      openPositionValue = openPositions.reduce((sum: number, p: any) => {
+        let livePrice = p.currentPrice ?? p.entryPrice;
+        const normalized = symbolMap.get(p.symbol) ?? p.symbol;
+        const cleanSym = normalized.replace('.IS', '').toUpperCase();
+        const midas = normalized.endsWith('.IS') ? midasMap.get(cleanSym) : null;
+        if (midas) {
+          const mp = midas.Last || midas.Close || midas.PreviousClose || 0;
+          if (mp > 0) livePrice = mp;
+        } else {
+          const yq: any = yahooMap.get(normalized) ?? yahooMap.get(p.symbol);
+          if (yq) {
+            const yp = yq?.regularMarketPrice ?? 0;
+            if (yp > 0) livePrice = yp;
+          }
+        }
+        return sum + (livePrice * p.quantity);
+      }, 0);
+    }
+
     const totalPortfolioValue = user.balance + openPositionValue;
     const totalReturn = user.initialBalance > 0 ? ((totalPortfolioValue - user.initialBalance) / user.initialBalance) * 100 : 0;
 
