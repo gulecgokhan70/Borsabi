@@ -6,10 +6,10 @@ import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-reac
 const SUGGESTIONS = [
   'Bugün borsa nasıldı?',
   'Borsa durumu nasıl?',
+  'Haberlere göre piyasa analizi yap',
   'THYAO teknik analizi yap',
   'Portföyüm nasıl görünüyor?',
   'En güçlü BIST hisseleri hangileri?',
-  'Piyasada neler oluyor?',
 ];
 
 interface ChatMsg {

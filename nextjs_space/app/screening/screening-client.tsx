@@ -1,11 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight, Crosshair, BarChart3, Activity, Newspaper, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Search, RefreshCw, Loader2, TrendingUp, Target, ShieldAlert, Zap, ArrowUpRight, ArrowDownRight, Crosshair, BarChart3, Activity } from 'lucide-react';
 import { formatNumber, formatPercent, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
-import type { NewsImpact, StockWarning } from '@/lib/news-analysis';
 
 function formatTimeAgo(isoStr: string): string {
   const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000);
@@ -22,34 +21,6 @@ export function ScreeningClient() {
   const [marketOpen, setMarketOpen] = useState(true);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [isFresh, setIsFresh] = useState(true);
-  const [newsImpact, setNewsImpact] = useState<NewsImpact | null>(null);
-  const [newsLoading, setNewsLoading] = useState(false);
-  const [showNewsDetail, setShowNewsDetail] = useState(false);
-
-  // Haber analizi çek
-  useEffect(() => {
-    const fetchNews = async () => {
-      setNewsLoading(true);
-      try {
-        const res = await fetch('/api/news-analysis');
-        const data = await res.json();
-        if (data?.impact) setNewsImpact(data.impact);
-      } catch {} finally { setNewsLoading(false); }
-    };
-    fetchNews();
-  }, []);
-
-  const getStockWarning = (symbol: string): StockWarning | null => {
-    if (!newsImpact) return null;
-    const clean = symbol?.replace('.IS', '').replace('-USD', '').toUpperCase();
-    return newsImpact.stockWarnings.find(w => w.symbol.toUpperCase() === clean) ?? null;
-  };
-
-  const adjustScore = (score: number, symbol: string): number => {
-    const w = getStockWarning(symbol);
-    if (!w) return score;
-    return Math.max(0, Math.min(100, score + Math.min(10, Math.max(-10, w.impact))));
-  };
 
   const fetchScreening = useCallback(async () => {
     if (!cachedAt) setLoading(true); // Only show loader on first load
@@ -104,119 +75,6 @@ export function ScreeningClient() {
         </div>
       )}
 
-      {/* Haber Analiz Banneri */}
-      {newsImpact && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Newspaper className="w-5 h-5 text-[#8B5CF6]" />
-                <span className="text-sm font-bold text-foreground">AI Haber Analizi</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                  newsImpact.overallSentiment === 'olumlu' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
-                  newsImpact.overallSentiment === 'olumsuz' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                  newsImpact.overallSentiment === 'karışık' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
-                  'bg-slate-500/15 text-slate-400'
-                }`}>
-                  {newsImpact.overallSentiment === 'olumlu' ? '📈 Olumlu' :
-                   newsImpact.overallSentiment === 'olumsuz' ? '📉 Olumsuz' :
-                   newsImpact.overallSentiment === 'karışık' ? '⚖️ Karışık' : '➖ Nötr'}
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                  newsImpact.riskLevel === 'Yüksek' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                  newsImpact.riskLevel === 'Orta' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
-                  'bg-[#22C55E]/15 text-[#22C55E]'
-                }`}>
-                  Risk: {newsImpact.riskLevel}
-                </span>
-              </div>
-              <button onClick={() => setShowNewsDetail(!showNewsDetail)} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                {showNewsDetail ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                {showNewsDetail ? 'Gizle' : 'Detay'}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">{newsImpact.summary}</p>
-
-            {/* Kritik Uyarılar */}
-            {newsImpact.criticalWarnings.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {newsImpact.criticalWarnings.map((w, i) => (
-                  <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/20 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> {w}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Hisse Uyarıları - her zaman göster */}
-            {newsImpact.stockWarnings.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {newsImpact.stockWarnings.map((sw, i) => (
-                  <span key={i} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-                    sw.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30' :
-                    sw.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30' :
-                    'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
-                  }`} title={sw.reason}>
-                    📰 {sw.symbol}: {sw.warning}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Genişletilmiş Detay: Sektör Etkileri */}
-          <AnimatePresence>
-            {showNewsDetail && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <div className="px-4 pb-4 pt-2 border-t border-black/[0.06] dark:border-white/[0.06]">
-                  {newsImpact.sectorImpacts.length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-semibold text-foreground mb-2">Sektör Etkileri</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {newsImpact.sectorImpacts.map((s, i) => (
-                          <div key={i} className="flex items-center gap-2 glass-inner rounded-lg p-2">
-                            <span className="text-sm">{s.direction === 'yukarı' ? '📈' : s.direction === 'aşağı' ? '📉' : '➖'}</span>
-                            <div>
-                              <span className="text-xs font-semibold text-foreground">{s.sector}</span>
-                              <p className="text-[10px] text-muted-foreground">{s.reason}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {newsImpact.stockWarnings.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-[11px] font-semibold text-foreground mb-2">Hisse Detayları</p>
-                      <div className="space-y-1">
-                        {newsImpact.stockWarnings.map((sw, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs">
-                            <span className={`font-bold w-14 ${
-                              sw.warning === 'GİR' ? 'text-[#22C55E]' : sw.warning === 'GİRME' ? 'text-[#EF4444]' : 'text-[#F59E0B]'
-                            }`}>{sw.symbol}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
-                              sw.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E]' : sw.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
-                            }`}>{sw.warning}</span>
-                            <span className="text-muted-foreground flex-1">{sw.reason}</span>
-                            <span className={`font-mono text-[10px] ${sw.impact >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{sw.impact > 0 ? '+' : ''}{sw.impact}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      )}
-      {newsLoading && (
-        <div className="glass-card rounded-xl p-3 flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
-          <span className="text-xs text-muted-foreground">AI haber analizi yükleniyor...</span>
-        </div>
-      )}
-
       {/* Score legend */}
       <div className="flex flex-wrap items-center gap-3">
         {Object.entries(SCORE_LABELS ?? {}).map(([key, val]: any) => (
@@ -238,9 +96,7 @@ export function ScreeningClient() {
       ) : (
         <div className="space-y-3">
           {(results ?? []).map((stock: any, i: number) => {
-            const newsWarning = getStockWarning(stock?.symbol);
-            const adjustedScore = adjustScore(stock?.score ?? 0, stock?.symbol);
-            const scoreColor = getScoreColor(adjustedScore);
+            const scoreColor = getScoreColor(stock?.score ?? 0);
             return (
               <motion.div
                 key={stock?.symbol ?? i}
@@ -254,8 +110,8 @@ export function ScreeningClient() {
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center font-bold" style={{ backgroundColor: `${scoreColor}15`, color: scoreColor }}>
-                        <span className="text-lg">{adjustedScore}</span>
-                        <span className="text-[7px] opacity-70">{newsWarning ? '📰 PUAN' : 'PUAN'}</span>
+                        <span className="text-lg">{stock?.score ?? 0}</span>
+                        <span className="text-[7px] opacity-70">PUAN</span>
                       </div>
                       <span className="absolute -bottom-1 -right-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full text-foreground" style={{ backgroundColor: scoreColor }}>
                         {stock?.quality ?? '-'}
@@ -286,15 +142,6 @@ export function ScreeningClient() {
                         {stock?.dipBipDetected && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/30 font-semibold">
                             ⚡ Dip-Bip
-                          </span>
-                        )}
-                        {newsWarning && (
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${
-                            newsWarning.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30' :
-                            newsWarning.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30' :
-                            'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
-                          }`} title={newsWarning.reason}>
-                            📰 {newsWarning.warning}
                           </span>
                         )}
                       </div>
