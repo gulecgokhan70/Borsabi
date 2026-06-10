@@ -245,7 +245,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/[0.18] lg:hidden"
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
             onTouchEnd={() => setSidebarOpen(false)}
           />
@@ -278,7 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-none">
+          <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-none">
             {NAV_ITEMS.map((item: any) => {
               const isActive = pathname === item?.href || pathname?.startsWith?.(item?.href + '/');
               const Icon = item?.icon;
@@ -287,13 +287,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={item?.href}
                   href={item?.href ?? '#'}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                     isActive
-                      ? 'bg-[#3B82F6]/10 text-[#3B82F6] shadow-[0_0_12px_rgba(59,130,246,0.12)] dark:shadow-[0_0_12px_rgba(59,130,246,0.15)]'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
+                      ? 'bg-[#3B82F6]/10 text-[#3B82F6] font-semibold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                   }`}
                 >
-                  {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
+                  {Icon && <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? '' : 'opacity-70'}`} />}
                   {item?.label}
                 </Link>
               );

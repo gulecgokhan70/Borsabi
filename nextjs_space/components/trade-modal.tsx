@@ -92,12 +92,12 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 z-[70]">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/[0.65]"
+          className="absolute inset-0 bg-black/60"
           onClick={onClose}
         />
         <motion.div
@@ -105,7 +105,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-          className="absolute inset-x-0 bottom-0 glass-card rounded-t-2xl shadow-2xl max-h-[85vh] overflow-y-auto pb-[env(safe-area-inset-bottom,16px)] mb-[60px] sm:mb-0 sm:pb-0 sm:rounded-2xl sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-md sm:max-h-[90vh]"
+          className="absolute inset-x-0 bottom-0 bg-white dark:bg-[#1E293B] rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl lg:inset-auto lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 lg:w-full lg:max-w-md lg:max-h-[90vh] lg:pb-0"
         >
           <div className="flex justify-center pt-2 pb-0 sm:hidden">
             <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
