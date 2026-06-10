@@ -10,6 +10,70 @@ interface NewsItem {
   category: 'genel' | 'bist' | 'kripto' | 'kap' | 'dunya';
   symbol?: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
+  importance?: number; // 0-10 scale, 7+ = breaking worthy
+}
+
+/* ── Önem skoru hesapla ── */
+const BREAKING_KEYWORDS: [RegExp, number][] = [
+  // Merkez bankası / faiz
+  [/tcmb|merkez bankas[ıi]/i, 4],
+  [/faiz.*karar|faiz.*art[ıi]|faiz.*indir|faiz.*de[ğg]i[şs]/i, 5],
+  [/politika faiz/i, 5],
+  // Makroekonomi kritik
+  [/enflasyon.*a[çc][ıi]klan|t[üu]fe|[üu]fe.*a[çc][ıi]klan/i, 4],
+  [/b[üu]y[üu]me.*veri|gsyh|cari a[çc][ıi]k/i, 3],
+  [/i[şs]sizlik.*veri/i, 3],
+  // Döviz / altın sert hareket
+  [/dolar.*rekor|dolar.*sert|dolar.*[ff][ıi]rla|dolar.*[çc][öo]k/i, 5],
+  [/euro.*rekor|euro.*sert/i, 4],
+  [/alt[ıi]n.*rekor|alt[ıi]n.*sert/i, 4],
+  // BIST kritik
+  [/bist.*100.*rekor|xu100.*rekor|borsa.*rekor/i, 5],
+  [/bist.*sert.*d[üu][şs]|borsa.*[çc][öo]k|bist.*[çc]ak[ıi]l/i, 5],
+  [/bist.*ralli|borsa.*ralli/i, 4],
+  [/devre kesici|tavan|taban.*kilid/i, 4],
+  // Kripto kritik
+  [/bitcoin.*rekor|btc.*rekor/i, 4],
+  [/bitcoin.*sert|bitcoin.*[çc][öo]k|bitcoin.*[çc]ak[ıi]l/i, 4],
+  [/ethereum.*rekor|eth.*rekor/i, 3],
+  // Genel piyasa şok
+  [/kriz|[çc][öo]k[üu][şs]|panik|sert d[üu][şs][üu][şs]|flash crash/i, 5],
+  [/resesyon|durgunluk/i, 4],
+  [/sava[şs]|ambargo|yapt[ıi]r[ıi]m/i, 3],
+  // Şirket haberleri önemli
+  [/kar da[ğg][ıi]t|temett[üu]/i, 3],
+  [/birle[şs]me|devralma|sat[ıi]n al[ıi]m/i, 3],
+  [/halka arz/i, 3],
+  [/spk|sermaye piyasas[ıi] kurulu/i, 3],
+  // Genel önem artırıcılar
+  [/son dakika|breaking|flash/i, 3],
+  [/rekor/i, 2],
+  [/sert|a[şs][ıi]r[ıi]|tarihi/i, 2],
+];
+
+function calculateImportance(item: NewsItem): number {
+  let score = 0;
+  const text = (item.title + ' ' + item.summary).toLowerCase();
+
+  for (const [regex, weight] of BREAKING_KEYWORDS) {
+    if (regex.test(text)) score += weight;
+  }
+
+  // Sentiment güçlendirici — pozitif/negatif haberler daha önemli
+  if (item.sentiment === 'positive' || item.sentiment === 'negative') score += 1;
+
+  // KAP bildirimleri önemli şirket haberleri içerebilir
+  if (item.category === 'kap') score += 2;
+
+  // Ekonomi kategorisi bonus
+  if (item.category === 'bist' || item.category === 'dunya') score += 1;
+
+  // Taze haber bonusu (son 1 saat içinde)
+  const ageMs = Date.now() - new Date(item.date).getTime();
+  if (ageMs < 60 * 60 * 1000) score += 2;
+  else if (ageMs < 3 * 60 * 60 * 1000) score += 1;
+
+  return Math.min(score, 10);
 }
 
 /* ── In-memory cache ── */
@@ -149,6 +213,11 @@ async function getAllNews(): Promise<NewsItem[]> {
     return true;
   });
 
+  // Calculate importance scores
+  for (const item of deduped) {
+    item.importance = calculateImportance(item);
+  }
+
   newsCache = { data: deduped, ts: Date.now() };
   return deduped;
 }
@@ -159,6 +228,8 @@ export async function GET(req: Request) {
     const category = searchParams.get('category'); // genel, bist, kripto, kap, dunya
     const symbol = searchParams.get('symbol');
     const limit = parseInt(searchParams.get('limit') || '20');
+    const breaking = searchParams.get('breaking') === 'true'; // sadece önemli haberler
+    const minImportance = parseInt(searchParams.get('minImportance') || '0');
 
     let news = await getAllNews();
 
@@ -181,6 +252,13 @@ export async function GET(req: Request) {
         const cat = symbol.endsWith('.IS') ? 'bist' : symbol.endsWith('-USD') ? 'kripto' : 'genel';
         news = news.filter(n => n.category === cat || n.category === 'kap');
       }
+    }
+
+    // Breaking filter: sadece önem skoru 5+ olan haberleri dön
+    if (breaking) {
+      news = news.filter(n => (n.importance ?? 0) >= 5);
+    } else if (minImportance > 0) {
+      news = news.filter(n => (n.importance ?? 0) >= minImportance);
     }
 
     return NextResponse.json({
