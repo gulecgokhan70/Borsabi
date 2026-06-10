@@ -141,38 +141,40 @@
   }
 
   .glass-card {
-    background: rgba(255, 255, 255, 0.50);
+    background: rgba(255, 255, 255, 0.45);
     backdrop-filter: blur(40px) saturate(180%);
     -webkit-backdrop-filter: blur(40px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.60);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.70);
   }
   .dark .glass-card {
-    background: rgba(255, 255, 255, 0.035);
+    background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(40px) saturate(160%);
     -webkit-backdrop-filter: blur(40px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .glass-sidebar {
     background: rgba(255, 255, 255, 0.92);
-    border-right: 1px solid rgba(0, 0, 0, 0.04);
-    box-shadow: 1px 0 16px rgba(0, 0, 0, 0.02);
+    border-right: 1px solid rgba(255, 255, 255, 0.30);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.04);
+    isolation: isolate;
   }
   .dark .glass-sidebar {
     background: rgba(15, 15, 22, 0.65);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.15);
+    isolation: isolate;
   }
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .glass-sidebar {
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.40);
       backdrop-filter: blur(80px) saturate(200%);
       -webkit-backdrop-filter: blur(80px) saturate(200%);
     }
     .dark .glass-sidebar {
-      background: rgba(15, 15, 22, 0.50);
+      background: rgba(255, 255, 255, 0.06);
       backdrop-filter: blur(80px) saturate(180%);
       -webkit-backdrop-filter: blur(80px) saturate(180%);
     }
@@ -180,22 +182,24 @@
 
   .glass-nav {
     background: rgba(255, 255, 255, 0.92);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.30);
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.03);
+    isolation: isolate;
   }
   .dark .glass-nav {
     background: rgba(15, 15, 22, 0.65);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.15);
+    isolation: isolate;
   }
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .glass-nav {
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(255, 255, 255, 0.40);
       backdrop-filter: blur(80px) saturate(200%);
       -webkit-backdrop-filter: blur(80px) saturate(200%);
     }
     .dark .glass-nav {
-      background: rgba(15, 15, 22, 0.50);
+      background: rgba(255, 255, 255, 0.06);
       backdrop-filter: blur(80px) saturate(180%);
       -webkit-backdrop-filter: blur(80px) saturate(180%);
     }
@@ -217,15 +221,27 @@
   /* Glassmorphism üzerinde metin netliği */
   .glass-sidebar,
   .glass-nav,
-  .glass-card {
+  .glass-card,
+  .glass-inner {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
   .glass-sidebar *,
   .glass-nav * {
     font-weight: inherit;
-    text-shadow: 0 0 0 transparent;
+  }
+
+  /* Mobil cihazlarda backdrop-filter garantisi */
+  @media (max-width: 1023px) {
+    .glass-sidebar,
+    .glass-nav {
+      transform: translate3d(0, 0, 0);
+      -webkit-transform: translate3d(0, 0, 0);
+      will-change: backdrop-filter;
+    }
   }
 
   .glass-hover:hover {
