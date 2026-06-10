@@ -106,11 +106,11 @@ export function DashboardClient() {
         </div>
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className={`w-4 h-4 ${(portfolio?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`} />
+            <DollarSign className={`w-4 h-4 ${((portfolio?.unrealizedPnl ?? 0) + (portfolio?.realizedPnl ?? 0)) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`} />
             <span className="text-xs text-muted-foreground">Toplam K/Z</span>
           </div>
-          <p className={`text-lg font-bold font-mono ${(portfolio?.totalPnl ?? 0) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-            {formatCurrency(portfolio?.totalPnl)}
+          <p className={`text-lg font-bold font-mono ${((portfolio?.unrealizedPnl ?? 0) + (portfolio?.realizedPnl ?? 0)) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+            {formatCurrency((portfolio?.unrealizedPnl ?? 0) + (portfolio?.realizedPnl ?? 0))}
           </p>
         </div>
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">

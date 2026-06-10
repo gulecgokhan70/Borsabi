@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X } from 'lucide-react';
+import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 import { formatCurrency, formatPercent } from '@/lib/constants';
 
 const TIERS = [
@@ -126,7 +127,7 @@ export default function ProfileClient() {
           {[
             { label: 'Bakiye', value: formatCurrency(profile.balance), icon: Zap, color: '#3B82F6' },
             { label: 'Toplam Getiri', value: formatPercent(profile.totalReturn), icon: TrendingUp, color: profile.totalReturn >= 0 ? '#22C55E' : '#EF4444' },
-            { label: 'Toplam İşlem', value: profile.totalTrades.toString(), icon: BarChart3, color: '#8B5CF6' },
+            { label: 'Kapatılan İşlem', value: profile.totalTrades.toString(), icon: BarChart3, color: '#8B5CF6' },
             { label: 'Kazanç Oranı', value: `%${profile.winRate.toFixed(1)}`, icon: Shield, color: '#F59E0B' },
           ].map((s, i) => (
             <div key={i} className="glass-inner rounded-lg p-3">
@@ -192,6 +193,17 @@ export default function ProfileClient() {
           <span className="text-sm text-muted-foreground">rozet kazanıldı</span>
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Detaylar için Başarılar sayfasını ziyaret edin.</p>
+      </motion.div>
+
+      {/* Logout */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <button
+          onClick={() => signOut?.({ callbackUrl: '/login' })}
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-sm font-semibold text-[#EF4444] glass-card border border-[#EF4444]/20 hover:bg-[#EF4444]/10 transition-all duration-200"
+        >
+          <LogOut className="w-5 h-5" />
+          Çıkış Yap
+        </button>
       </motion.div>
 
       <p className="text-xs text-center text-[#F59E0B]/70 pb-4">⚠️ Bu platform eğitim ve simülasyon amaçlıdır, yatırım tavsiyesi değildir.</p>

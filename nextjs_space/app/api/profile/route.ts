@@ -20,13 +20,13 @@ export async function GET() {
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const totalTrades = user.transactions.length;
     const closedPositions = user.positions.filter((p: any) => p.status === 'CLOSED');
     const openPositions = user.positions.filter((p: any) => p.status === 'OPEN');
-    const wins = closedPositions.filter((p: any) => p.pnl > 0).length;
+    const totalTrades = closedPositions.length;
+    const wins = closedPositions.filter((p: any) => (p.pnl ?? 0) > 0).length;
     const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
     const totalPnl = closedPositions.reduce((s: number, p: any) => s + (p.pnl || 0), 0);
-    const totalReturn = ((user.balance - user.initialBalance) / user.initialBalance) * 100;
+    const totalReturn = user.initialBalance > 0 ? ((user.balance - user.initialBalance) / user.initialBalance) * 100 : 0;
 
     // Monthly performance
     const now = new Date();
