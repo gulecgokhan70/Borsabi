@@ -92,12 +92,11 @@ export async function GET(
       }
     }
 
-    if (!midasData) {
-      try {
-        quote = await cachedQuote(symbol);
-      } catch (e: any) {
-        console.error('Quote fetch error:', e?.message);
-      }
+    // Always fetch Yahoo quote for 52-week data and extras
+    try {
+      quote = await cachedQuote(symbol);
+    } catch (e: any) {
+      console.error('Quote fetch error:', e?.message);
     }
 
     // Fetch chart data
