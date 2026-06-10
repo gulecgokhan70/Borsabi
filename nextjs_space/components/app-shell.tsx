@@ -1,22 +1,140 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, TrendingUp, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass
+  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
+import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
+
+/* ── Global Quick Search ── */
+function GlobalSearch() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
+
+  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 100); }, [open]);
+
+  const allItems = [
+    ...BIST_ALL_ASSETS.map((a: any) => ({ symbol: a.symbol, name: a.name, shortName: a.shortName, type: 'BIST' })),
+    ...CRYPTO_ASSETS.map((a: any) => ({ symbol: a.symbol, name: a.name, shortName: a.shortName, type: 'Kripto' })),
+  ];
+
+  const term = q.toLowerCase().trim();
+  const results = term.length >= 1
+    ? allItems.filter(i => i.shortName.toLowerCase().includes(term) || i.name.toLowerCase().includes(term)).slice(0, 12)
+    : [];
+
+  const go = (sym: string) => { router.push(`/stock/${sym}`); setOpen(false); setQ(''); };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-3 py-2 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-muted-foreground hover:text-foreground hover:border-[#3B82F6]/30 transition-all text-sm min-w-[180px] lg:min-w-[260px]"
+      >
+        <Search className="w-4 h-4 flex-shrink-0" />
+        <span className="text-xs lg:text-sm">Hisse ara...</span>
+        <kbd className="hidden lg:inline-flex ml-auto text-[10px] px-1.5 py-0.5 rounded glass-inner border border-black/[0.06] dark:border-white/[0.08] text-muted-foreground">⌘K</kbd>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[70] bg-black/40"
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="fixed top-[15%] left-1/2 -translate-x-1/2 z-[80] w-[90vw] max-w-[480px] glass-card rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-3 border-b border-black/[0.06] dark:border-white/[0.06]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    ref={inputRef}
+                    value={q}
+                    onChange={e => setQ(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && results.length > 0) go(results[0].symbol); }}
+                    placeholder="Hisse veya kripto ara..."
+                    className="w-full pl-10 pr-10 py-3 rounded-xl glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
+                  />
+                  {q && (
+                    <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="max-h-[320px] overflow-y-auto">
+                {term.length < 1 ? (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">Aramak istediğiniz hisseyi veya kriptoyu yazın</div>
+                ) : results.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">Sonuç bulunamadı</div>
+                ) : (
+                  results.map((item, i) => (
+                    <button
+                      key={item.symbol}
+                      onClick={() => go(item.symbol)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors border-b border-black/[0.03] dark:border-white/[0.03] last:border-0"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-[#3B82F6]">{item.shortName.slice(0, 3)}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{item.shortName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{item.name}</p>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">{item.type}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/piyasalar', label: 'Piyasalar', icon: Globe },
   { href: '/portfolio', label: 'Portföy', icon: Briefcase },
   { href: '/day-trading', label: 'Day Trading', icon: Zap },
   { href: '/swing-trading', label: 'Swing Trading', icon: Waves },
   { href: '/ai-assistant', label: 'Master AI', icon: Bot },
   { href: '/screening', label: 'Tarama', icon: Search },
+  { href: '/kesfet', label: 'Keşfet', icon: Compass },
   { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
   { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
@@ -135,14 +253,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
+        {/* Desktop top bar */}
+        <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
+          <div className="flex-1" />
+          <GlobalSearch />
+          <div className="flex-1" />
+        </div>
         {/* Mobile header */}
-        <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 glass-nav lg:hidden">
+        <div className="sticky top-0 z-30 flex items-center gap-2 px-3 py-2.5 glass-nav lg:hidden">
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2 flex-1">
-            <TrendingUp className="w-5 h-5 text-[#3B82F6]" />
-            <span className="font-bold text-foreground">Master Trader</span>
+          <div className="flex-1">
+            <GlobalSearch />
           </div>
           {mounted && (
             <button
@@ -164,10 +287,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-end justify-around">
             {[
               { href: '/dashboard', label: 'Ana Sayfa', icon: Home },
-              { href: '/screening', label: 'Piyasalar', icon: BarChart3 },
+              { href: '/piyasalar', label: 'Piyasalar', icon: BarChart3 },
               { href: '/ai-assistant', label: 'AI Analiz', icon: Brain, center: true },
               { href: '/portfolio', label: 'Portföyüm', icon: Briefcase },
-              { href: '/watchlist', label: 'Keşfet', icon: Compass },
+              { href: '/kesfet', label: 'Keşfet', icon: Compass },
             ].map((item) => {
               const isActive = pathname === item.href || pathname?.startsWith?.(item.href + '/');
               const Icon = item.icon;

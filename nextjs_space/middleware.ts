@@ -27,5 +27,7 @@ export const config = {
     '/profile/:path*',
     '/stock/:path*',
     '/aksam-analizi/:path*',
+    '/piyasalar/:path*',
+    '/kesfet/:path*',
   ],
 };
