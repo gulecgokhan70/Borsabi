@@ -279,20 +279,23 @@ export default function ProfileClient() {
               onClick={() => setAvatarPickerOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] w-[92vw] max-w-[420px] glass-card rounded-2xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+              className="fixed z-[80] glass-card shadow-2xl overflow-hidden inset-x-0 bottom-0 rounded-t-2xl sm:rounded-2xl sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[92vw] sm:max-w-[420px]"
             >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+              <div className="flex justify-center pt-2 pb-0 sm:hidden">
+                <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
+              </div>
+              <div className="flex items-center justify-between px-5 py-3 sm:py-4 border-b border-black/[0.06] dark:border-white/[0.06]">
                 <h3 className="text-base font-bold text-foreground">Avatar Seç</h3>
                 <button onClick={() => setAvatarPickerOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-4 max-h-[60vh] overflow-y-auto">
+              <div className="p-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto">
                 {/* Hayvanlar */}
                 <p className="text-xs font-semibold text-muted-foreground mb-2 px-1">🐾 Hayvanlar</p>
                 <div className="grid grid-cols-4 gap-2 mb-4">
