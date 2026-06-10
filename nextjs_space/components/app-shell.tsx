@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
+
 
 /* ── Global Quick Search ── */
 function GlobalSearch() {
@@ -38,10 +38,15 @@ function GlobalSearch() {
 
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 100); }, [open]);
 
-  const allItems = [
-    ...BIST_ALL_ASSETS.map((a: any) => ({ symbol: a.symbol, name: a.name, shortName: a.shortName, type: 'BIST' })),
-    ...CRYPTO_ASSETS.map((a: any) => ({ symbol: a.symbol, name: a.name, shortName: a.shortName, type: 'Kripto' })),
-  ];
+  const [allItems, setAllItems] = useState<any[]>([]);
+  useEffect(() => {
+    import('@/lib/constants').then(mod => {
+      setAllItems([
+        ...mod.BIST_ALL_ASSETS.map((a: any) => ({ symbol: a.symbol, name: a.name, shortName: a.shortName, type: 'BIST' })),
+        ...mod.CRYPTO_ASSETS.map((a: any) => ({ symbol: a.symbol, name: a.name, shortName: a.shortName, type: 'Kripto' })),
+      ]);
+    });
+  }, []);
 
   const term = q.toLowerCase().trim();
   const results = term.length >= 1

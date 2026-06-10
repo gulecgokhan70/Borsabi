@@ -24,11 +24,10 @@ const COMMODITY_SYMBOLS = [
 
 async function getSparkline(symbol: string): Promise<number[]> {
   try {
-    const data = await cachedChart(symbol, { period1: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), period2: new Date(), interval: '1h' as any });
+    const data = await cachedChart(symbol, { period1: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), period2: new Date(), interval: '1h' as any });
     const closes = (data?.quotes ?? []).map((q: any) => q?.close).filter((v: any) => v != null && !isNaN(v));
-    // Downsample to max 24 points
-    if (closes.length > 24) {
-      const step = Math.ceil(closes.length / 24);
+    if (closes.length > 20) {
+      const step = Math.ceil(closes.length / 20);
       return closes.filter((_: any, i: number) => i % step === 0);
     }
     return closes;
@@ -57,8 +56,8 @@ export async function GET() {
     const indexData: Map<string, any> = indexQuotes.status === 'fulfilled' ? indexQuotes.value : new Map();
     const midasData = midasRes.status === 'fulfilled' ? midasRes.value : new Map();
 
-    // Sparklines in parallel (limited set)
-    const sparkSymbols = ['USDTRY=X', 'EURTRY=X', 'GC=F', 'BTC-USD', ...INDEX_SYMBOLS];
+    // Sparklines only for indices (fast, cached)
+    const sparkSymbols = INDEX_SYMBOLS;
     const sparkResults = await Promise.allSettled(sparkSymbols.map(s => getSparkline(s)));
     const sparkMap: Record<string, number[]> = {};
     sparkSymbols.forEach((s, i) => {

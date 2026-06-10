@@ -169,7 +169,7 @@ export default function ProfileClient() {
                 </ul>
                 {!isActive && (
                   <button onClick={() => handleUpgrade(tier.id)} disabled={upgrading}
-                    className="w-full py-2 rounded-lg text-sm font-medium text-foreground transition-all hover:opacity-90 disabled:opacity-50"
+                    className="w-full py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
                     style={{ background: tier.color }}>
                     {upgrading ? 'Yükleniyor...' : tier.id === 'free' ? 'Geç' : 'Seç'}
                   </button>

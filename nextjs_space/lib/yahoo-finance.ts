@@ -12,12 +12,12 @@ const quoteCache = new Map<string, CacheEntry>();
 const chartCache = new Map<string, CacheEntry>();
 
 // Cache TTL (ms)
-const QUOTE_TTL = 60_000;  // 1 dakika
-const CHART_TTL = 120_000; // 2 dakika
+const QUOTE_TTL = 120_000;  // 2 dakika
+const CHART_TTL = 300_000;  // 5 dakika
 
 // Request queue for rate limiting
 let requestQueue: Promise<void> = Promise.resolve();
-const REQUEST_DELAY = 150; // ms between requests
+const REQUEST_DELAY = 100; // ms between requests
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -69,7 +69,7 @@ export async function cachedChart(symbol: string, opts: any): Promise<any> {
   }
 }
 
-// Batch quote - tek seferde birden fazla sembol
+// Batch quote - paralel küçük gruplarla hızlı fetch
 export async function cachedQuoteBatch(symbols: string[]): Promise<Map<string, any>> {
   const results = new Map<string, any>();
   const toFetch: string[] = [];
@@ -85,17 +85,29 @@ export async function cachedQuoteBatch(symbols: string[]): Promise<Map<string, a
     }
   }
   
-  // Cache'de olmayanları fetch edelim (sıralı, rate limit'e dikkat)
-  for (const sym of toFetch) {
-    try {
-      const data = await enqueue(() => yf.quote(sym));
-      quoteCache.set(sym, { data, expiry: now + QUOTE_TTL });
-      results.set(sym, data);
-    } catch (e: any) {
-      // Stale cache varsa onu kullan
-      const stale = quoteCache.get(sym);
-      if (stale) results.set(sym, stale.data);
-      else results.set(sym, null);
+  if (toFetch.length === 0) return results;
+
+  // Paralel gruplar halinde fetch (4'lü gruplar)
+  const BATCH_SIZE = 4;
+  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
+    const batch = toFetch.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map(sym =>
+        enqueue(() => yf.quote(sym))
+          .then((data: any) => {
+            quoteCache.set(sym, { data, expiry: now + QUOTE_TTL });
+            return { sym, data };
+          })
+          .catch(() => {
+            const stale = quoteCache.get(sym);
+            return { sym, data: stale?.data ?? null };
+          })
+      )
+    );
+    for (const r of batchResults) {
+      if (r.status === 'fulfilled' && r.value) {
+        results.set(r.value.sym, r.value.data);
+      }
     }
   }
   
