@@ -156,27 +156,27 @@
   }
 
   .glass-sidebar {
-    background: rgba(255, 255, 255, 0.92);
-    border-right: 1px solid rgba(255, 255, 255, 0.30);
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.04);
+    background: rgba(255, 255, 255, 0.72);
+    border-right: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 2px 0 32px rgba(0, 0, 0, 0.06), inset -1px 0 0 rgba(255,255,255,0.5);
     isolation: isolate;
   }
   .dark .glass-sidebar {
-    background: rgba(15, 15, 22, 0.65);
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.15);
+    background: rgba(15, 23, 42, 0.55);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 2px 0 32px rgba(0, 0, 0, 0.3), inset -1px 0 0 rgba(255,255,255,0.03);
     isolation: isolate;
   }
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .glass-sidebar {
-      background: rgba(255, 255, 255, 0.40);
-      backdrop-filter: blur(80px) saturate(200%);
-      -webkit-backdrop-filter: blur(80px) saturate(200%);
+      background: rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(60px) saturate(180%);
+      -webkit-backdrop-filter: blur(60px) saturate(180%);
     }
     .dark .glass-sidebar {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(80px) saturate(180%);
-      -webkit-backdrop-filter: blur(80px) saturate(180%);
+      background: rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(60px) saturate(180%);
+      -webkit-backdrop-filter: blur(60px) saturate(180%);
     }
   }
 
