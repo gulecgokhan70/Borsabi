@@ -462,7 +462,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             { label: 'Önceki Kapanış', value: formatCurrency(data.prevClose), icon: ArrowUpDown, color: 'text-muted-foreground' },
             { label: 'Gün Yüksek', value: formatCurrency(data.high), icon: TrendingUp, color: 'text-[#22C55E]' },
             { label: 'Gün Düşük', value: formatCurrency(data.low), icon: TrendingDown, color: 'text-[#F87171]' },
-            ...(data.tavan ? [{ label: 'Tavan', value: formatCurrency(data.tavan), icon: TrendingUp, color: 'text-[#F97316]' }] : []),
+            ...(data.tavan ? [{ label: 'Tavan ↑', value: formatCurrency(data.tavan), icon: TrendingUp, color: 'text-[#22C55E]' }] : []),
             ...(data.taban ? [{ label: 'Taban', value: formatCurrency(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
             { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2, color: 'text-[#8B5CF6]' },
             { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-slate-400 dark:text-slate-500' },
@@ -480,7 +480,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       )}
 
       {/* ===== 52 WEEK RANGE ===== */}
-      {data && (data.fiftyTwoWeekHigh > 0 || data.fiftyTwoWeekLow > 0) && (
+      {data && (data.fiftyTwoWeekHigh > 0 || data.fiftyTwoWeekLow > 0) && (() => {
+        const distToHigh = data.fiftyTwoWeekHigh > 0 ? ((data.fiftyTwoWeekHigh - data.price) / data.price) * 100 : 0;
+        const distToLow = data.fiftyTwoWeekLow > 0 ? ((data.price - data.fiftyTwoWeekLow) / data.fiftyTwoWeekLow) * 100 : 0;
+        return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
           className="glass-card rounded-xl p-4">
           <h3 className="text-foreground font-semibold text-sm mb-3 flex items-center gap-2">
@@ -490,16 +493,34 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             <span className="text-xs text-[#F87171] font-mono whitespace-nowrap">{formatCurrency(data.fiftyTwoWeekLow)}</span>
             <div className="flex-1 relative h-3 glass-inner rounded-full overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-[#EF4444]/30 via-[#F59E0B]/30 to-[#22C55E]/30 rounded-full" />
-              <div className="absolute top-0 h-full w-2 bg-white rounded-full shadow-lg shadow-white/20 transition-all"
+              <div className="absolute top-0 h-full w-2 bg-white dark:bg-white rounded-full shadow-lg shadow-black/20 dark:shadow-white/20 transition-all"
                 style={{ left: `calc(${Math.min(Math.max(range52Pct, 2), 98)}% - 4px)` }} />
             </div>
             <span className="text-xs text-[#22C55E] font-mono whitespace-nowrap">{formatCurrency(data.fiftyTwoWeekHigh)}</span>
           </div>
+          {/* Distance indicators */}
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="glass-inner rounded-lg p-2.5 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[#22C55E] flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Zirveye Uzaklık</p>
+                <p className="text-sm font-bold text-[#22C55E] font-mono">%{distToHigh.toFixed(1)}</p>
+              </div>
+            </div>
+            <div className="glass-inner rounded-lg p-2.5 flex items-center gap-2">
+              <TrendingDown className="w-4 h-4 text-[#F87171] flex-shrink-0" />
+              <div>
+                <p className="text-[10px] text-muted-foreground">Dipten Uzaklık</p>
+                <p className="text-sm font-bold text-[#F87171] font-mono">%{distToLow.toFixed(1)}</p>
+              </div>
+            </div>
+          </div>
         </motion.div>
-      )}
+        );
+      })()}
 
       {/* ===== MIDAS EXTRA DATA (BIST ONLY) ===== */}
-      {data && (data.vwap || data.tavan || data.fk || data.pddd) && (
+      {data && (data.vwap || data.fk || data.pddd) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="glass-card rounded-xl p-4">
           <button onClick={() => setShowFundamentals(!showFundamentals)}
@@ -520,13 +541,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   </p>
                 </div>
               ) : null}
-              {data.tavan ? (
-                <div className="glass-inner rounded-lg p-3">
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Tavan</p>
-                  <p className="text-[#22C55E] font-bold font-mono">{formatCurrency(data.tavan)}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{data.taban ? `Taban: ${formatCurrency(data.taban)}` : ''}</p>
-                </div>
-              ) : null}
+
               {data.fk ? (
                 <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">F/K Oranı</p>
