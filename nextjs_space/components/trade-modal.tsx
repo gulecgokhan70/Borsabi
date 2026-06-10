@@ -105,7 +105,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-          className="absolute inset-x-0 bottom-0 glass-card rounded-t-2xl shadow-2xl max-h-[92vh] overflow-y-auto sm:rounded-2xl sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-md sm:max-h-[90vh]"
+          className="absolute inset-x-0 bottom-0 glass-card rounded-t-2xl shadow-2xl max-h-[85vh] overflow-y-auto pb-[env(safe-area-inset-bottom,16px)] mb-[60px] sm:mb-0 sm:pb-0 sm:rounded-2xl sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-md sm:max-h-[90vh]"
         >
           <div className="flex justify-center pt-2 pb-0 sm:hidden">
             <div className="w-10 h-1 rounded-full bg-black/20 dark:bg-white/20" />
@@ -124,18 +124,18 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             </div>
           </div>
 
-          <div className="p-4 space-y-4">
+          <div className="p-4 pt-3 space-y-3 sm:space-y-4">
             {/* Buy/Sell toggle */}
             <div className="grid grid-cols-2 gap-2 p-1 glass-inner rounded-lg">
               <button
                 onClick={() => setType('BUY')}
-                className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'BUY' ? 'bg-[#22C55E] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`py-1.5 sm:py-2 rounded-md text-sm font-semibold transition-all ${type === 'BUY' ? 'bg-[#22C55E] text-white' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <TrendingUp className="w-4 h-4 inline mr-1" /> Alış
               </button>
               <button
                 onClick={() => setType('SELL')}
-                className={`py-2 rounded-md text-sm font-semibold transition-all ${type === 'SELL' ? 'bg-[#EF4444] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`py-1.5 sm:py-2 rounded-md text-sm font-semibold transition-all ${type === 'SELL' ? 'bg-[#EF4444] text-white' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <TrendingDown className="w-4 h-4 inline mr-1" /> Satış
               </button>
@@ -282,7 +282,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             <button
               onClick={handleTrade}
               disabled={loading || qty <= 0}
-              className={`w-full py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50 ${
+              className={`w-full py-2.5 sm:py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50 ${
                 type === 'BUY' ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-[#EF4444] hover:bg-[#DC2626]'
               }`}
             >
