@@ -144,6 +144,7 @@ const NAV_ITEMS = [
   { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
   { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
+  { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
   { href: '/academy', label: 'Akademi', icon: GraduationCap },
   { href: '/backtest', label: 'Backtest', icon: FlaskConical },
   { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
@@ -151,7 +152,6 @@ const NAV_ITEMS = [
   { href: '/leaderboard', label: 'Liderlik', icon: Trophy },
   { href: '/alerts', label: 'Alarmlar', icon: Bell },
   { href: '/achievements', label: 'Rozetler', icon: Award },
-  { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
   { href: '/profile', label: 'Profil', icon: User },
 ];
 
@@ -214,39 +214,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* Risk info */}
-          <div className="px-4 py-3 mx-3 mb-3 rounded-xl glass-inner">
-            <div className="flex items-center gap-2 mb-1">
-              <Shield className="w-4 h-4 text-[#F59E0B]" />
-              <span className="text-xs font-semibold text-[#F59E0B]">Risk Yönetimi</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">İşlem başına max %1 risk, günlük max %3 zarar limiti</p>
-          </div>
-
-          {/* Theme Toggle + User */}
-          <div className="px-4 py-4 border-t border-black/[0.06] dark:border-white/[0.06]">
+          {/* Theme Toggle + User + Logout */}
+          <div className="px-4 py-4 border-t border-black/[0.06] dark:border-white/[0.06] space-y-3">
             {mounted && (
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="w-full flex items-center gap-3 px-3 py-2 mb-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-all duration-200"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-all duration-200"
               >
                 {theme === 'dark' ? <Sun className="w-5 h-5 text-[#F59E0B]" /> : <Moon className="w-5 h-5 text-[#3B82F6]" />}
                 {theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
               </button>
             )}
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{session?.user?.name ?? 'Trader'}</p>
-                <p className="text-xs text-muted-foreground truncate">{session?.user?.email ?? ''}</p>
+            <div className="flex items-center gap-3 px-3 py-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {(session?.user?.name ?? 'T').charAt(0).toUpperCase()}
               </div>
-              <button
-                onClick={() => signOut?.({ callbackUrl: '/login' })}
-                className="p-2 rounded-lg text-muted-foreground hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors"
-                title="Çıkış Yap"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{session?.user?.name ?? 'Trader'}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email ?? ''}</p>
+              </div>
             </div>
+            <button
+              onClick={() => signOut?.({ callbackUrl: '/login' })}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-all duration-200"
+            >
+              <LogOut className="w-5 h-5" />
+              Çıkış Yap
+            </button>
           </div>
         </div>
       </aside>
