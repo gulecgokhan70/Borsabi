@@ -43,30 +43,30 @@
     --success-foreground: 0 0% 100%;
   }
 
-  /* Dark Mode */
+  /* Dark Mode - Siyah / Kırık Siyah */
   .dark {
-    --background: 222 47% 11%;
+    --background: 0 0% 5%;
     --foreground: 210 40% 98%;
-    --card: 217 33% 17%;
+    --card: 0 0% 9%;
     --card-foreground: 210 40% 98%;
-    --popover: 217 33% 17%;
+    --popover: 0 0% 9%;
     --popover-foreground: 210 40% 98%;
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
+    --secondary: 0 0% 9%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 22%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 0 0% 14%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 22%;
-    --input: 217 33% 22%;
+    --border: 0 0% 16%;
+    --input: 0 0% 14%;
     --ring: 217 91% 60%;
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.15);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.25);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
     --chart-1: 217 91% 60%;
     --chart-2: 142 71% 45%;
     --chart-3: 0 84% 60%;
@@ -95,9 +95,9 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     letter-spacing: 0.01em;
   }
-  /* Dark mode body */
+  /* Dark mode body - Siyah / Kırık Siyah */
   .dark body {
-    background: linear-gradient(160deg, #0B1120 0%, #0F172A 30%, #111D35 60%, #0B1120 100%);
+    background: linear-gradient(160deg, #050505 0%, #0A0A0A 30%, #0D0D0D 60%, #050505 100%);
   }
   ::selection {
     background-color: hsl(var(--primary) / 0.2);
@@ -135,9 +135,11 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 24px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   }
   .dark .glass {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .glass-card {
@@ -148,61 +150,45 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 2px 12px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.70);
   }
   .dark .glass-card {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(40px) saturate(160%);
     -webkit-backdrop-filter: blur(40px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
   .glass-sidebar {
-    background: rgba(245, 247, 250, 0.92);
-    border-right: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.06), inset -1px 0 0 rgba(255,255,255,0.5);
+    background: rgba(245, 247, 250, 0.65);
+    backdrop-filter: blur(60px) saturate(180%);
+    -webkit-backdrop-filter: blur(60px) saturate(180%);
+    border-right: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.06), inset -1px 0 0 rgba(255,255,255,0.4);
     isolation: isolate;
   }
   .dark .glass-sidebar {
-    background: rgba(15, 23, 42, 0.92);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.3);
+    background: rgba(20, 20, 20, 0.55);
+    backdrop-filter: blur(60px) saturate(160%);
+    -webkit-backdrop-filter: blur(60px) saturate(160%);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.4);
     isolation: isolate;
-  }
-  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-    .glass-sidebar {
-      background: rgba(245, 247, 250, 0.78);
-      backdrop-filter: blur(40px) saturate(160%);
-      -webkit-backdrop-filter: blur(40px) saturate(160%);
-    }
-    .dark .glass-sidebar {
-      background: rgba(15, 23, 42, 0.82);
-      backdrop-filter: blur(40px) saturate(160%);
-      -webkit-backdrop-filter: blur(40px) saturate(160%);
-    }
   }
 
   .glass-nav {
-    background: rgba(255, 255, 255, 0.92);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.30);
-    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.03);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(80px) saturate(200%);
+    -webkit-backdrop-filter: blur(80px) saturate(200%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
     isolation: isolate;
   }
   .dark .glass-nav {
-    background: rgba(15, 15, 22, 0.65);
+    background: rgba(20, 20, 20, 0.45);
+    backdrop-filter: blur(80px) saturate(180%);
+    -webkit-backdrop-filter: blur(80px) saturate(180%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 -1px 12px rgba(0, 0, 0, 0.3);
     isolation: isolate;
-  }
-  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-    .glass-nav {
-      background: rgba(255, 255, 255, 0.40);
-      backdrop-filter: blur(80px) saturate(200%);
-      -webkit-backdrop-filter: blur(80px) saturate(200%);
-    }
-    .dark .glass-nav {
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(80px) saturate(180%);
-      -webkit-backdrop-filter: blur(80px) saturate(180%);
-    }
   }
 
   .glass-inner {
@@ -212,10 +198,10 @@
     border: 1px solid rgba(0, 0, 0, 0.04);
   }
   .dark .glass-inner {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   /* Glassmorphism üzerinde metin netliği */
@@ -297,6 +283,19 @@
     border-color: rgba(255, 255, 255, 0.05);
   }
 
+  .glass-modal {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(60px) saturate(180%);
+    -webkit-backdrop-filter: blur(60px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+  .dark .glass-modal {
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(60px) saturate(160%);
+    -webkit-backdrop-filter: blur(60px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
   .glow-blue {
     box-shadow: 0 0 30px rgba(59, 130, 246, 0.12), 0 0 60px rgba(59, 130, 246, 0.05);
   }
@@ -308,6 +307,6 @@
     background: linear-gradient(135deg, #f5f7fb 0%, #edf1f7 50%, #f5f7fb 100%);
   }
   .dark .trading-gradient {
-    background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+    background: linear-gradient(135deg, #0A0A0A 0%, #141414 50%, #0A0A0A 100%);
   }
 }

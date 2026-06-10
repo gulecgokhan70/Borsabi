@@ -16,7 +16,7 @@ export default function EquityChart({ equity, positive }: { equity: number[]; po
           </linearGradient>
         </defs>
         <Tooltip
-          contentStyle={{ background: '#1E293B', border: '1px solid #334155', borderRadius: 8, color: '#fff' }}
+          contentStyle={{ background: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }}
           formatter={(val: any) => [formatCurrency(val), 'Sermaye']}
           labelFormatter={(l: any) => `Gün ${l}`}
         />
