@@ -191,7 +191,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center px-6 py-5 border-b border-black/[0.06] dark:border-white/[0.06]">
-            <BorsaBiLogoFull size={36} />
+            {(session?.user as any)?.avatar && AVATAR_MAP[(session?.user as any)?.avatar] ? (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center shadow-lg">
+                  <span className="text-xl leading-none">{AVATAR_MAP[(session?.user as any)?.avatar]}</span>
+                </div>
+                <div>
+                  <p className="font-bold text-foreground text-base">BorsaBi</p>
+                  <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Trader</p>
+                </div>
+              </div>
+            ) : (
+              <BorsaBiLogoFull size={36} />
+            )}
             <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
               <X className="w-5 h-5" />
             </button>
@@ -260,7 +272,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Desktop top bar */}
         <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
           <Link href="/dashboard" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
-            <BorsaBiLogoFull size={28} />
+            {(session?.user as any)?.avatar && AVATAR_MAP[(session?.user as any)?.avatar] ? (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center shadow-lg">
+                  <span className="text-lg leading-none">{AVATAR_MAP[(session?.user as any)?.avatar]}</span>
+                </div>
+                <span className="font-bold text-foreground text-sm">BorsaBi</span>
+              </div>
+            ) : (
+              <BorsaBiLogoFull size={28} />
+            )}
           </Link>
           <div className="flex-1" />
           <GlobalSearch />
@@ -272,7 +293,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="w-5 h-5" />
           </button>
           <Link href="/dashboard" className="shrink-0">
-            <BorsaBiLogo size={28} />
+            {(session?.user as any)?.avatar && AVATAR_MAP[(session?.user as any)?.avatar] ? (
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center shadow-lg">
+                <span className="text-lg leading-none">{AVATAR_MAP[(session?.user as any)?.avatar]}</span>
+              </div>
+            ) : (
+              <BorsaBiLogo size={28} />
+            )}
           </Link>
           <div className="flex-1">
             <GlobalSearch />
