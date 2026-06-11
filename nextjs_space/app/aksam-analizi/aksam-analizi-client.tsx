@@ -126,10 +126,10 @@ export default function AksamAnaliziClient() {
   };
 
   const getScoreBg = (score: number) => {
-    if (score >= 80) return 'bg-[#22C55E]/10 border-[#22C55E]/30';
-    if (score >= 65) return 'bg-[#3B82F6]/10 border-[#3B82F6]/30';
-    if (score >= 50) return 'bg-[#F59E0B]/10 border-[#F59E0B]/30';
-    return 'bg-[#EF4444]/10 border-[#EF4444]/30';
+    if (score >= 80) return 'bg-[#22C55E]/[0.06] dark:bg-[#22C55E]/10 border-[#22C55E]/20 dark:border-[#22C55E]/30';
+    if (score >= 65) return 'bg-[#3B82F6]/[0.06] dark:bg-[#3B82F6]/10 border-[#3B82F6]/20 dark:border-[#3B82F6]/30';
+    if (score >= 50) return 'bg-[#F59E0B]/[0.06] dark:bg-[#F59E0B]/10 border-[#F59E0B]/20 dark:border-[#F59E0B]/30';
+    return 'bg-[#EF4444]/[0.06] dark:bg-[#EF4444]/10 border-[#EF4444]/20 dark:border-[#EF4444]/30';
   };
 
   const renderTradeTable = (trades: TradeResult[], type: 'day' | 'swing') => {
@@ -198,13 +198,13 @@ export default function AksamAnaliziClient() {
                 <td className="py-3 px-3">
                   <div className="flex flex-wrap gap-1 max-w-[250px]">
                     {t.signals.filter(s => !s.startsWith('🕯')).slice(0, 3).map((s, i) => (
-                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-[#334155] text-muted-foreground">{s}</span>
+                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/[0.08] text-slate-600 dark:text-slate-300 border border-black/[0.06] dark:border-white/[0.06]">{s}</span>
                     ))}
                     {t.candlePatterns && t.candlePatterns.length > 0 && t.candlePatterns.slice(0, 2).map((cp, i) => (
-                      <span key={`cp-${i}`} className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                        cp.type === 'bullish' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
-                        cp.type === 'bearish' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
-                        'bg-[#F59E0B]/15 text-[#F59E0B]'
+                      <span key={`cp-${i}`} className={`text-[10px] px-1.5 py-0.5 rounded font-medium border ${
+                        cp.type === 'bullish' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20' :
+                        cp.type === 'bearish' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20' :
+                        'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20'
                       }`}>🕯 {cp.name}</span>
                     ))}
                   </div>
@@ -255,20 +255,20 @@ export default function AksamAnaliziClient() {
 
               {/* Trade Plan */}
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="glass-inner rounded-lg p-2">
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">GİRİŞ</div>
+                <div className="bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06] rounded-lg p-2">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">GİRİŞ</div>
                   <div className="text-sm font-bold text-[#22C55E]">{formatCurrency(t.entry)}</div>
                 </div>
-                <div className="glass-inner rounded-lg p-2">
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">STOP LOSS</div>
+                <div className="bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06] rounded-lg p-2">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">STOP LOSS</div>
                   <div className="text-sm font-bold text-[#EF4444]">{formatCurrency(t.stopLoss)}</div>
                 </div>
-                <div className="glass-inner rounded-lg p-2">
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">HEDEF 1</div>
+                <div className="bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06] rounded-lg p-2">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">HEDEF 1</div>
                   <div className="text-sm font-bold text-[#3B82F6]">{formatCurrency(t.target1)}</div>
                 </div>
-                <div className="glass-inner rounded-lg p-2">
-                  <div className="text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">HEDEF 2</div>
+                <div className="bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06] rounded-lg p-2">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">HEDEF 2</div>
                   <div className="text-sm font-bold text-[#8B5CF6]">{formatCurrency(t.target2)}</div>
                 </div>
               </div>
@@ -288,7 +288,7 @@ export default function AksamAnaliziClient() {
               <div className="flex items-center justify-between">
                 <div className="flex flex-wrap gap-1">
                   {t.signals.filter(s => !s.startsWith('🕯')).slice(0, 2).map((s, i) => (
-                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-[#334155] text-muted-foreground">{s}</span>
+                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-[#334155] text-slate-700 dark:text-muted-foreground">{s}</span>
                   ))}
                 </div>
                 <span className="px-2 py-1 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] text-xs font-bold">
@@ -449,7 +449,7 @@ export default function AksamAnaliziClient() {
                       <p className="text-[11px] font-semibold text-foreground mb-2">Sektör Etkileri</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {newsImpact.sectorImpacts.map((s, i) => (
-                          <div key={i} className="flex items-center gap-2 glass-inner rounded-lg p-2">
+                          <div key={i} className="flex items-center gap-2 bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06] rounded-lg p-2">
                             <span className="text-sm">{s.direction === 'yukarı' ? '📈' : s.direction === 'aşağı' ? '📉' : '➖'}</span>
                             <div>
                               <span className="text-xs font-semibold text-foreground">{s.sector}</span>

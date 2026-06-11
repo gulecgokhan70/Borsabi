@@ -80,6 +80,34 @@ function calculateImportance(item: NewsItem): number {
 let newsCache: { data: NewsItem[]; ts: number } | null = null;
 const NEWS_TTL = 10 * 60 * 1000; // 10 min
 
+/* ── HTML entity decoder ── */
+function decodeHtmlEntities(str: string): string {
+  if (!str) return str;
+  const namedEntities: Record<string, string> = {
+    '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'",
+    '&nbsp;': ' ', '&ndash;': '–', '&mdash;': '—', '&laquo;': '«', '&raquo;': '»',
+    '&uuml;': 'ü', '&Uuml;': 'Ü', '&ouml;': 'ö', '&Ouml;': 'Ö',
+    '&ccedil;': 'ç', '&Ccedil;': 'Ç', '&szlig;': 'ß',
+    '&euro;': '€', '&pound;': '£', '&yen;': '¥', '&cent;': '¢',
+    '&copy;': '©', '&reg;': '®', '&trade;': '™',
+    '&hellip;': '…', '&bull;': '•', '&middot;': '·',
+  };
+  let result = str;
+  // Named entities
+  for (const [entity, char] of Object.entries(namedEntities)) {
+    result = result.split(entity).join(char);
+  }
+  // Numeric decimal entities: &#231; → ç, &#305; → ı, &#287; → ğ, &#350; → Ş, etc.
+  result = result.replace(/&#(\d+);/g, (_, num) => {
+    try { return String.fromCodePoint(parseInt(num, 10)); } catch { return _; }
+  });
+  // Hex entities: &#x15F; → ş, &#xE7; → ç, etc.
+  result = result.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+    try { return String.fromCodePoint(parseInt(hex, 16)); } catch { return _; }
+  });
+  return result;
+}
+
 /* ── RSS XML parser (simple) ── */
 function parseRssItems(xml: string): { title: string; link: string; description: string; pubDate: string }[] {
   const items: any[] = [];
@@ -89,7 +117,7 @@ function parseRssItems(xml: string): { title: string; link: string; description:
     const block = match[0];
     const get = (tag: string) => {
       const m = block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
-      return (m?.[1] || m?.[2] || '').trim();
+      return decodeHtmlEntities((m?.[1] || m?.[2] || '').trim());
     };
     items.push({ title: get('title'), link: get('link'), description: get('description').replace(/<[^>]+>/g, '').substring(0, 200), pubDate: get('pubDate') });
   }
