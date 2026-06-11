@@ -228,7 +228,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() || {};
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const sidebarRef = useRef<HTMLElement>(null);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -238,38 +237,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Close sidebar: capture-phase listener on document (iOS Safari reliable)
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    // Lock body scroll when sidebar is open
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
-
-    const handler = (e: Event) => {
-      // If touch/click is inside sidebar, don't close
-      if (sidebarRef.current?.contains(e.target as Node)) return;
-      setSidebarOpen(false);
-    };
-    // Capture phase fires before any child can swallow the event
-    document.addEventListener('touchstart', handler, { capture: true });
-    document.addEventListener('mousedown', handler, { capture: true });
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
-      document.removeEventListener('touchstart', handler, { capture: true });
-      document.removeEventListener('mousedown', handler, { capture: true });
-    };
-  }, [sidebarOpen]);
-
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Mobile overlay - visual only, events handled by capture-phase listener */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/40 lg:hidden" />
-      )}
+      {/* Mobile overlay */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/40 lg:hidden transition-opacity duration-300 ${
+          sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setSidebarOpen(false)}
+        onTouchEnd={() => setSidebarOpen(false)}
+      />
 
       {/* Sidebar */}
-      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 z-[70] w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
@@ -290,8 +270,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
             <button
               onClick={() => setSidebarOpen(false)}
-              onTouchEnd={(e) => { e.preventDefault(); setSidebarOpen(false); }}
-              className="ml-auto lg:hidden text-muted-foreground hover:text-foreground p-1"
+              className="ml-auto lg:hidden text-muted-foreground hover:text-foreground"
             >
               <X className="w-5 h-5" />
             </button>
