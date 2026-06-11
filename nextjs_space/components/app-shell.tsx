@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft
+  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
@@ -210,6 +210,7 @@ const NAV_ITEMS = [
   { href: '/screening', label: 'Tarama', icon: Search },
   { href: '/kesfet', label: 'Keşfet', icon: Compass },
   { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
+  { href: '/brokers', label: 'Aracı Kurumlar', icon: Building2 },
   { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
   { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
