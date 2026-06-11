@@ -282,8 +282,28 @@ export async function GET(
     const lastBBMiddle = bb.middle.length > 0 ? bb.middle[bb.middle.length - 1] : null;
     const lastBBLower = bb.lower.length > 0 ? bb.lower[bb.lower.length - 1] : null;
 
-    // Destek / Direnç
-    const supportResistance = calculateSupportResistance(ohlc);
+    // Destek / Direnç (her zaman 6 aylık veriyle hesapla)
+    let srOhlc = ohlc;
+    if (ohlc.length < 60) {
+      try {
+        const srStart = new Date();
+        srStart.setMonth(srStart.getMonth() - 6);
+        const srChart: any = await cachedChart(symbol, {
+          period1: srStart,
+          period2: new Date(),
+          interval: '1d' as any,
+        });
+        const srData = (srChart?.quotes ?? []).map((q: any) => ({
+          high: q?.high ?? 0,
+          low: q?.low ?? 0,
+          close: q?.close ?? 0,
+        })).filter((q: any) => q.close > 0);
+        if (srData.length > ohlc.length) srOhlc = srData;
+      } catch (e) {
+        console.warn('[StockDetail] S/R için ek veri alınamadı');
+      }
+    }
+    const supportResistance = calculateSupportResistance(srOhlc);
 
     // EMA200
     const ema200 = closes.length > 200 ? calculateEMA(closes, 200) : [];
