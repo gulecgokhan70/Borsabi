@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { COMMISSION_RATE, MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT } from '@/lib/constants';
+import { COMMISSION_RATE, MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT, BIST_ALL_ASSETS } from '@/lib/constants';
+import { cachedQuoteBatch } from '@/lib/yahoo-finance';
+import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,8 +31,50 @@ export async function GET(request: NextRequest) {
 
     const balance = user.balance;
     const initialBalance = user.initialBalance;
-    const openPositions = user.positions ?? [];
+    const rawPositions = user.positions ?? [];
     const transactions = user.transactions ?? [];
+
+    // Açık pozisyonlar için canlı fiyat çek
+    let openPositions = rawPositions.map((p: any) => ({ ...p }));
+    if (rawPositions.length > 0) {
+      const normalizeSymbol = (sym: string): string => {
+        if (sym.endsWith('.IS') || sym.endsWith('-USD')) return sym;
+        const bistMatch = BIST_ALL_ASSETS.find((a: any) => a.symbol === `${sym}.IS`);
+        return bistMatch ? bistMatch.symbol : sym;
+      };
+      const symbolMap = new Map<string, string>();
+      rawPositions.forEach((p: any) => { symbolMap.set(p.symbol, normalizeSymbol(p.symbol)); });
+      const normalizedSymbols = [...new Set(Array.from(symbolMap.values()))];
+      const bistSymbols = normalizedSymbols.filter((s: string) => s.endsWith('.IS'));
+      const otherSymbols = normalizedSymbols.filter((s: string) => !s.endsWith('.IS'));
+
+      let midasMap = new Map<string, MidasStock>();
+      if (bistSymbols.length > 0) {
+        try { midasMap = await getMidasStockMap(); } catch (e) { console.warn('[RiskCenter] Midas hatası'); }
+      }
+      let yahooMap = new Map<string, any>();
+      const yahooNeeded = otherSymbols.concat(
+        bistSymbols.filter((s: string) => !midasMap.has(s.replace('.IS', '').toUpperCase()))
+      );
+      if (yahooNeeded.length > 0) {
+        try { yahooMap = await cachedQuoteBatch(yahooNeeded); } catch (e) { console.warn('[RiskCenter] Yahoo hatası'); }
+      }
+
+      openPositions = rawPositions.map((p: any) => {
+        let livePrice = p.currentPrice;
+        const normalized = symbolMap.get(p.symbol) ?? p.symbol;
+        const cleanSym = normalized.replace('.IS', '').toUpperCase();
+        const midas = normalized.endsWith('.IS') ? midasMap.get(cleanSym) : null;
+        if (midas) {
+          const mp = midas.Last || midas.Close || midas.PreviousClose || 0;
+          if (mp > 0) livePrice = mp;
+        } else {
+          const yq: any = yahooMap.get(normalized) ?? yahooMap.get(p.symbol);
+          if (yq) { const yp = yq?.regularMarketPrice ?? 0; if (yp > 0) livePrice = yp; }
+        }
+        return { ...p, currentPrice: livePrice };
+      });
+    }
 
     // Toplam portföy değeri
     const totalPositionValue = openPositions.reduce((sum: number, p: any) => sum + (p.quantity * p.currentPrice), 0);
