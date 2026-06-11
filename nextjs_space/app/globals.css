@@ -226,24 +226,28 @@
 
   /* Mobil cihazlarda backdrop-filter garantisi */
   @media (max-width: 1023px) {
-    .glass-nav {
+    .glass,
+    .glass-card,
+    .glass-nav,
+    .glass-sidebar,
+    .glass-modal,
+    .glass-inner,
+    .glass-btn {
       transform: translate3d(0, 0, 0);
       -webkit-transform: translate3d(0, 0, 0);
       will-change: backdrop-filter;
-    }
-    .glass-sidebar {
-      will-change: transform, backdrop-filter;
       -webkit-backface-visibility: hidden;
       backface-visibility: hidden;
+      isolation: isolate;
     }
   }
 
   .glass-hover:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.85);
     border-color: rgba(0, 0, 0, 0.06);
   }
   .dark .glass-hover:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.08);
   }
 
@@ -254,7 +258,7 @@
   }
 
   .glass-btn {
-    background: rgba(255, 255, 255, 0.65);
+    background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(0, 0, 0, 0.05);
@@ -262,7 +266,7 @@
     transition: all 0.2s ease;
   }
   .glass-btn:hover {
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.88);
     border-color: rgba(0, 0, 0, 0.08);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
