@@ -91,10 +91,18 @@ let forexCache: { data: MidasForex[]; ts: number } | null = null;
  * Yanıt bazen JSON-in-JSON olarak gelir, double parse gerekli
  */
 async function fetchMidas<T>(endpoint: string): Promise<T[]> {
-  const res = await fetch(endpoint, {
-    headers: { 'User-Agent': USER_AGENT },
-    next: { revalidate: 0 },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
+      headers: { 'User-Agent': USER_AGENT },
+      next: { revalidate: 0 },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     throw new Error(`Midas API error: ${res.status} ${res.statusText}`);

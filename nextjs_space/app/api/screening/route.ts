@@ -1,79 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore, type CandlePattern } from '@/lib/candle-patterns';
 import { cachedScan } from '@/lib/scan-cache';
+import { calculateRSI, calculateEMA, calculateMACD, calculateATR, calculateVWAP, lastEMA } from '@/lib/technical-indicators';
+import { processInBatches, fetchStockData, isBistMarketHours, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
 
-
-function calculateRSI(closes: number[], period = 14): number {
-  if ((closes?.length ?? 0) < period + 1) return 50;
-  let gains = 0, losses = 0;
-  for (let i = (closes?.length ?? 0) - period; i < (closes?.length ?? 0); i++) {
-    const diff = (closes?.[i] ?? 0) - (closes?.[i - 1] ?? 0);
-    if (diff > 0) gains += diff;
-    else losses += Math.abs(diff);
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - (100 / (1 + rs));
-}
-
-function calculateEMA(data: number[], period: number): number[] {
-  if ((data?.length ?? 0) === 0) return [];
-  const k = 2 / (period + 1);
-  const ema: number[] = [data?.[0] ?? 0];
-  for (let i = 1; i < (data?.length ?? 0); i++) {
-    ema.push(((data?.[i] ?? 0) * k) + ((ema?.[i - 1] ?? 0) * (1 - k)));
-  }
-  return ema;
-}
-
-function calculateMACD(closes: number[]): { macd: number; signal: number; histogram: number } {
-  if ((closes?.length ?? 0) < 26) return { macd: 0, signal: 0, histogram: 0 };
-  const ema12 = calculateEMA(closes, 12);
-  const ema26 = calculateEMA(closes, 26);
-  const macdLine = ema12.map((v: number, i: number) => v - (ema26?.[i] ?? 0));
-  const signalLine = calculateEMA(macdLine, 9);
-  const lastIdx = (macdLine?.length ?? 1) - 1;
-  return {
-    macd: macdLine?.[lastIdx] ?? 0,
-    signal: signalLine?.[lastIdx] ?? 0,
-    histogram: (macdLine?.[lastIdx] ?? 0) - (signalLine?.[lastIdx] ?? 0),
-  };
-}
-
-function calculateATR(highs: number[], lows: number[], closes: number[], period = 14): number {
-  if (closes.length < period + 1) return 0;
-  const trueRanges: number[] = [];
-  for (let i = 1; i < closes.length; i++) {
-    const tr = Math.max(
-      (highs?.[i] ?? 0) - (lows?.[i] ?? 0),
-      Math.abs((highs?.[i] ?? 0) - (closes?.[i - 1] ?? 0)),
-      Math.abs((lows?.[i] ?? 0) - (closes?.[i - 1] ?? 0))
-    );
-    trueRanges.push(tr);
-  }
-  const recent = trueRanges.slice(-period);
-  return recent.reduce((s: number, v: number) => s + v, 0) / recent.length;
-}
-
-function calculateVWAP(highs: number[], lows: number[], closes: number[], volumes: number[]): number {
-  let cumTypicalPriceVol = 0;
-  let cumVol = 0;
-  for (let i = 0; i < closes.length; i++) {
-    const tp = ((highs?.[i] ?? 0) + (lows?.[i] ?? 0) + (closes?.[i] ?? 0)) / 3;
-    cumTypicalPriceVol += tp * (volumes?.[i] ?? 0);
-    cumVol += volumes?.[i] ?? 0;
-  }
-  return cumVol > 0 ? cumTypicalPriceVol / cumVol : 0;
-}
 
 // ===== MASTER TRADER BİRLEŞİK TARAMA MOTORU =====
-// Day trade + Swing trade kriterlerini birleştirir, her hisseye genel puan verir
 
 interface ScreenResult {
   dayTradeUygun: boolean;
@@ -107,7 +42,6 @@ function screenStock(
   vwap: number,
   atr: number
 ): ScreenResult {
-  // Borsa kapalıyken regularMarketPrice sıfır döner, fallback: son kapanış
   const rawPrice = quote?.regularMarketPrice ?? 0;
   const price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? 0);
   const rawVol = quote?.regularMarketVolume ?? 0;
@@ -140,12 +74,11 @@ function screenStock(
   // === SAPAN SİSTEMİ (Pullback to EMA20) ===
   let sapanDetected = false;
   if (closes.length >= 20) {
-    const ema20Arr = calculateEMA(closes, 20);
     const nearEma20 = Math.abs(price - ema20Last) / ema20Last < 0.02;
     const recentVols = volumes.slice(-5);
     const prevVols = volumes.slice(-10, -5);
-    const recentAvg = recentVols.reduce((s: number, v: number) => s + v, 0) / recentVols.length;
-    const prevAvg = prevVols.reduce((s: number, v: number) => s + v, 0) / prevVols.length;
+    const recentAvg = recentVols.reduce((s: number, v: number) => s + v, 0) / (recentVols.length || 1);
+    const prevAvg = prevVols.reduce((s: number, v: number) => s + v, 0) / (prevVols.length || 1);
     const volDecreasing = prevAvg > 0 && recentAvg < prevAvg * 0.85;
     const prevClose = closes[closes.length - 2] ?? 0;
     const greenCandle = price > prevClose;
@@ -205,7 +138,6 @@ function screenStock(
   if (formations.length > 0) signals.push(...formations.map((f: string) => `${f} Formasyonu`));
 
   // === 5 KATEGORİ PUANLAMA (Toplam 100P) ===
-  // Hacim: 20P
   let hacimPuan = 0;
   if (avgVolume > 0) {
     const volRatio = volume / avgVolume;
@@ -216,7 +148,6 @@ function screenStock(
     else if (volRatio > 0.8) hacimPuan = 4;
   }
 
-  // Trend: 20P
   let trendPuan = 0;
   if (price > ema20Last) trendPuan += 5;
   if (price > ema50Last) trendPuan += 5;
@@ -224,21 +155,18 @@ function screenStock(
   if (ema20Last > ema50Last) trendPuan += 3;
   if (ema50Last > ema200Last) trendPuan += 3;
 
-  // Momentum: 20P
   let momentumPuan = 0;
   if (rsi14 >= 50 && rsi14 <= 70) momentumPuan += 8;
-  else if (rsi14 < 30) momentumPuan += 10; // Aşırı satım fırsatı
+  else if (rsi14 < 30) momentumPuan += 10;
   if ((macd?.histogram ?? 0) > 0) momentumPuan += 6;
   if ((macd?.macd ?? 0) > (macd?.signal ?? 0)) momentumPuan += 6;
 
-  // Formasyon: 20P
   let formasyonPuan = 0;
   if (sapanDetected) formasyonPuan += 10;
   if (dipBipDetected) formasyonPuan += 10;
   formasyonPuan += Math.min(10, formations.length * 5);
   formasyonPuan = Math.min(20, formasyonPuan);
 
-  // Risk/Ödül: 20P
   let riskOdulPuan = 0;
   const stopLevel = price - atr * 1.5;
   const targetLevel = price + atr * 3;
@@ -249,10 +177,8 @@ function screenStock(
   else if (riskReward >= 1.5) riskOdulPuan = 8;
   else if (riskReward >= 1) riskOdulPuan = 4;
 
-  if (price > ema200Last) {
-    signals.push('EMA200 Üstü');
-  }
-  if (change > 2) signals.push('Güçlü Yükseliş');
+  if (price > ema200Last) signals.push('EMA200 Üstü');
+  if (change > 2) signals.push('Güçlü Yükseliiş');
   if (price > vwap) signals.push('VWAP Üstü');
 
   const totalScore = hacimPuan + trendPuan + momentumPuan + formasyonPuan + riskOdulPuan;
@@ -276,7 +202,6 @@ function screenStock(
 async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }> {
     const results: any[] = [];
 
-    // Midas'tan tüm BIST verilerini al (primary source)
     let midasMap = new Map<string, MidasStock>();
     try {
       midasMap = await getMidasStockMap();
@@ -285,70 +210,29 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }>
       console.warn('[Screening] Midas başarısız, tam Yahoo fallback');
     }
 
-    // Tüm BIST hisselerini tara
-    const screenPromises = BIST_TOP_STOCKS.map(async (stock: any) => {
-      try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setFullYear(endDate.getFullYear() - 1);
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setFullYear(endDate.getFullYear() - 1);
 
+    const processStock = async (stock: any) => {
+      try {
         const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
         const midasData = midasMap.get(cleanSym) || null;
 
-        // Chart verisi her zaman Yahoo'dan (teknik göstergeler için tarihsel veri gerekli)
-        // Quote: Midas varsa onu kullan, yoksa Yahoo fallback
-        const [quote, chart] = await Promise.all([
-          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
-          cachedChart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
-        ]);
+        const data = await fetchStockData(
+          cleanSym, stock.symbol, midasData,
+          { period1: startDate, period2: endDate, interval: '1d' }
+        );
+        if (!data) return null;
 
-        if (!chart) return null;
+        const { ohlcv, effectiveQuote, price, changePercent } = data;
+        const { closes, highs, lows, volumes, candleData } = ohlcv;
 
-        const quotes = chart?.quotes ?? [];
-        const closes = quotes.map((q: any) => q?.close ?? 0).filter((c: number) => c > 0);
-        const opens = quotes.map((q: any) => q?.open ?? 0);
-        const highs = quotes.map((q: any) => q?.high ?? 0);
-        const lows = quotes.map((q: any) => q?.low ?? 0);
-        const volumes = quotes.map((q: any) => q?.volume ?? 0);
-
-        // Mum formasyonları tespiti
-        const candleData = quotes
-          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
-          .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
-        const candlePatterns = detectCandlePatterns(candleData);
-        const cpScore = candlePatternScore(candlePatterns);
         if (closes.length < 30) return null;
 
-        // Midas primary, Yahoo fallback
-        const lastClose = closes[closes.length - 1] ?? 0;
-        let price = 0, volume = 0, avgVolume = 0, changePercent = 0;
-        let effectiveQuote: any = quote; // screenStock'a gidecek quote
-
-        if (midasData) {
-          price = midasData.Last || midasData.Close || lastClose;
-          volume = midasData.TotalVolume || (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
-          avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
-          changePercent = midasData.DailyChangePercent ?? 0;
-          // Midas verisini Yahoo quote formatına çevir
-          effectiveQuote = {
-            regularMarketPrice: price,
-            regularMarketPreviousClose: midasData.PreviousClose,
-            regularMarketVolume: volume,
-            averageDailyVolume3Month: avgVolume,
-            regularMarketChangePercent: changePercent,
-            regularMarketOpen: midasData.Open,
-            regularMarketDayHigh: midasData.High,
-            regularMarketDayLow: midasData.Low,
-          };
-        } else {
-          const rawPrice = quote?.regularMarketPrice ?? 0;
-          price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
-          const rawVolume = quote?.regularMarketVolume ?? 0;
-          volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
-          avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
-          changePercent = quote?.regularMarketChangePercent ?? 0;
-        }
-        if (price <= 0) return null;
+        // Mum formasyonları tespiti
+        const candlePatterns = detectCandlePatterns(candleData);
+        const cpScore = candlePatternScore(candlePatterns);
 
         const rsi14 = calculateRSI(closes, 14);
         const rsi5 = calculateRSI(closes, 5);
@@ -361,11 +245,11 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }>
         const atr = calculateATR(highs, lows, closes);
         const vwap = calculateVWAP(highs.slice(-20), lows.slice(-20), closes.slice(-20), volumes.slice(-20));
 
-        const ema9Last = ema9[(ema9.length ?? 1) - 1] ?? 0;
-        const ema20Last = ema20[(ema20.length ?? 1) - 1] ?? 0;
-        const ema21Last = ema21[(ema21.length ?? 1) - 1] ?? 0;
-        const ema50Last = ema50[(ema50.length ?? 1) - 1] ?? 0;
-        const ema200Last = ema200[(ema200.length ?? 1) - 1] ?? 0;
+        const ema9Last = ema9[ema9.length - 1] ?? 0;
+        const ema20Last = ema20[ema20.length - 1] ?? 0;
+        const ema21Last = ema21[ema21.length - 1] ?? 0;
+        const ema50Last = ema50[ema50.length - 1] ?? 0;
+        const ema200Last = ema200[ema200.length - 1] ?? 0;
 
         const result = screenStock(
           effectiveQuote, closes, highs, lows, volumes,
@@ -384,7 +268,6 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }>
           for (const cp of candlePatterns) {
             result.signals.push(`🕯 ${cp.name}`);
           }
-          // Boğa formasyonları formasyon puanına ekle
           result.formasyonPuan = Math.min(20, result.formasyonPuan + Math.max(0, cpScore));
           result.totalScore = Math.min(100, result.hacimPuan + result.trendPuan + result.momentumPuan + result.formasyonPuan + result.riskOdulPuan);
         }
@@ -397,8 +280,8 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }>
           name: stock.name,
           price,
           change: changePercent,
-          volume,
-          avgVolume,
+          volume: data.volume,
+          avgVolume: data.avgVolume,
           score: Math.round(result.totalScore),
           quality,
           signals: result.signals,
@@ -431,27 +314,21 @@ async function runScreeningScan(): Promise<{ data: any[]; marketOpen: boolean }>
           riskReward: Math.round(riskReward * 100) / 100,
         };
       } catch (e: any) {
-        console.error(`Screening error for ${stock?.symbol}:`, e?.message);
+        console.error(`[Screening] ${stock?.shortName || stock?.symbol}: ${e?.message}`);
         return null;
       }
-    });
+    };
 
-    const settled = await Promise.allSettled(screenPromises);
-    for (const r of settled) {
-      if (r?.status === 'fulfilled' && r?.value) results.push(r.value);
+    const allResults = await processInBatches(BIST_TOP_STOCKS as any[], SCAN_BATCH_SIZE, processStock);
+    for (const r of allResults) {
+      if (r) results.push(r);
     }
 
-    // En yüksek puanlı 10 hisse, zayıfları listeleme
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
     const top10 = results.filter((r: any) => (r?.score ?? 0) >= 30).slice(0, 10);
 
-    // BIST piyasa açık mı kontrolü
-    const isBistOpen = top10.length > 0 && top10.some((r: any) => {
-      const rp = r.price ?? 0;
-      const pc = r.prevClose ?? 0;
-      return rp !== pc && rp > 0;
-    });
-    return { data: top10, marketOpen: isBistOpen };
+    const marketOpen = isBistMarketHours();
+    return { data: top10, marketOpen };
 }
 
 export async function GET(request: NextRequest) {

@@ -1,71 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
 import { cachedScan } from '@/lib/scan-cache';
-
-// ===== TEKNİK İNDİKATÖR HESAPLAMALARI =====
-
-function calculateRSI(closes: number[], period = 14): number {
-  if ((closes?.length ?? 0) < period + 1) return 50;
-  let gains = 0, losses = 0;
-  for (let i = (closes?.length ?? 0) - period; i < (closes?.length ?? 0); i++) {
-    const diff = (closes?.[i] ?? 0) - (closes?.[i - 1] ?? 0);
-    if (diff > 0) gains += diff;
-    else losses += Math.abs(diff);
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  return 100 - (100 / (1 + (avgGain / avgLoss)));
-}
-
-function calculateEMA(data: number[], period: number): number[] {
-  if ((data?.length ?? 0) === 0) return [];
-  const k = 2 / (period + 1);
-  const ema: number[] = [data?.[0] ?? 0];
-  for (let i = 1; i < (data?.length ?? 0); i++) {
-    ema.push(((data?.[i] ?? 0) * k) + ((ema?.[i - 1] ?? 0) * (1 - k)));
-  }
-  return ema;
-}
-
-function calculateMACD(closes: number[]): { macd: number; signal: number; histogram: number; prevHistogram: number } {
-  if ((closes?.length ?? 0) < 26) return { macd: 0, signal: 0, histogram: 0, prevHistogram: 0 };
-  const ema12 = calculateEMA(closes, 12);
-  const ema26 = calculateEMA(closes, 26);
-  const macdLine = ema12.map((v: number, i: number) => v - (ema26?.[i] ?? 0));
-  const signalLine = calculateEMA(macdLine, 9);
-  const lastIdx = (macdLine?.length ?? 1) - 1;
-  return {
-    macd: macdLine?.[lastIdx] ?? 0,
-    signal: signalLine?.[lastIdx] ?? 0,
-    histogram: (macdLine?.[lastIdx] ?? 0) - (signalLine?.[lastIdx] ?? 0),
-    prevHistogram: lastIdx > 0 ? (macdLine?.[lastIdx - 1] ?? 0) - (signalLine?.[lastIdx - 1] ?? 0) : 0,
-  };
-}
-
-function calculateATR(highs: number[], lows: number[], closes: number[], period = 14): number {
-  if (closes.length < period + 1) return 0;
-  const trueRanges: number[] = [];
-  for (let i = 1; i < closes.length; i++) {
-    const tr = Math.max(
-      (highs?.[i] ?? 0) - (lows?.[i] ?? 0),
-      Math.abs((highs?.[i] ?? 0) - (closes?.[i - 1] ?? 0)),
-      Math.abs((lows?.[i] ?? 0) - (closes?.[i - 1] ?? 0))
-    );
-    trueRanges.push(tr);
-  }
-  const recent = trueRanges.slice(-period);
-  return recent.reduce((s: number, v: number) => s + v, 0) / recent.length;
-}
+import { calculateRSI, calculateEMA, calculateMACD, calculateATR } from '@/lib/technical-indicators';
+import { processInBatches, fetchStockData, isBistMarketHours, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
 
 // ===== SAPAN SİSTEMİ =====
-// EMA20 üzerinde | EMA20 > EMA50 | Fiyat EMA20'ye geri çekilmiş
-// Düşüş sırasında hacim azalmış | Son mum yeşil kapanmış | RSI 45-60
-
 function detectSapan(
   closes: number[], volumes: number[], ema20: number[], ema50: number[],
   rsi: number, price: number
@@ -77,38 +19,23 @@ function detectSapan(
   const lastEma50 = ema50[ema50.length - 1] ?? 0;
   const prevClose = closes[len - 2] ?? 0;
 
-  // Fiyat EMA20 üzerinde veya çok yakınında
   const aboveEma20 = price >= lastEma20 * 0.995;
   const ema20AboveEma50 = lastEma20 > lastEma50;
-
-  // Fiyat EMA20'ye geri çekilmiş (son 5 mumdan biri EMA20'ye dokunmuş)
   const recentLows = closes.slice(-5);
   const pullbackToEma20 = recentLows.some((c: number) => c <= lastEma20 * 1.01 && c >= lastEma20 * 0.98);
-
-  // Düşüş sırasında hacim azalmış
   const vol3 = volumes.slice(-3).reduce((s: number, v: number) => s + v, 0) / 3;
-  const vol10 = volumes.slice(-10, -3).reduce((s: number, v: number) => s + v, 0) / 7;
+  const vol10 = volumes.slice(-10, -3).reduce((s: number, v: number) => s + v, 0) / Math.max(1, volumes.slice(-10, -3).length);
   const volumeDecreased = vol10 > 0 && vol3 < vol10 * 0.85;
-
-  // Son mum yeşil
   const greenCandle = price > prevClose;
-
-  // RSI 45-60
   const rsiOk = rsi >= 45 && rsi <= 60;
 
   const conditions = [aboveEma20, ema20AboveEma50, pullbackToEma20, volumeDecreased, greenCandle, rsiOk];
   const metCount = conditions.filter(Boolean).length;
 
-  return {
-    detected: metCount >= 5,
-    strength: Math.round((metCount / 6) * 100),
-  };
+  return { detected: metCount >= 5, strength: Math.round((metCount / 6) * 100) };
 }
 
 // ===== DİP-BİP SİSTEMİ =====
-// RSI 30 altından yukarı dönüyor | MACD negatiften pozitife | Hacim artıyor
-// Son mum güçlü yeşil | Destek bölgesinde tutunuyor
-
 function detectDipBip(
   closes: number[], volumes: number[], rsi: number, prevRsi: number,
   macd: any, price: number, lows: number[]
@@ -116,45 +43,29 @@ function detectDipBip(
   const len = closes.length;
   if (len < 20) return { detected: false, strength: 0 };
 
-  // RSI 30 altından yukarı dönüyor
   const rsiTurning = prevRsi < 35 && rsi > prevRsi;
-
-  // MACD negatiften pozitife
   const macdTurning = (macd?.prevHistogram ?? 0) < 0 && (macd?.histogram ?? 0) > (macd?.prevHistogram ?? 0);
-
-  // Hacim artıyor
   const lastVol = volumes[volumes.length - 1] ?? 0;
-  const prevAvgVol = volumes.slice(-10, -1).reduce((s: number, v: number) => s + v, 0) / 9;
+  const prevAvgVol = volumes.slice(-10, -1).reduce((s: number, v: number) => s + v, 0) / Math.max(1, volumes.slice(-10, -1).length);
   const volumeUp = prevAvgVol > 0 && lastVol > prevAvgVol * 1.1;
-
-  // Son mum güçlü yeşil
   const prevClose = closes[len - 2] ?? 0;
   const strongGreen = price > prevClose && ((price - prevClose) / prevClose) * 100 > 0.5;
-
-  // Destek bölgesinde (son 20 gün en düşük yakınında)
-  const low20 = Math.min(...lows.slice(-20).filter((l: number) => l > 0));
+  const validLows = lows.slice(-20).filter((l: number) => l > 0);
+  const low20 = validLows.length > 0 ? Math.min(...validLows) : 0;
   const nearSupport = low20 > 0 && price <= low20 * 1.05;
 
   const conditions = [rsiTurning, macdTurning, volumeUp, strongGreen, nearSupport];
   const metCount = conditions.filter(Boolean).length;
 
-  return {
-    detected: metCount >= 3,
-    strength: Math.round((metCount / 5) * 100),
-  };
+  return { detected: metCount >= 3, strength: Math.round((metCount / 5) * 100) };
 }
 
 // ===== FORMASYON TESPİTİ =====
-
-function detectFormations(
-  closes: number[], highs: number[], lows: number[], volumes: number[]
-): string[] {
+function detectFormations(closes: number[], highs: number[], lows: number[]): string[] {
   const formations: string[] = [];
   const len = closes.length;
   if (len < 30) return formations;
 
-  // Çanak formasyonu: U şeklinde dip, fiyat toparlanma sürecinde
-  const mid = Math.floor(len / 2);
   const firstHalf = closes.slice(-30, -15);
   const secondHalf = closes.slice(-15);
   const firstAvg = firstHalf.reduce((s: number, v: number) => s + v, 0) / firstHalf.length;
@@ -164,22 +75,18 @@ function detectFormations(
     formations.push('Çanak Formasyonu');
   }
 
-  // Yükselen üçgen: Yükselen dipler + yatay zirveler
   const recent15Lows = lows.slice(-15);
   const recent15Highs = highs.slice(-15);
   const firstThirdLow = Math.min(...recent15Lows.slice(0, 5).filter((l: number) => l > 0));
   const lastThirdLow = Math.min(...recent15Lows.slice(-5).filter((l: number) => l > 0));
   const firstThirdHigh = Math.max(...recent15Highs.slice(0, 5));
   const lastThirdHigh = Math.max(...recent15Highs.slice(-5));
-  if (lastThirdLow > firstThirdLow * 1.01 && Math.abs(lastThirdHigh - firstThirdHigh) / firstThirdHigh < 0.02) {
+  if (firstThirdLow > 0 && lastThirdLow > firstThirdLow * 1.01 && Math.abs(lastThirdHigh - firstThirdHigh) / firstThirdHigh < 0.02) {
     formations.push('Yükselen Üçgen');
   }
 
-  // Çift dip
-  const minIdx1 = closes.slice(-30, -15).indexOf(Math.min(...closes.slice(-30, -15).filter((c: number) => c > 0)));
-  const minIdx2 = closes.slice(-15).indexOf(Math.min(...closes.slice(-15).filter((c: number) => c > 0)));
-  const min1 = closes.slice(-30, -15)[minIdx1] ?? 0;
-  const min2 = closes.slice(-15)[minIdx2] ?? 0;
+  const min1 = Math.min(...closes.slice(-30, -15).filter((c: number) => c > 0));
+  const min2 = Math.min(...closes.slice(-15).filter((c: number) => c > 0));
   if (min1 > 0 && min2 > 0 && Math.abs(min1 - min2) / min1 < 0.03 && closes[len - 1] > Math.max(min1, min2) * 1.03) {
     formations.push('Çift Dip');
   }
@@ -187,8 +94,7 @@ function detectFormations(
   return formations;
 }
 
-// ===== MASTER TRADER SWING TRADE PUANLAMA =====
-
+// ===== SWING TRADE PUANLAMA =====
 interface SwingTradeScore {
   score: number;
   signals: string[];
@@ -215,28 +121,21 @@ function scoreSwingTrade(
   const lastEma20 = ema20Arr[ema20Arr.length - 1] ?? 0;
   const lastEma50 = ema50Arr[ema50Arr.length - 1] ?? 0;
 
-  // ===== FİLTRE KRİTERLERİ =====
   const aboveEma20 = price > lastEma20;
   const ema20AboveEma50 = lastEma20 > lastEma50;
   const rsiOk = rsi >= 50 && rsi <= 70;
   const macdPositive = (macd?.macd ?? 0) > 0;
   const volumeAboveAvg = avgVolume > 0 && volume > avgVolume;
-
   const passesFilter = aboveEma20 && ema20AboveEma50 && rsiOk && macdPositive && volumeAboveAvg;
 
-  let score = 0;
   let hacimPuan = 0, trendPuan = 0, momentumPuan = 0, formasyonPuan = 0, riskOdulPuan = 0;
 
   // === TREND (25 Puan) ===
   if (aboveEma20) { trendPuan += 8; signals.push('EMA20 üzerinde ✓'); }
   if (ema20AboveEma50) { trendPuan += 8; signals.push('EMA20 > EMA50 ✓'); }
-
-  // EMA200 kontrolü
   const ema200Arr = calculateEMA(closes, Math.min(200, len - 1));
   const lastEma200 = ema200Arr[ema200Arr.length - 1] ?? 0;
   if (price > lastEma200) { trendPuan += 5; signals.push('EMA200 üzerinde'); }
-
-  // Son 20 günü trend
   const recent20 = closes.slice(-20);
   const first10Avg = recent20.slice(0, 10).reduce((s: number, v: number) => s + v, 0) / 10;
   const last10Avg = recent20.slice(-10).reduce((s: number, v: number) => s + v, 0) / 10;
@@ -247,7 +146,6 @@ function scoreSwingTrade(
   if (rsiOk) { momentumPuan += 8; signals.push(`RSI(14): ${rsi.toFixed(0)} - Trend bölgesi ✓`); }
   else if (rsi > 70) { signals.push(`⚠️ RSI(14): ${rsi.toFixed(0)} - Aşırı alım`); }
   else if (rsi < 50 && rsi > 30) { momentumPuan += 3; signals.push(`RSI(14): ${rsi.toFixed(0)}`); }
-
   if (macdPositive) { momentumPuan += 6; signals.push('MACD pozitif ✓'); }
   if ((macd?.histogram ?? 0) > 0 && (macd?.macd ?? 0) > (macd?.signal ?? 0)) {
     momentumPuan += 6; signals.push('MACD alış sinyali');
@@ -267,44 +165,44 @@ function scoreSwingTrade(
   const prevRsi = prevRsiCloses.length > 14 ? calculateRSI(prevRsiCloses) : rsi;
   const sapan = detectSapan(closes, volumes, ema20Arr, ema50Arr, rsi, price);
   if (sapan.detected) {
-    formasyonPuan += 10;
-    signals.push(`🎯 Sapan Sinyali (Güç: %${sapan.strength})`);
+    formasyonPuan += 10; signals.push(`🎯 Sapan Sinyali (Güç: %${sapan.strength})`);
   } else if (sapan.strength >= 50) {
-    formasyonPuan += 4;
-    signals.push(`Sapan oluşumu başlıyor (%${sapan.strength})`);
+    formasyonPuan += 4; signals.push(`Sapan oluşumu başlıyor (%${sapan.strength})`);
   }
 
   // === DİP-BİP SİSTEMİ (10 Puan) ===
   const dipBip = detectDipBip(closes, volumes, rsi, prevRsi, macd, price, lows);
   if (dipBip.detected) {
-    formasyonPuan += 10;
-    signals.push(`🟢 Dip-Bip Sinyali (Güç: %${dipBip.strength})`);
+    formasyonPuan += 10; signals.push(`🟢 Dip-Bip Sinyali (Güç: %${dipBip.strength})`);
   } else if (dipBip.strength >= 40) {
-    formasyonPuan += 3;
-    signals.push(`Dip-Bip oluşumu (%${dipBip.strength})`);
+    formasyonPuan += 3; signals.push(`Dip-Bip oluşumu (%${dipBip.strength})`);
   }
 
   // === FORMASYON (10 Puan) ===
-  const formations = detectFormations(closes, highs, lows, volumes);
+  const formations = detectFormations(closes, highs, lows);
   if (formations.length > 0) {
     formasyonPuan += Math.min(10, formations.length * 5);
     formations.forEach((f: string) => signals.push(`📊 ${f}`));
   }
   formasyonPuan = Math.min(20, formasyonPuan);
 
-  // === RİSK/ÖDÜL (10 Puan) ===
+  // === RİSK/ÖDÜL (15 Puan) — DÜZELTİLDİ: gerçek hesaplama ===
   const high20 = Math.max(...closes.slice(-20));
   if (price >= high20 * 0.98) {
-    riskOdulPuan += 5;
-    signals.push('20 günlük zirveye yakın');
+    riskOdulPuan += 5; signals.push('20 günlük zirveye yakın');
   }
   if (atr > 0 && price > 0) {
-    const rr = (atr * 2) / (atr * 2); // swing R:R genelde 1:2+
-    riskOdulPuan += 5;
+    // Swing R:R: stop = 2*ATR, hedef = 4*ATR → R:R = 2:1
+    const swingStop = atr * 2;
+    const swingTarget = atr * 4;
+    const swingRR = swingStop > 0 ? swingTarget / swingStop : 0;
+    if (swingRR >= 2) riskOdulPuan += 10;
+    else if (swingRR >= 1.5) riskOdulPuan += 7;
+    else riskOdulPuan += 4;
   }
   riskOdulPuan = Math.min(15, riskOdulPuan);
 
-  score = hacimPuan + trendPuan + momentumPuan + formasyonPuan + riskOdulPuan;
+  const score = hacimPuan + trendPuan + momentumPuan + formasyonPuan + riskOdulPuan;
 
   return {
     score: Math.min(100, Math.max(0, score)),
@@ -313,18 +211,13 @@ function scoreSwingTrade(
     dipBipDetected: dipBip.detected,
     formations,
     passesFilter,
-    hacimPuan,
-    trendPuan,
-    momentumPuan,
-    formasyonPuan,
-    riskOdulPuan,
+    hacimPuan, trendPuan, momentumPuan, formasyonPuan, riskOdulPuan,
   };
 }
 
 async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean }> {
     const results: any[] = [];
 
-    // Midas'tan tüm BIST verilerini al (primary source)
     let midasMap = new Map<string, MidasStock>();
     try {
       midasMap = await getMidasStockMap();
@@ -333,37 +226,28 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
       console.warn('[SwingTrade] Midas başarısız, tam Yahoo fallback');
     }
 
-    // Tüm BIST hisselerini tara
-    const promises = BIST_TOP_STOCKS.map(async (stock: any) => {
-      try {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setFullYear(endDate.getFullYear() - 1);
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setFullYear(endDate.getFullYear() - 1);
 
+    const processStock = async (stock: any) => {
+      try {
         const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
         const midasData = midasMap.get(cleanSym) || null;
 
-        const [quote, chart] = await Promise.all([
-          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
-          cachedChart(stock.symbol, { period1: startDate, period2: endDate, interval: '1d' as any }).catch(() => null),
-        ]);
+        const data = await fetchStockData(
+          cleanSym, stock.symbol, midasData,
+          { period1: startDate, period2: endDate, interval: '1d' }
+        );
+        if (!data) return null;
 
-        if (!chart) return null;
-
-        const quotes = chart?.quotes ?? [];
-        const closes = quotes.map((q: any) => q?.close ?? 0).filter((c: number) => c > 0);
-        const highs = quotes.map((q: any) => q?.high ?? 0);
-        const lows = quotes.map((q: any) => q?.low ?? 0);
-        const volumes = quotes.map((q: any) => q?.volume ?? 0);
-
-        // Mum formasyonları tespiti
-        const candleData = quotes
-          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
-          .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
-        const candlePatterns = detectCandlePatterns(candleData);
-        const cpScore = candlePatternScore(candlePatterns);
+        const { ohlcv, price, volume, avgVolume, changePercent } = data;
+        const { closes, highs, lows, volumes, candleData } = ohlcv;
 
         if (closes.length < 50) return null;
+
+        const candlePatterns = detectCandlePatterns(candleData);
+        const cpScore = candlePatternScore(candlePatterns);
 
         const rsi = calculateRSI(closes);
         const macd = calculateMACD(closes);
@@ -372,28 +256,9 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
         const ema200Arr = calculateEMA(closes, Math.min(200, closes.length - 1));
         const atr = calculateATR(highs, lows, closes);
 
-        // Midas primary, Yahoo fallback
-        const lastClose = closes[closes.length - 1] ?? 0;
-        let price = 0, volume = 0, avgVolume = 0, changePercent = 0;
-
-        if (midasData) {
-          price = midasData.Last || midasData.Close || lastClose;
-          volume = midasData.TotalVolume || (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
-          avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
-          changePercent = midasData.DailyChangePercent ?? 0;
-        } else {
-          const rawPrice = quote?.regularMarketPrice ?? 0;
-          price = rawPrice > 0 ? rawPrice : (quote?.regularMarketPreviousClose ?? lastClose);
-          const rawVolume = quote?.regularMarketVolume ?? 0;
-          volume = rawVolume > 0 ? rawVolume : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
-          avgVolume = quote?.averageDailyVolume3Month ?? (volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume);
-          changePercent = quote?.regularMarketChangePercent ?? 0;
-        }
-        if (price <= 0) return null;
-
-        const lastEma20 = ema20Arr[(ema20Arr.length ?? 1) - 1] ?? 0;
-        const lastEma50 = ema50Arr[(ema50Arr.length ?? 1) - 1] ?? 0;
-        const lastEma200 = ema200Arr[(ema200Arr.length ?? 1) - 1] ?? 0;
+        const lastEma20 = ema20Arr[ema20Arr.length - 1] ?? 0;
+        const lastEma50 = ema50Arr[ema50Arr.length - 1] ?? 0;
+        const lastEma200 = ema200Arr[ema200Arr.length - 1] ?? 0;
 
         const result = scoreSwingTrade(
           closes, highs, lows, volumes,
@@ -401,17 +266,15 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
           price, volume, avgVolume, atr
         );
 
-        // Risk yönetimi hesaplamaları
+        // Risk yönetimi
         const stopDistance = atr > 0 ? atr * 2 : price * 0.03;
         const stopLevel = price - stopDistance;
         const target1 = price + (stopDistance * 2);
         const target2 = price + (stopDistance * 3);
         const riskReward = stopDistance > 0 ? (target1 - price) / stopDistance : 0;
 
-        // Minimum R:R 1:2 altındaki hisseleri ele
         if (riskReward < 1.5) return null;
 
-        // Mum formasyonlarını sinyallere ve skora ekle
         if (candlePatterns.length > 0) {
           for (const cp of candlePatterns) {
             result.signals.push(`🕯 ${cp.name}`);
@@ -467,26 +330,22 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
             histogram: Math.round((macd?.histogram ?? 0) * 100) / 100,
           },
         };
-      } catch {
+      } catch (e: any) {
+        console.error(`[SwingTrade] ${stock?.shortName || stock?.symbol}: ${e?.message}`);
         return null;
       }
-    });
+    };
 
-    const settled = await Promise.allSettled(promises);
-    for (const r of settled) {
-      if (r?.status === 'fulfilled' && r?.value) results.push(r.value);
+    const allResults = await processInBatches(BIST_TOP_STOCKS as any[], SCAN_BATCH_SIZE, processStock);
+    for (const r of allResults) {
+      if (r) results.push(r);
     }
 
-    // En yüksek puanlı 10 hisse, zayıfları listeleme
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
     const filtered = results.filter((r: any) => r.score >= 35);
     const top10 = filtered.slice(0, 10);
-    const isBistOpen = top10.length > 0 && top10.some((r: any) => {
-      const rp = r.price ?? 0;
-      const pc = r.prevClose ?? 0;
-      return rp !== pc && rp > 0;
-    });
-    return { data: top10, marketOpen: isBistOpen };
+    const marketOpen = isBistMarketHours();
+    return { data: top10, marketOpen };
 }
 
 export async function GET(request: NextRequest) {

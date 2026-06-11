@@ -4,37 +4,8 @@ import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
-
-function calculateRSI(closes: number[], period = 14): number {
-  if (closes.length < period + 1) return 50;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff > 0) gains += diff; else losses += Math.abs(diff);
-  }
-  const rs = losses === 0 ? 100 : gains / losses;
-  return 100 - (100 / (1 + rs));
-}
-
-function calculateEMA(data: number[], period: number): number[] {
-  const k = 2 / (period + 1);
-  const ema: number[] = [data[0]];
-  for (let i = 1; i < data.length; i++) {
-    ema.push(data[i] * k + ema[i - 1] * (1 - k));
-  }
-  return ema;
-}
-
-function calculateMACD(closes: number[]): { macd: number; signal: number; histogram: number } {
-  if (closes.length < 35) return { macd: 0, signal: 0, histogram: 0 };
-  const ema12 = calculateEMA(closes, 12);
-  const ema26 = calculateEMA(closes, 26);
-  const macdLine = ema12.map((v: number, i: number) => v - ema26[i]);
-  const signalLine = calculateEMA(macdLine.slice(-9), 9);
-  const macd = macdLine[macdLine.length - 1];
-  const signal = signalLine[signalLine.length - 1];
-  return { macd, signal, histogram: macd - signal };
-}
+import { calculateRSI, calculateEMA, calculateMACD } from '@/lib/technical-indicators';
+import { processInBatches, withTimeout, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,22 +15,21 @@ export async function POST(req: NextRequest) {
       market = 'BIST',
       rsiMin = 0,
       rsiMax = 100,
-      macdSignal = 'all', // all, bullish, bearish
-      emaFilter = 'all', // all, above, below
+      macdSignal = 'all',
+      emaFilter = 'all',
       emaPeriod = 20,
-      volumeMin = 0, // min volume multiplier vs avg
+      volumeMin = 0,
       priceMin = 0,
       priceMax = 999999,
       changeMin = -100,
       changeMax = 100,
-      sortBy = 'score', // score, rsi, change, volume
+      sortBy = 'score',
     } = body;
 
     const stocks = market === 'CRYPTO' ? CRYPTO_ASSETS : BIST_TOP_STOCKS;
     const results: any[] = [];
     const isBist = market !== 'CRYPTO';
 
-    // Midas'tan BIST verileri
     let midasMap = new Map<string, MidasStock>();
     if (isBist) {
       try {
@@ -69,28 +39,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const promises = stocks.map(async (stock: any) => {
+    const processStock = async (stock: any) => {
       try {
         const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
         const midasData = isBist ? (midasMap.get(cleanSym) || null) : null;
 
         const [quote, chart] = await Promise.all([
-          midasData ? Promise.resolve(null) : cachedQuote(stock.symbol).catch(() => null),
-          cachedChart(stock.symbol, {
-            period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0],
-            period2: new Date().toISOString().split('T')[0],
-            interval: '1d' as any,
-          }).catch(() => null),
+          midasData ? Promise.resolve(null) : withTimeout(
+            cachedQuote(stock.symbol).catch(() => null),
+            5000, `quote:${cleanSym}`
+          ).catch(() => null),
+          withTimeout(
+            cachedChart(stock.symbol, {
+              period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0],
+              period2: new Date().toISOString().split('T')[0],
+              interval: '1d' as any,
+            }).catch(() => null),
+            8000, `chart:${cleanSym}`
+          ).catch(() => null),
         ]);
 
         if (!chart) return null;
 
-        const closes = (chart.quotes || []).map((q: any) => q.close).filter(Boolean) as number[];
-        const volumes = (chart.quotes || []).map((q: any) => q.volume).filter(Boolean) as number[];
+        // Aligned veri çıkarma: tüm alanları geçerli mumlardan al
+        const validQuotes = (chart.quotes || []).filter((q: any) => q && q.close > 0 && q.high > 0 && q.low > 0);
+        const closes = validQuotes.map((q: any) => q.close) as number[];
+        const volumes = validQuotes.map((q: any) => q.volume ?? 0) as number[];
 
         // Mum formasyonları
-        const candleData = (chart.quotes || [])
-          .filter((q: any) => q?.open > 0 && q?.close > 0 && q?.high > 0 && q?.low > 0)
+        const candleData = validQuotes
+          .filter((q: any) => q.open > 0)
           .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
         const candlePatterns = detectCandlePatterns(candleData);
         const cpScore = candlePatternScore(candlePatterns);
@@ -120,7 +98,7 @@ export async function POST(req: NextRequest) {
         const ema = calculateEMA(closes, emaPeriod);
         const currentEma = ema[ema.length - 1];
 
-        // Apply filters
+        // Filtre uygula
         if (rsi < rsiMin || rsi > rsiMax) return null;
         if (price < priceMin || price > priceMax) return null;
         if (change < changeMin || change > changeMax) return null;
@@ -130,7 +108,7 @@ export async function POST(req: NextRequest) {
         if (emaFilter === 'above' && price < currentEma) return null;
         if (emaFilter === 'below' && price > currentEma) return null;
 
-        // Score
+        // Skor
         let score = 50;
         if (rsi < 30) score += 15;
         else if (rsi > 70) score -= 10;
@@ -140,7 +118,6 @@ export async function POST(req: NextRequest) {
         if (change > 0) score += 5;
         score = Math.min(100, Math.max(0, score));
 
-        // Mum formasyonları skoru ekle
         if (cpScore > 0) score = Math.min(100, score + cpScore);
 
         return {
@@ -158,14 +135,15 @@ export async function POST(req: NextRequest) {
           score,
           candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
         };
-      } catch {
+      } catch (e: any) {
+        console.error(`[AlgoScan] ${stock?.shortName || stock?.symbol}: ${e?.message}`);
         return null;
       }
-    });
+    };
 
-    const settled = await Promise.allSettled(promises);
-    for (const r of settled) {
-      if (r.status === 'fulfilled' && r.value) results.push(r.value);
+    const allResults = await processInBatches(stocks as any[], SCAN_BATCH_SIZE, processStock);
+    for (const r of allResults) {
+      if (r) results.push(r);
     }
 
     // Sort
