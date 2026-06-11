@@ -376,6 +376,9 @@ export function DashboardClient() {
         ))}
       </motion.div>
 
+      {/* Gecikme uyarısı */}
+      <p className="text-[11px] text-muted-foreground text-center -mt-1">⏱ BİST verileri 15 dakika gecikmeli gelmektedir.</p>
+
       {/* BIST stocks & Crypto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* BIST */}
