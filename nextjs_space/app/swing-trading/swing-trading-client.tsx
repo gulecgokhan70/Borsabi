@@ -93,10 +93,10 @@ export function SwingTradingClient() {
   };
 
   const getScoreBg = (score: number) => {
-    if (score >= 90) return 'bg-[#22C55E]/10 border-[#22C55E]/30';
-    if (score >= 80) return 'bg-[#3B82F6]/10 border-[#3B82F6]/30';
-    if (score >= 70) return 'bg-[#F59E0B]/10 border-[#F59E0B]/30';
-    return 'bg-[#EF4444]/10 border-[#EF4444]/30';
+    if (score >= 90) return 'bg-[#22C55E]/[0.06] dark:bg-[#22C55E]/10 border-[#22C55E]/20 dark:border-[#22C55E]/30';
+    if (score >= 80) return 'bg-[#3B82F6]/[0.06] dark:bg-[#3B82F6]/10 border-[#3B82F6]/20 dark:border-[#3B82F6]/30';
+    if (score >= 70) return 'bg-[#F59E0B]/[0.06] dark:bg-[#F59E0B]/10 border-[#F59E0B]/20 dark:border-[#F59E0B]/30';
+    return 'bg-[#EF4444]/[0.06] dark:bg-[#EF4444]/10 border-[#EF4444]/20 dark:border-[#EF4444]/30';
   };
 
   return (
@@ -279,7 +279,7 @@ export function SwingTradingClient() {
                 {/* Signals + Formations */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {(item.signals ?? []).filter((s: string) => !s.startsWith('🕯')).map((signal: string, sIdx: number) => (
-                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full glass-inner text-muted-foreground">
+                    <span key={sIdx} className="text-xs px-2.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-black/[0.06] dark:border-white/[0.06]">
                       {signal}
                     </span>
                   ))}
@@ -293,21 +293,21 @@ export function SwingTradingClient() {
                 {/* Trade plan */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                   {[
-                    { label: 'Giriş Bölgesi', value: `${formatNumber(item.entryZone?.low ?? 0)} - ${formatNumber(item.entryZone?.high ?? 0)}`, icon: TrendingUp, color: '#3B82F6' },
-                    { label: 'Stop', value: formatCurrency(item.stop), icon: Shield, color: '#EF4444' },
-                    { label: 'Hedef 1', value: formatCurrency(item.target1), icon: Target, color: '#22C55E' },
-                    { label: 'Hedef 2', value: formatCurrency(item.target2), icon: Target, color: '#22C55E' },
-                    { label: 'Bekleme', value: item.holdingPeriod ?? '-', icon: Clock, color: '#94A3B8' },
-                    { label: 'R/G', value: `1:${item.riskReward}`, icon: ArrowUpDown, color: '#F59E0B' },
-                    { label: 'RSI', value: (item.rsi ?? 0).toString(), icon: BarChart3, color: '#94A3B8' },
-                    { label: 'ATR', value: formatNumber(item.atr), icon: Activity, color: '#94A3B8' },
+                    { label: 'GİRİŞ', value: formatCurrency(item.price), icon: TrendingUp, color: '#22C55E', valColor: 'text-[#22C55E]' },
+                    { label: 'STOP LOSS', value: formatCurrency(item.stop), icon: Shield, color: '#EF4444', valColor: 'text-[#EF4444]' },
+                    { label: 'HEDEF 1', value: formatCurrency(item.target1), icon: Target, color: '#3B82F6', valColor: 'text-[#3B82F6]' },
+                    { label: 'HEDEF 2', value: formatCurrency(item.target2), icon: Target, color: '#3B82F6', valColor: 'text-[#3B82F6]' },
+                    { label: 'Bekleme', value: item.holdingPeriod ?? '-', icon: Clock, color: '#64748B', valColor: 'text-foreground' },
+                    { label: 'R/G', value: `1:${item.riskReward}`, icon: ArrowUpDown, color: '#F59E0B', valColor: 'text-[#F59E0B]' },
+                    { label: 'RSI', value: (item.rsi ?? 0).toString(), icon: BarChart3, color: '#64748B', valColor: 'text-foreground' },
+                    { label: 'ATR', value: formatNumber(item.atr), icon: Activity, color: '#64748B', valColor: 'text-foreground' },
                   ].map((field: any, fIdx: number) => (
-                    <div key={fIdx} className="glass-inner rounded-lg p-2.5">
+                    <div key={fIdx} className="rounded-lg p-2.5 bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06]">
                       <div className="flex items-center gap-1 mb-1">
                         <field.icon className="w-3 h-3" style={{ color: field.color }} />
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">{field.label}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-medium">{field.label}</span>
                       </div>
-                      <p className="text-sm font-semibold text-foreground">{field.value}</p>
+                      <p className={`text-sm font-bold ${field.valColor}`}>{field.value}</p>
                     </div>
                   ))}
                 </div>
