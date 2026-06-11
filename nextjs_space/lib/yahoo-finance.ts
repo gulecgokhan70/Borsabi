@@ -12,8 +12,8 @@ const quoteCache = new Map<string, CacheEntry>();
 const chartCache = new Map<string, CacheEntry>();
 
 // Cache TTL (ms)
-const QUOTE_TTL = 180_000;  // 3 dakika
-const CHART_TTL = 600_000;  // 10 dakika
+const QUOTE_TTL = 60_000;  // 1 dakika
+const CHART_TTL = 300_000;  // 5 dakika
 
 // Request queue for rate limiting
 let requestQueue: Promise<void> = Promise.resolve();

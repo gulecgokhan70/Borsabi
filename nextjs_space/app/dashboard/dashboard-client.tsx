@@ -145,13 +145,13 @@ export function DashboardClient() {
 
   // Otomatik yenileme - 60 saniye
   useEffect(() => {
-    const interval = setInterval(() => { fetchData(); }, 60000);
+    const interval = setInterval(() => { fetchData(); }, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
   // Tick every 30s to update relative time display
   useEffect(() => {
-    const t = setInterval(() => setTick(v => v + 1), 30000);
+    const t = setInterval(() => setTick(v => v + 1), 15000);
     return () => clearInterval(t);
   }, []);
 

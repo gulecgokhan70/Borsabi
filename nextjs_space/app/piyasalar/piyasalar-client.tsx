@@ -74,11 +74,11 @@ export function PiyasalarClient() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => {
-    const iv = setInterval(fetchData, 60000);
+    const iv = setInterval(fetchData, 30000);
     return () => clearInterval(iv);
   }, [fetchData]);
   useEffect(() => {
-    const t = setInterval(() => setTick(v => v + 1), 30000);
+    const t = setInterval(() => setTick(v => v + 1), 15000);
     return () => clearInterval(t);
   }, []);
 
