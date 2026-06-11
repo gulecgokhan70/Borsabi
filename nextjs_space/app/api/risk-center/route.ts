@@ -125,19 +125,35 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Günlük işlemler ve zarar hesabı
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayTx = transactions.filter((t: any) => new Date(t.createdAt) >= today);
-    const todayPnL = todayTx.reduce((sum: number, t: any) => sum + (t.pnl ?? 0), 0);
+    // İstanbul zamanı (UTC+3)
+    const IST_OFFSET = 3 * 60 * 60 * 1000;
+    const nowIST = new Date(Date.now() + IST_OFFSET);
+    const todayIST = new Date(nowIST);
+    todayIST.setUTCHours(0, 0, 0, 0);
+    const todayStart = new Date(todayIST.getTime() - IST_OFFSET); // UTC'ye çevir
+
+    const weekIST = new Date(nowIST);
+    weekIST.setUTCDate(weekIST.getUTCDate() - 7);
+    weekIST.setUTCHours(0, 0, 0, 0);
+    const weekStart = new Date(weekIST.getTime() - IST_OFFSET);
+
+    // Gerçekleşmiş K/Z (satış işlemlerinden)
+    const todayTx = transactions.filter((t: any) => new Date(t.createdAt) >= todayStart);
+    const todayRealizedPnL = todayTx.reduce((sum: number, t: any) => sum + (t.pnl ?? 0), 0);
+
+    const weekTx = transactions.filter((t: any) => new Date(t.createdAt) >= weekStart);
+    const weekRealizedPnL = weekTx.reduce((sum: number, t: any) => sum + (t.pnl ?? 0), 0);
+
+    // Gerçekleşmemiş K/Z (açık pozisyonlardan)
+    const totalUnrealizedPnL = openPositions.reduce((sum: number, p: any) => {
+      return sum + ((p.currentPrice - p.entryPrice) * p.quantity);
+    }, 0);
+
+    // Günlük/Haftalık K/Z = gerçekleşmiş + gerçekleşmemiş
+    const todayPnL = todayRealizedPnL + totalUnrealizedPnL;
     const todayPnLPercent = initialBalance > 0 ? (todayPnL / initialBalance) * 100 : 0;
 
-    // Haftalık zarar
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - 7);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekTx = transactions.filter((t: any) => new Date(t.createdAt) >= weekStart);
-    const weekPnL = weekTx.reduce((sum: number, t: any) => sum + (t.pnl ?? 0), 0);
+    const weekPnL = weekRealizedPnL + totalUnrealizedPnL;
     const weekPnLPercent = initialBalance > 0 ? (weekPnL / initialBalance) * 100 : 0;
 
     // Uyarılar
