@@ -228,6 +228,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() || {};
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -237,20 +238,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSidebarOpen(false);
   }, [pathname]);
 
+  // Close sidebar on outside touch/click (mobile)
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    document.addEventListener('mousedown', handleOutside);
+    return () => {
+      document.removeEventListener('touchstart', handleOutside);
+      document.removeEventListener('mousedown', handleOutside);
+    };
+  }, [sidebarOpen]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSidebarOpen(false); }}
-          onTouchStart={(e) => { e.preventDefault(); setSidebarOpen(false); }}
-          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'none' }}
-        />
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden pointer-events-none" />
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 z-50 w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
@@ -269,7 +281,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ) : (
               <BorsaBiLogoFull size={36} />
             )}
-            <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              onTouchEnd={(e) => { e.preventDefault(); setSidebarOpen(false); }}
+              className="ml-auto lg:hidden text-muted-foreground hover:text-foreground p-1"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
