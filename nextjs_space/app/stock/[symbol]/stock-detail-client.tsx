@@ -70,6 +70,10 @@ interface StockData {
   pddd?: number;
   freeFloat?: number;
   volatility?: number;
+  supportResistance?: {
+    supports: { price: number; strength: number }[];
+    resistances: { price: number; strength: number }[];
+  };
 }
 
 const PERIODS = [
@@ -738,6 +742,96 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               </div>
             )}
           </div>
+        </motion.div>
+      )}
+
+      {/* Destek / Direnç Seviyeleri */}
+      {data && data.supportResistance && (data.supportResistance.supports.length > 0 || data.supportResistance.resistances.length > 0) && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+          className="glass-card rounded-xl p-4">
+          <h3 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[#8B5CF6]" /> Destek & Direnç Seviyeleri
+          </h3>
+
+          {/* Visual price ladder */}
+          <div className="relative">
+            {/* Direnç Seviyeleri */}
+            {data.supportResistance.resistances.length > 0 && (
+              <div className="space-y-2 mb-3">
+                <p className="text-[10px] text-[#EF4444] font-semibold uppercase tracking-wide flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" /> Direnç Seviyeleri
+                </p>
+                {data.supportResistance.resistances.map((r: any, i: number) => {
+                  const distPercent = ((r.price - data.price) / data.price * 100);
+                  return (
+                    <div key={`r-${i}`} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-mono font-bold text-[#EF4444]">{formatCurrency(r.price)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-[#EF4444]/70 font-mono">+{distPercent.toFixed(2)}%</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, si) => (
+                                <div key={si} className={`w-1.5 h-3 rounded-sm ${
+                                  si < r.strength ? 'bg-[#EF4444]' : 'bg-[#EF4444]/15'
+                                }`} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-[#EF4444]/10">
+                          <div className="h-full rounded-full bg-[#EF4444]/40" style={{ width: `${Math.min(100, Math.max(20, (r.strength / 5) * 100))}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Mevcut Fiyat */}
+            <div className="flex items-center gap-3 py-2.5 my-1 border-y border-dashed border-[#3B82F6]/30">
+              <div className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
+              <span className="text-sm font-bold font-mono text-[#3B82F6]">{formatCurrency(data.price)}</span>
+              <span className="text-[10px] text-muted-foreground">Mevcut Fiyat</span>
+            </div>
+
+            {/* Destek Seviyeleri */}
+            {data.supportResistance.supports.length > 0 && (
+              <div className="space-y-2 mt-3">
+                <p className="text-[10px] text-[#22C55E] font-semibold uppercase tracking-wide flex items-center gap-1">
+                  <TrendingDown className="w-3 h-3" /> Destek Seviyeleri
+                </p>
+                {data.supportResistance.supports.map((s: any, i: number) => {
+                  const distPercent = ((data.price - s.price) / data.price * 100);
+                  return (
+                    <div key={`s-${i}`} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-mono font-bold text-[#22C55E]">{formatCurrency(s.price)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-[#22C55E]/70 font-mono">-{distPercent.toFixed(2)}%</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, si) => (
+                                <div key={si} className={`w-1.5 h-3 rounded-sm ${
+                                  si < s.strength ? 'bg-[#22C55E]' : 'bg-[#22C55E]/15'
+                                }`} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-[#22C55E]/10">
+                          <div className="h-full rounded-full bg-[#22C55E]/40" style={{ width: `${Math.min(100, Math.max(20, (s.strength / 5) * 100))}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <p className="text-[9px] text-slate-400 dark:text-slate-600 mt-3">Pivot Points, Swing High/Low ve Fibonacci Retracement bazlı hesaplama. Güç: birden fazla kaynağın aynı seviyeyi onaylaması.</p>
         </motion.div>
       )}
 

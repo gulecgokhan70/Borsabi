@@ -65,6 +65,89 @@ function calculateBollingerBands(closes: number[], period = 20, stdDev = 2) {
   return { upper, middle, lower };
 }
 
+/* ── Destek / Direnç Seviyeleri ── */
+function calculateSupportResistance(ohlc: { high: number; low: number; close: number }[]): { supports: { price: number; strength: number }[]; resistances: { price: number; strength: number }[] } {
+  if (ohlc.length < 10) return { supports: [], resistances: [] };
+
+  const currentPrice = ohlc[ohlc.length - 1].close;
+
+  // Pivot Points (Classic)
+  const last = ohlc[ohlc.length - 1];
+  const pivotHigh = last.high;
+  const pivotLow = last.low;
+  const pivotClose = last.close;
+  const pp = (pivotHigh + pivotLow + pivotClose) / 3;
+  const s1 = 2 * pp - pivotHigh;
+  const r1 = 2 * pp - pivotLow;
+  const s2 = pp - (pivotHigh - pivotLow);
+  const r2 = pp + (pivotHigh - pivotLow);
+  const s3 = pivotLow - 2 * (pivotHigh - pp);
+  const r3 = pivotHigh + 2 * (pp - pivotLow);
+
+  // Swing highs / lows (son 60 bar)
+  const lookback = Math.min(ohlc.length, 60);
+  const recent = ohlc.slice(-lookback);
+  const swingHighs: number[] = [];
+  const swingLows: number[] = [];
+
+  for (let i = 2; i < recent.length - 2; i++) {
+    if (recent[i].high > recent[i - 1].high && recent[i].high > recent[i - 2].high &&
+        recent[i].high > recent[i + 1].high && recent[i].high > recent[i + 2].high) {
+      swingHighs.push(recent[i].high);
+    }
+    if (recent[i].low < recent[i - 1].low && recent[i].low < recent[i - 2].low &&
+        recent[i].low < recent[i + 1].low && recent[i].low < recent[i + 2].low) {
+      swingLows.push(recent[i].low);
+    }
+  }
+
+  // Fibonacci Retracement (son yükseliş dalgası)
+  const highs = recent.map(r => r.high);
+  const lows = recent.map(r => r.low);
+  const swingHigh = Math.max(...highs);
+  const swingLow = Math.min(...lows);
+  const diff = swingHigh - swingLow;
+  const fib236 = swingHigh - diff * 0.236;
+  const fib382 = swingHigh - diff * 0.382;
+  const fib500 = swingHigh - diff * 0.5;
+  const fib618 = swingHigh - diff * 0.618;
+  const fib786 = swingHigh - diff * 0.786;
+
+  // Tüm seviyeleri topla ve cluster yap
+  const allSupports: number[] = [s1, s2, s3, ...swingLows, fib382, fib500, fib618, fib786].filter(p => p > 0 && p < currentPrice);
+  const allResistances: number[] = [r1, r2, r3, ...swingHighs, fib236, fib382, fib500].filter(p => p > currentPrice);
+
+  // Cluster: yakın seviyeleri birleştir (%1 tolerans)
+  function clusterLevels(levels: number[]): { price: number; strength: number }[] {
+    if (levels.length === 0) return [];
+    const sorted = [...levels].sort((a, b) => a - b);
+    const clusters: { prices: number[]; total: number }[] = [];
+    let current = { prices: [sorted[0]], total: sorted[0] };
+
+    for (let i = 1; i < sorted.length; i++) {
+      const avg = current.total / current.prices.length;
+      if (Math.abs(sorted[i] - avg) / avg < 0.01) {
+        current.prices.push(sorted[i]);
+        current.total += sorted[i];
+      } else {
+        clusters.push(current);
+        current = { prices: [sorted[i]], total: sorted[i] };
+      }
+    }
+    clusters.push(current);
+
+    return clusters
+      .map(c => ({ price: Math.round((c.total / c.prices.length) * 100) / 100, strength: Math.min(c.prices.length, 5) }))
+      .sort((a, b) => b.strength - a.strength)
+      .slice(0, 4);
+  }
+
+  const supports = clusterLevels(allSupports).sort((a, b) => b.price - a.price);
+  const resistances = clusterLevels(allResistances).sort((a, b) => a.price - b.price);
+
+  return { supports, resistances };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { symbol: string } }
@@ -199,6 +282,9 @@ export async function GET(
     const lastBBMiddle = bb.middle.length > 0 ? bb.middle[bb.middle.length - 1] : null;
     const lastBBLower = bb.lower.length > 0 ? bb.lower[bb.lower.length - 1] : null;
 
+    // Destek / Direnç
+    const supportResistance = calculateSupportResistance(ohlc);
+
     // EMA200
     const ema200 = closes.length > 200 ? calculateEMA(closes, 200) : [];
     const lastEma200 = ema200.length > 0 ? ema200[ema200.length - 1] : null;
@@ -267,6 +353,7 @@ export async function GET(
         bbLower: lastBBLower,
       },
       ohlc: enrichedOhlc,
+      supportResistance,
       // Midas ekstra verileri
       ...(m ? {
         vwap: m.VWAP,
