@@ -240,18 +240,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Mobile overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            onTouchEnd={() => setSidebarOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSidebarOpen(false); }}
+          onTouchStart={(e) => { e.preventDefault(); setSidebarOpen(false); }}
+          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'none' }}
+        />
+      )}
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
