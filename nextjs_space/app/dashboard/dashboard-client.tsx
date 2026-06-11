@@ -249,6 +249,11 @@ export function DashboardClient() {
             <span className="text-xs text-muted-foreground">Kazanç Oranı</span>
           </div>
           <p className="text-lg font-bold font-mono text-foreground">{formatNumber(portfolio?.winRate, 1)}%</p>
+          {(portfolio?.totalTrades ?? 0) > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {portfolio.totalTrades} işlemden {Math.round((portfolio.winRate / 100) * portfolio.totalTrades)} kârlı
+            </p>
+          )}
         </div>
       </motion.div>
 
