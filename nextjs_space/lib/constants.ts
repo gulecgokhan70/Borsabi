@@ -14,6 +14,7 @@ export const BIST_INDICES = [
 
 // Crypto
 export const CRYPTO_ASSETS = [
+  // Top 10
   { symbol: 'BTC-USD', name: 'Bitcoin', shortName: 'BTC' },
   { symbol: 'ETH-USD', name: 'Ethereum', shortName: 'ETH' },
   { symbol: 'BNB-USD', name: 'BNB', shortName: 'BNB' },
@@ -24,6 +25,7 @@ export const CRYPTO_ASSETS = [
   { symbol: 'DOGE-USD', name: 'Dogecoin', shortName: 'DOGE' },
   { symbol: 'DOT-USD', name: 'Polkadot', shortName: 'DOT' },
   { symbol: 'MATIC-USD', name: 'Polygon', shortName: 'MATIC' },
+  // 11-20
   { symbol: 'LINK-USD', name: 'Chainlink', shortName: 'LINK' },
   { symbol: 'UNI-USD', name: 'Uniswap', shortName: 'UNI' },
   { symbol: 'ATOM-USD', name: 'Cosmos', shortName: 'ATOM' },
@@ -34,6 +36,28 @@ export const CRYPTO_ASSETS = [
   { symbol: 'OP-USD', name: 'Optimism', shortName: 'OP' },
   { symbol: 'FIL-USD', name: 'Filecoin', shortName: 'FIL' },
   { symbol: 'SHIB-USD', name: 'Shiba Inu', shortName: 'SHIB' },
+  // 21-30
+  { symbol: 'TRX-USD', name: 'TRON', shortName: 'TRX' },
+  { symbol: 'PEPE24478-USD', name: 'Pepe', shortName: 'PEPE' },
+  { symbol: 'SUI20947-USD', name: 'Sui', shortName: 'SUI' },
+  { symbol: 'HBAR-USD', name: 'Hedera', shortName: 'HBAR' },
+  { symbol: 'IMX-USD', name: 'Immutable X', shortName: 'IMX' },
+  { symbol: 'INJ-USD', name: 'Injective', shortName: 'INJ' },
+  { symbol: 'RUNE-USD', name: 'THORChain', shortName: 'RUNE' },
+  { symbol: 'SEI-USD', name: 'Sei', shortName: 'SEI' },
+  { symbol: 'FET-USD', name: 'Fetch.ai', shortName: 'FET' },
+  { symbol: 'RNDR-USD', name: 'Render', shortName: 'RNDR' },
+  // 31-40
+  { symbol: 'GRT-USD', name: 'The Graph', shortName: 'GRT' },
+  { symbol: 'ALGO-USD', name: 'Algorand', shortName: 'ALGO' },
+  { symbol: 'AAVE-USD', name: 'Aave', shortName: 'AAVE' },
+  { symbol: 'MKR-USD', name: 'Maker', shortName: 'MKR' },
+  { symbol: 'SAND-USD', name: 'The Sandbox', shortName: 'SAND' },
+  { symbol: 'MANA-USD', name: 'Decentraland', shortName: 'MANA' },
+  { symbol: 'XLM-USD', name: 'Stellar', shortName: 'XLM' },
+  { symbol: 'VET-USD', name: 'VeChain', shortName: 'VET' },
+  { symbol: 'EOS-USD', name: 'EOS', shortName: 'EOS' },
+  { symbol: 'ICP-USD', name: 'Internet Computer', shortName: 'ICP' },
 ];
 
 // Yahoo -> TradingView sembol dönüşümü
