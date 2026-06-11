@@ -27,7 +27,7 @@ export async function GET() {
         shortName: s.shortName,
         price: m.Last || m.Close || 0,
         change: m.DailyChange || 0,
-        changePercent: m.DailyChangePercentage || 0,
+        changePercent: m.DailyChangePercent || 0,
         volume: m.TotalVolume || 0,
       };
     }).filter(s => s.price > 0);
