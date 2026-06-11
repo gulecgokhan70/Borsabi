@@ -5,6 +5,7 @@ import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown } from
 import { motion, AnimatePresence } from 'framer-motion';
 import { COMMISSION_RATE, formatCurrency } from '@/lib/constants';
 import { toast } from 'sonner';
+import { useHaptic } from '@/hooks/use-haptic';
 
 interface TradeModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface TradeModalProps {
 type OrderType = 'market' | 'limit' | 'stop-limit';
 
 export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, side = 'BUY', maxQuantity, onSuccess }: TradeModalProps) {
+  const haptic = useHaptic();
   const [type, setType] = useState<'BUY' | 'SELL'>(side);
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [quantity, setQuantity] = useState('');
@@ -71,8 +73,9 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
         }),
       });
       const data = await res.json();
-      if (!res.ok) { toast.error(data?.error ?? 'İşlem başarısız'); return; }
+      if (!res.ok) { haptic.warning(); toast.error(data?.error ?? 'İşlem başarısız'); return; }
       const orderLabel = orderType === 'market' ? '' : orderType === 'limit' ? ' (Limit Emir)' : ' (Stop-Limit Emir)';
+      haptic.success();
       toast.success((data?.message ?? 'İşlem başarılı') + orderLabel);
       if (data?.warnings?.length > 0) {
         data.warnings.forEach((w: string) => toast.warning(w));

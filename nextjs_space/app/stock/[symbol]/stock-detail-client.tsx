@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, TrendingUp, TrendingDown, Loader2, Activity, DollarSign, Volume2,
@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
+import { useHaptic } from '@/hooks/use-haptic';
 import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
@@ -122,6 +123,8 @@ const CandlestickShape = (props: any) => {
 
 export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
+  const haptic = useHaptic();
+  const lastHapticTs = useRef(0);
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
@@ -134,6 +137,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
+
+  // Grafik üzerinde parmak kaydırırken hafif titreşim (throttled)
+  const handleChartTouch = useCallback(() => {
+    const now = Date.now();
+    if (now - lastHapticTs.current > 120) {
+      haptic.light();
+      lastHapticTs.current = now;
+    }
+  }, [haptic]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -368,7 +380,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Main Price Chart */}
-        <div style={{ height: '380px' }}>
+        <div style={{ height: '380px' }} onTouchMove={handleChartTouch}>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>

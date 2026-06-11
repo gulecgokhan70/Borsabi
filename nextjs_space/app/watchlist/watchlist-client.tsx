@@ -1,12 +1,13 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Eye, Plus, Loader2, TrendingUp, TrendingDown, RefreshCw, Search, X, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Eye, Plus, Loader2, TrendingUp, TrendingDown, RefreshCw, Search, X, Star, Bell, BellRing, AlertTriangle } from 'lucide-react';
 import { BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 import { PriceChart } from '@/components/price-chart';
 import { toast } from 'sonner';
+import { useHaptic } from '@/hooks/use-haptic';
 
 const ALL_ASSETS = [
   ...BIST_STOCKS.map((s: any) => ({ ...s, type: 'BIST' })),
@@ -14,14 +15,21 @@ const ALL_ASSETS = [
   ...CRYPTO_ASSETS.map((c: any) => ({ ...c, type: 'CRYPTO' })),
 ];
 
+// Bildirim eşiği (%)
+const ALERT_THRESHOLD = 3;
+
 export function WatchlistClient() {
   const router = useRouter();
+  const haptic = useHaptic();
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [tradeModal, setTradeModal] = useState<any>(null);
+  const [notifications, setNotifications] = useState<Array<{ id: string; symbol: string; name: string; message: string; type: 'up' | 'down' | 'alert'; time: Date }>>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const prevPricesRef = useRef<Record<string, any>>({});
 
   const fetchWatchlist = useCallback(async () => {
     setLoading(true);
@@ -37,16 +45,60 @@ export function WatchlistClient() {
         const priceData = await priceRes.json();
         const priceMap: Record<string, any> = {};
         (priceData?.data ?? []).forEach((p: any) => { if (p?.symbol) priceMap[p.symbol] = p; });
+
+        // Fiyat değişikliği kontrolü - bildirim oluştur
+        const prev = prevPricesRef.current;
+        if (Object.keys(prev).length > 0) {
+          Object.entries(priceMap).forEach(([sym, cur]: [string, any]) => {
+            const old = prev[sym];
+            if (!old || !cur) return;
+            const oldPrice = old?.price ?? 0;
+            const curPrice = cur?.price ?? 0;
+            if (oldPrice <= 0 || curPrice <= 0) return;
+            const changeFromLast = ((curPrice - oldPrice) / oldPrice) * 100;
+            const absChange = Math.abs(cur?.changePercent ?? 0);
+
+            // %3+ değişim veya son kontrolden beri %1+ ani değişim
+            if (absChange >= ALERT_THRESHOLD || Math.abs(changeFromLast) >= 1) {
+              const item = items.find((w: any) => w?.symbol === sym);
+              const cleanName = sym.replace('.IS', '').replace('-USD', '');
+              const direction = (cur?.changePercent ?? 0) >= 0 ? 'up' : 'down';
+              const msg = absChange >= ALERT_THRESHOLD
+                ? `${cleanName} gün içinde %${absChange.toFixed(1)} ${direction === 'up' ? 'yükseldi' : 'düştü'}!`
+                : `${cleanName} son dakika %${Math.abs(changeFromLast).toFixed(2)} ${changeFromLast > 0 ? 'artış' : 'düşüş'}`;
+
+              // Aynı sembol için 5 dk içinde tekrar bildirim gönderme
+              setNotifications(prev => {
+                const recent = prev.find(n => n.symbol === sym && Date.now() - n.time.getTime() < 300000);
+                if (recent) return prev;
+                return [{ id: `${sym}-${Date.now()}`, symbol: sym, name: item?.name ?? cleanName, message: msg, type: (direction === 'up' ? 'up' : 'down') as 'up' | 'down', time: new Date() }, ...prev].slice(0, 20);
+              });
+
+              // Haptic + Toast bildirim
+              if (absChange >= ALERT_THRESHOLD) {
+                haptic.warning();
+                toast(direction === 'up' ? '🚀 Sert Yükseliş!' : '🚨 Sert Düşüş!', {
+                  description: msg,
+                  duration: 5000,
+                });
+              } else {
+                haptic.medium();
+              }
+            }
+          });
+        }
+
+        prevPricesRef.current = priceMap;
         setPrices(priceMap);
       }
     } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  }, []);
+  }, [haptic]);
 
   useEffect(() => { fetchWatchlist(); }, [fetchWatchlist]);
 
   // Otomatik yenileme - 30 saniye
   useEffect(() => {
-    const interval = setInterval(() => { fetchWatchlist(); }, 60000);
+    const interval = setInterval(() => { fetchWatchlist(); }, 30000);
     return () => clearInterval(interval);
   }, [fetchWatchlist]);
 
@@ -82,6 +134,12 @@ export function WatchlistClient() {
         <div className="flex gap-2">
           <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors">
             <Plus className="w-4 h-4" /> Ekle
+          </button>
+          <button onClick={() => { setShowNotifs(!showNotifs); haptic.light(); }} className="relative p-2 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
+            {notifications.length > 0 ? <BellRing className="w-4 h-4 text-[#F59E0B]" /> : <Bell className="w-4 h-4" />}
+            {notifications.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#EF4444] text-white text-[9px] font-bold flex items-center justify-center">{notifications.length > 9 ? '9+' : notifications.length}</span>
+            )}
           </button>
           <button onClick={fetchWatchlist} disabled={loading} className="p-2 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -119,6 +177,56 @@ export function WatchlistClient() {
         </motion.div>
       )}
 
+      {/* Bildirimler paneli */}
+      <AnimatePresence>
+        {showNotifs && (
+          <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -10, height: 0 }}
+            className="glass-card rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <BellRing className="w-4 h-4 text-[#F59E0B]" />
+                <h3 className="text-sm font-semibold text-foreground">Fiyat Bildirimleri</h3>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] font-semibold">
+                  %{ALERT_THRESHOLD}+ değişim veya ani hareket
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                  <button onClick={() => setNotifications([])} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">Temizle</button>
+                )}
+                <button onClick={() => setShowNotifs(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <div className="max-h-64 overflow-y-auto scrollbar-none">
+              {notifications.length === 0 ? (
+                <div className="text-center py-8">
+                  <Bell className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">Henüz bildirim yok</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">İzleme listenizdeki hisselerde önemli fiyat değişikliği olduğunda burada görünecek</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+                  {notifications.map((n) => (
+                    <div key={n.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] cursor-pointer transition-colors"
+                      onClick={() => router.push(`/stock/${encodeURIComponent(n.symbol)}`)}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        n.type === 'up' ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'
+                      }`}>
+                        {n.type === 'up' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{n.message}</p>
+                        <p className="text-[10px] text-muted-foreground">{n.time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Watchlist items */}
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
@@ -135,7 +243,15 @@ export function WatchlistClient() {
             const change = priceData?.changePercent ?? 0;
             return (
               <motion.div key={w?.id ?? i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="glass-card rounded-xl p-4 hover:border-[#3B82F6]/30 transition-colors">
+                className={`glass-card rounded-xl p-4 transition-colors ${Math.abs(change) >= ALERT_THRESHOLD ? (change >= 0 ? 'border-[#22C55E]/30 ring-1 ring-[#22C55E]/10' : 'border-[#EF4444]/30 ring-1 ring-[#EF4444]/10') : 'hover:border-[#3B82F6]/30'}`}>
+                {Math.abs(change) >= ALERT_THRESHOLD && (
+                  <div className={`flex items-center gap-1 mb-2 px-2 py-1 rounded-md text-[10px] font-semibold w-fit ${
+                    change >= 0 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'
+                  }`}>
+                    <AlertTriangle className="w-3 h-3" />
+                    {change >= 0 ? 'Sert Yükseliş' : 'Sert Düşüş'} ({formatPercent(change)})
+                  </div>
+                )}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/stock/${encodeURIComponent(w?.symbol)}`)}>
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${change >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>

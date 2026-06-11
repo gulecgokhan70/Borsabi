@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
+import { useHaptic } from '@/hooks/use-haptic';
 
 interface PriceChartProps {
   symbol: string;
@@ -15,6 +16,12 @@ export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) 
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [positive, setPositive] = useState(true);
+  const haptic = useHaptic();
+  const lastHapticTs = useRef(0);
+  const handleTouch = useCallback(() => {
+    const now = Date.now();
+    if (now - lastHapticTs.current > 150) { haptic.light(); lastHapticTs.current = now; }
+  }, [haptic]);
 
   useEffect(() => {
     if (!symbol) return;
@@ -52,7 +59,7 @@ export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) 
   const chartColor = color || (positive ? '#22C55E' : '#EF4444');
 
   return (
-    <div className={`${height} w-full`}>
+    <div className={`${height} w-full`} onTouchMove={handleTouch}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
           <defs>
