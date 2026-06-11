@@ -40,7 +40,7 @@ export async function GET() {
     const allCurrSymbols = CURRENCY_PAIRS.map(c => c.symbol);
     const allCommSymbols = COMMODITY_SYMBOLS.map(c => c.symbol);
     const cryptoSymbols = CRYPTO_ASSETS.map(c => c.symbol);
-    const bistTopSymbols = BIST_TOP_STOCKS.slice(0, 10).map(s => s.symbol);
+    const bistTopSymbols = BIST_TOP_STOCKS.map(s => s.symbol);
 
     const [currQuotes, commQuotes, cryptoQuotes, indexQuotes, midasRes] = await Promise.allSettled([
       cachedQuoteBatch(allCurrSymbols),
@@ -172,17 +172,21 @@ export async function GET() {
       };
     });
 
-    // BIST top movers from Midas
-    const bistStocks = BIST_TOP_STOCKS.slice(0, 10).map(s => {
+    // BIST hisseleri from Midas
+    const bistStocks = BIST_TOP_STOCKS.map(s => {
       const code = s.symbol.replace('.IS', '');
       const m: any = midasData.get(code) || {};
+      const price = m.Last || m.Close || m.PreviousClose || 0;
+      const prevClose = m.PreviousClose || 0;
+      const change = m.DailyChange || (prevClose > 0 && price > 0 ? price - prevClose : 0);
+      const changePercent = m.DailyChangePercent || (prevClose > 0 && price > 0 ? ((price - prevClose) / prevClose) * 100 : 0);
       return {
         symbol: s.symbol,
         name: s.name,
         shortName: s.shortName,
-        price: m.Last || m.Close || 0,
-        change: m.DailyChange || 0,
-        changePercent: m.DailyChangePercentage || 0,
+        price,
+        change: Math.round(change * 100) / 100,
+        changePercent: Math.round(changePercent * 100) / 100,
         volume: m.TotalVolume || 0,
       };
     }).filter(s => s.price > 0);
