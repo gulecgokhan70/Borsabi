@@ -1,16 +1,18 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Wallet, BarChart3, Activity, RefreshCw, Loader2,
   ArrowUpRight, ArrowDownRight, DollarSign, PieChart, Zap,
-  Newspaper, AlertTriangle, ChevronRight, Moon, Sun as SunIcon, Shield, Flame
+  Newspaper, AlertTriangle, ChevronRight, Moon, Sun as SunIcon, Shield, Flame,
+  Download, X, Smartphone
 } from 'lucide-react';
 import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { PriceChart, MiniSparkline } from '@/components/price-chart';
 import { TradeModal } from '@/components/trade-modal';
+import { useHaptic } from '@/hooks/use-haptic';
 
 function formatTimeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -24,6 +26,7 @@ const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, 
 
 export function DashboardClient() {
   const router = useRouter();
+  const haptic = useHaptic();
   const { data: session } = useSession() || {};
   const [indices, setIndices] = useState<any[]>([]);
   const [stocks, setStocks] = useState<any[]>([]);
@@ -41,6 +44,52 @@ export function DashboardClient() {
   const [alertsExpanded, setAlertsExpanded] = useState(false);
   const [newsImpact, setNewsImpact] = useState<any>(null);
   const [newsLoading, setNewsLoading] = useState(true);
+
+  // PWA Install prompt
+  const deferredPromptRef = useRef<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    // Zaten yüklüyse veya daha önce kapatıldıysa gösterme
+    if (typeof window === 'undefined') return;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const dismissed = localStorage.getItem('pwa-banner-dismissed');
+    if (isStandalone || dismissed) return;
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      deferredPromptRef.current = e;
+      setShowInstallBanner(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // iOS Safari için (beforeinstallprompt desteklemez)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    if (isIOS && isSafari && !isStandalone) {
+      setTimeout(() => setShowInstallBanner(true), 3000);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPromptRef.current) {
+      deferredPromptRef.current.prompt();
+      const result = await deferredPromptRef.current.userChoice;
+      if (result.outcome === 'accepted') {
+        haptic.success();
+      }
+      deferredPromptRef.current = null;
+    }
+    setShowInstallBanner(false);
+    localStorage.setItem('pwa-banner-dismissed', 'true');
+  };
+
+  const dismissInstallBanner = () => {
+    setShowInstallBanner(false);
+    localStorage.setItem('pwa-banner-dismissed', 'true');
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -111,6 +160,40 @@ export function DashboardClient() {
 
   return (
     <div className="space-y-6">
+      {/* Ana Ekrana Ekle Bildirimi */}
+      <AnimatePresence>
+        {showInstallBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -20, height: 0 }}
+            className="glass-card rounded-xl p-4 border border-[#3B82F6]/20 bg-gradient-to-r from-[#3B82F6]/10 to-[#8B5CF6]/10 relative overflow-hidden"
+          >
+            <button onClick={dismissInstallBanner} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground z-10">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#3B82F6]/20 flex items-center justify-center flex-shrink-0">
+                <Smartphone className="w-5 h-5 text-[#3B82F6]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">📲 Ana Ekrana Ekle</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {deferredPromptRef.current
+                    ? 'BorsaBi\'yi ana ekranınıza ekleyerek hızlı erişim sağlayın.'
+                    : 'Paylaş (⎋) butonuna basıp "Ana Ekrana Ekle" seçeneğini kullanın.'}
+                </p>
+              </div>
+              {deferredPromptRef.current && (
+                <button onClick={handleInstallClick} className="px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-xs font-semibold hover:bg-[#2563EB] transition-colors flex items-center gap-1.5 flex-shrink-0">
+                  <Download className="w-3.5 h-3.5" /> Yükle
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -377,7 +460,10 @@ export function DashboardClient() {
       </motion.div>
 
       {/* Gecikme uyarısı */}
-      <p className="text-[11px] text-muted-foreground text-center -mt-1">⏱ BİST verileri 15 dakika gecikmeli gelmektedir.</p>
+      <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/20 mx-auto w-fit">
+        <span className="text-[#F59E0B] text-xs">⏱</span>
+        <p className="text-[11px] font-medium text-[#F59E0B]">BİST verileri 15 dakika gecikmeli gelmektedir.</p>
+      </div>
 
       {/* BIST stocks & Crypto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
