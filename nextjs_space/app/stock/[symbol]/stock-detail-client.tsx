@@ -137,15 +137,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [news, setNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
-
-  // Grafik üzerinde parmak kaydırırken hafif titreşim (throttled)
-  const handleChartTouch = useCallback(() => {
-    const now = Date.now();
-    if (now - lastHapticTs.current > 120) {
-      haptic.light();
-      lastHapticTs.current = now;
-    }
-  }, [haptic]);
+  // İnteraktif grafik: hover/touch noktasının verileri
+  const [activePoint, setActivePoint] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -162,6 +155,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
   useEffect(() => {
     setLoading(true);
+    setActivePoint(null); // Periyod değişince aktif nokta sıfırla
     fetchData();
     const refreshMs = period === '1d' ? 30000 : 60000;
     const interval = setInterval(fetchData, refreshMs);
@@ -178,7 +172,6 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       .finally(() => setNewsLoading(false));
   }, [symbol]);
 
-  const isPositive = (data?.change ?? 0) >= 0;
   const isIntraday = period === '1d';
 
   const chartData = useMemo(() => {
@@ -237,7 +230,38 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     return ohlcData;
   }, [data?.ohlc, data?.price, data?.volume, isIntraday]);
 
-  const chartPositive = chartData.length >= 2 ? (chartData[chartData.length - 1]?.close ?? 0) >= (chartData[0]?.close ?? 0) : true;
+  // Aktif nokta varsa o noktanın verisini göster, yoksa güncel fiyatı göster
+  const firstClose = chartData.length > 0 ? chartData[0]?.close ?? 0 : 0;
+  const displayPrice = activePoint ? activePoint.close : (data?.price ?? 0);
+  const displayChange = activePoint
+    ? (firstClose > 0 ? activePoint.close - firstClose : 0)
+    : (data?.change ?? 0);
+  const displayChangePercent = activePoint
+    ? (firstClose > 0 ? ((activePoint.close - firstClose) / firstClose) * 100 : 0)
+    : (data?.changePercent ?? 0);
+  const displayDate = activePoint ? activePoint.date : null;
+  const isPositive = displayChange >= 0;
+
+  const chartPositive = activePoint
+    ? (activePoint.close >= firstClose)
+    : (chartData.length >= 2 ? (chartData[chartData.length - 1]?.close ?? 0) >= (chartData[0]?.close ?? 0) : true);
+
+  // Recharts mouse/touch event handler
+  const handleChartMouseMove = useCallback((e: any) => {
+    if (e?.activePayload?.[0]?.payload) {
+      setActivePoint(e.activePayload[0].payload);
+      // Haptic feedback (throttled)
+      const now = Date.now();
+      if (now - lastHapticTs.current > 120) {
+        haptic.light();
+        lastHapticTs.current = now;
+      }
+    }
+  }, [haptic]);
+
+  const handleChartMouseLeave = useCallback(() => {
+    setActivePoint(null);
+  }, []);
 
   // Calculate 52-week range position
   const range52Pct = data && data.fiftyTwoWeekHigh > data.fiftyTwoWeekLow
@@ -301,19 +325,23 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground">{data.shortName}</h1>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isPositive ? 'bg-[#22C55E]/20 text-[#22C55E]' : 'bg-[#EF4444]/20 text-[#F87171]'}`}>
-                  {formatPercent(data.changePercent)}
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors duration-150 ${isPositive ? 'bg-[#22C55E]/20 text-[#22C55E]' : 'bg-[#EF4444]/20 text-[#F87171]'}`}>
+                  {displayChangePercent >= 0 ? '+' : ''}{displayChangePercent.toFixed(2)}%
                 </span>
               </div>
-              <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">{data.name}</p>
+              <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
+                {displayDate ? <span className="text-[#3B82F6] font-medium">{displayDate}</span> : data.name}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(data.price)}</p>
-              <p className={`text-sm font-medium ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
+              <p className={`text-3xl font-bold transition-colors duration-150 ${activePoint ? 'text-[#3B82F6]' : 'text-foreground'}`}>
+                {formatCurrency(displayPrice)}
+              </p>
+              <p className={`text-sm font-medium transition-colors duration-150 ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                 {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-                {isPositive ? '+' : ''}{formatCurrency(Math.abs(data.change))}
+                {displayChange >= 0 ? '+' : ''}{formatCurrency(Math.abs(displayChange))}
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -380,16 +408,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Main Price Chart */}
-        <div style={{ height: '380px' }} onTouchMove={handleChartTouch}>
+        <div style={{ height: '380px' }} onTouchEnd={() => setActivePoint(null)}>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
+                onMouseMove={handleChartMouseMove}
+                onMouseLeave={handleChartMouseLeave}>
 
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
                 <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
                   tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(2)} />
-                <Tooltip content={<PriceTooltip />} />
+                <Tooltip content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
 
                 {/* Bollinger Bands */}
                 {overlay === 'bb' && (
