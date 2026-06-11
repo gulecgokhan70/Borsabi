@@ -102,6 +102,50 @@ export async function GET(request: NextRequest) {
     const totalTrades = closedPositions?.length ?? 0;
     const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
 
+    // Bakiye eğrisi: işlem geçmişinden hesapla
+    const allTransactions = await prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+      select: { type: true, total: true, pnl: true, createdAt: true },
+    });
+
+    const initBal = user?.initialBalance ?? 100000;
+    let runningBalance = initBal;
+    const equityCurve: { date: string; balance: number }[] = [
+      { date: new Date(allTransactions[0]?.createdAt ?? Date.now()).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }), balance: initBal },
+    ];
+
+    for (const tx of allTransactions) {
+      if (tx.type === 'SELL') {
+        runningBalance += (tx.total ?? 0);
+      } else {
+        runningBalance -= (tx.total ?? 0);
+      }
+      equityCurve.push({
+        date: new Date(tx.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        balance: Math.round(runningBalance * 100) / 100,
+      });
+    }
+    // Son durum: güncel bakiye + pozisyon değeri
+    const currentTotal = (user?.balance ?? 100000) + totalPositionValue;
+    if (equityCurve.length > 0 && equityCurve[equityCurve.length - 1].balance !== currentTotal) {
+      equityCurve.push({
+        date: 'Şimdi',
+        balance: Math.round(currentTotal * 100) / 100,
+      });
+    }
+
+    // Pozisyon dağılımı: donut chart için
+    const distribution = enrichedPositions.map((p: any) => ({
+      name: p.symbol?.replace?.('.IS', '')?.replace?.('-USD', '') ?? 'Bilinmiyor',
+      value: Math.round((p.totalValue ?? 0) * 100) / 100,
+      pnlPercent: p.pnlPercent ?? 0,
+    }));
+    // Nakit kısmını da ekle
+    if ((user?.balance ?? 0) > 0) {
+      distribution.unshift({ name: 'Nakit', value: Math.round((user?.balance ?? 100000) * 100) / 100, pnlPercent: 0 });
+    }
+
     return NextResponse.json({
       balance: user?.balance ?? 100000,
       initialBalance: user?.initialBalance ?? 100000,
@@ -113,6 +157,8 @@ export async function GET(request: NextRequest) {
       realizedPnl,
       winRate,
       totalTrades,
+      equityCurve,
+      distribution,
     });
   } catch (error: any) {
     console.error('Portfolio error:', error);

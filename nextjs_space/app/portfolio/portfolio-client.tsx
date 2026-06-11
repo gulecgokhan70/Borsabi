@@ -1,10 +1,13 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote, Activity } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
 import { formatCurrency, formatPercent, formatNumber, COMMISSION_RATE } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
+
+const DIST_COLORS = ['#3B82F6', '#22C55E', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#EC4899', '#14B8A6', '#F97316', '#6366F1'];
 
 export function PortfolioClient() {
   const router = useRouter();
@@ -70,6 +73,91 @@ export function PortfolioClient() {
           <div className="flex items-center gap-2 mb-2"><PieChart className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Toplam Portföy</span></div>
           <p className="text-lg font-bold font-mono text-foreground">{formatCurrency(totalPortfolioValue)}</p>
           <p className={`text-xs font-mono font-semibold ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatPercent(totalReturnPct)}</p>
+        </motion.div>
+      </div>
+
+      {/* Grafik bölümü */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Bakiye Eğrisi */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08]">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <Activity className="w-4 h-4 text-[#3B82F6]" />
+            <h2 className="text-sm font-semibold text-foreground">Portföy Değeri</h2>
+          </div>
+          <div style={{ height: 220 }} className="px-2 py-3">
+            {(portfolio?.equityCurve?.length ?? 0) > 1 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={portfolio.equityCurve} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={totalReturn >= 0 ? '#22C55E' : '#EF4444'} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={totalReturn >= 0 ? '#22C55E' : '#EF4444'} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" opacity={0.3} />
+                  <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={70} tickFormatter={(v: number) => `₺${(v / 1000).toFixed(0)}K`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: '#94A3B8' }}
+                    formatter={(value: number) => [`₺${value.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, 'Bakiye']}
+                  />
+                  <Area type="monotone" dataKey="balance" stroke={totalReturn >= 0 ? '#22C55E' : '#EF4444'} strokeWidth={2} fill="url(#eqGrad)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-xs text-muted-foreground">İşlem yapıldıkça grafik oluşacak</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Portföy Dağılımı Donut */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08]">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <PieChart className="w-4 h-4 text-[#8B5CF6]" />
+            <h2 className="text-sm font-semibold text-foreground">Portföy Dağılımı</h2>
+          </div>
+          <div style={{ height: 220 }} className="px-2 py-3">
+            {(portfolio?.distribution?.length ?? 0) > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPie>
+                  <Pie
+                    data={portfolio.distribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    dataKey="value"
+                    nameKey="name"
+                    paddingAngle={2}
+                    stroke="none"
+                  >
+                    {(portfolio.distribution ?? []).map((_: any, i: number) => (
+                      <Cell key={i} fill={DIST_COLORS[i % DIST_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number, name: string) => [`₺${value.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, name]}
+                  />
+                  <Legend
+                    verticalAlign="middle"
+                    align="right"
+                    layout="vertical"
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(value: string) => <span className="text-xs text-foreground">{value}</span>}
+                  />
+                </RechartsPie>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-xs text-muted-foreground">Pozisyon açıldıkça dağılım görünecek</p>
+              </div>
+            )}
+          </div>
         </motion.div>
       </div>
 
