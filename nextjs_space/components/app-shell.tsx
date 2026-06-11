@@ -238,21 +238,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Close sidebar handler for overlay
-  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  // Close sidebar: capture-phase listener on document (iOS Safari reliable)
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    // Lock body scroll when sidebar is open
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    const handler = (e: Event) => {
+      // If touch/click is inside sidebar, don't close
+      if (sidebarRef.current?.contains(e.target as Node)) return;
+      setSidebarOpen(false);
+    };
+    // Capture phase fires before any child can swallow the event
+    document.addEventListener('touchstart', handler, { capture: true });
+    document.addEventListener('mousedown', handler, { capture: true });
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+      document.removeEventListener('touchstart', handler, { capture: true });
+      document.removeEventListener('mousedown', handler, { capture: true });
+    };
+  }, [sidebarOpen]);
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Mobile overlay */}
+      {/* Mobile overlay - visual only, events handled by capture-phase listener */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
-          onClick={closeSidebar}
-          onTouchStart={closeSidebar}
-          role="button"
-          tabIndex={-1}
-          aria-label="Menüyü kapat"
-        />
+        <div className="fixed inset-0 z-[60] bg-black/40 lg:hidden" />
       )}
 
       {/* Sidebar */}
@@ -343,7 +356,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className={`flex-1 overflow-y-auto ${sidebarOpen ? 'lg:pointer-events-auto pointer-events-none' : ''}`}>
+      <main className="flex-1 overflow-y-auto">
         {/* Desktop top bar */}
         <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
           <Link href="/dashboard" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
@@ -397,7 +410,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <BreakingNewsBanner />
 
       {/* Mobile Bottom Navigation */}
-      <nav className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden ${sidebarOpen ? 'pointer-events-none' : ''}`}>
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
         <div className="glass-nav border-t border-black/[0.06] dark:border-white/[0.06] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
           <div className="flex items-end justify-around">
             {[
