@@ -238,27 +238,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSidebarOpen(false);
   }, [pathname]);
 
-  // Close sidebar on outside touch/click (mobile)
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    const handleOutside = (e: MouseEvent | TouchEvent) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
-        setSidebarOpen(false);
-      }
-    };
-    document.addEventListener('touchstart', handleOutside, { passive: true });
-    document.addEventListener('mousedown', handleOutside);
-    return () => {
-      document.removeEventListener('touchstart', handleOutside);
-      document.removeEventListener('mousedown', handleOutside);
-    };
-  }, [sidebarOpen]);
+  // Close sidebar handler for overlay
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Mobile overlay */}
+      {/* Mobile overlay - button element for reliable iOS Safari touch */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden pointer-events-none" />
+        <button
+          type="button"
+          aria-label="Menüyü kapat"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden appearance-none border-0 outline-none cursor-pointer"
+          onClick={closeSidebar}
+          onTouchEnd={(e) => { e.preventDefault(); closeSidebar(); }}
+          style={{ WebkitTapHighlightColor: 'transparent', WebkitAppearance: 'none' }}
+        />
       )}
 
       {/* Sidebar */}
