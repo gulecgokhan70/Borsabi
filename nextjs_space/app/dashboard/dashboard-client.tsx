@@ -39,6 +39,8 @@ export function DashboardClient() {
   const [marketAlerts, setMarketAlerts] = useState<any[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
   const [alertsExpanded, setAlertsExpanded] = useState(false);
+  const [newsImpact, setNewsImpact] = useState<any>(null);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -66,24 +68,29 @@ export function DashboardClient() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Fetch market alerts
+  // Fetch market alerts + AI news analysis
   useEffect(() => {
     let cancelled = false;
     async function loadAlerts() {
       try {
         setAlertsLoading(true);
-        const res = await fetch('/api/market-alerts');
-        if (!res.ok) throw new Error('alerts fetch failed');
-        const data = await res.json();
-        if (!cancelled) setMarketAlerts(data.alerts || []);
+        setNewsLoading(true);
+        const [alertRes, newsRes] = await Promise.allSettled([
+          fetch('/api/market-alerts').then(r => r.json()),
+          fetch('/api/news-analysis').then(r => r.json()),
+        ]);
+        if (!cancelled) {
+          if (alertRes.status === 'fulfilled') setMarketAlerts(alertRes.value?.alerts || []);
+          if (newsRes.status === 'fulfilled' && newsRes.value?.impact) setNewsImpact(newsRes.value.impact);
+        }
       } catch (e) {
         console.error('Market alerts error:', e);
       } finally {
-        if (!cancelled) setAlertsLoading(false);
+        if (!cancelled) { setAlertsLoading(false); setNewsLoading(false); }
       }
     }
     loadAlerts();
-    const interval = setInterval(loadAlerts, 15 * 60 * 1000); // 15 min
+    const interval = setInterval(loadAlerts, 15 * 60 * 1000);
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
@@ -162,19 +169,42 @@ export function DashboardClient() {
         </div>
       </motion.div>
 
-      {/* Piyasa Uyarıları */}
+      {/* Piyasa Uyarıları + AI Analiz */}
       <motion.div {...fadeIn} transition={{ delay: 0.05 }}>
         <div className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">
+          {/* Header with AI Sentiment */}
           <button
             onClick={() => setAlertsExpanded(!alertsExpanded)}
             className="w-full flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="w-7 h-7 rounded-lg bg-[#F59E0B]/10 flex items-center justify-center">
                 <Newspaper className="w-4 h-4 text-[#F59E0B]" />
               </div>
               <h2 className="text-sm font-semibold text-foreground">Piyasa Uyarıları</h2>
-              <span className="text-[9px] text-muted-foreground">Son Haberler</span>
+              {/* AI Sentiment Badge */}
+              {newsImpact && (
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                  newsImpact.overallSentiment === 'olumlu' ? 'bg-[#22C55E]/15 text-[#22C55E]' :
+                  newsImpact.overallSentiment === 'olumsuz' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                  newsImpact.overallSentiment === 'karışık' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
+                  'bg-slate-500/15 text-slate-400'
+                }`}>
+                  {newsImpact.overallSentiment === 'olumlu' ? '📈 Olumlu' :
+                   newsImpact.overallSentiment === 'olumsuz' ? '📉 Olumsuz' :
+                   newsImpact.overallSentiment === 'karışık' ? '⚖️ Karışık' : '➖ Nötr'}
+                </span>
+              )}
+              {/* Risk Badge */}
+              {newsImpact && (
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                  newsImpact.riskLevel === 'Yüksek' ? 'bg-[#EF4444]/15 text-[#EF4444]' :
+                  newsImpact.riskLevel === 'Orta' ? 'bg-[#F59E0B]/15 text-[#F59E0B]' :
+                  'bg-[#22C55E]/15 text-[#22C55E]'
+                }`}>
+                  Risk: {newsImpact.riskLevel}
+                </span>
+              )}
               {!alertsLoading && marketAlerts.length > 0 && (
                 <span className="text-[10px] font-bold bg-[#EF4444]/10 text-[#EF4444] px-1.5 py-0.5 rounded-full">
                   {marketAlerts.length}
@@ -184,8 +214,66 @@ export function DashboardClient() {
             <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${alertsExpanded ? 'rotate-90' : ''}`} />
           </button>
 
-          {/* Preview - always show top alert */}
-          {!alertsExpanded && !alertsLoading && marketAlerts.length > 0 && (
+          {/* AI Summary + Critical Warnings (always visible) */}
+          {newsImpact && !alertsLoading && (
+            <div className="px-4 py-3 border-b border-black/[0.04] dark:border-white/[0.04]">
+              {/* AI Summary */}
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="text-[#8B5CF6] font-semibold">🤖 AI:</span> {newsImpact.summary}
+              </p>
+
+              {/* Critical Warnings - Red Banner */}
+              {newsImpact.criticalWarnings?.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {newsImpact.criticalWarnings.map((w: string, i: number) => (
+                    <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#EF4444]/10 border border-[#EF4444]/20">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#EF4444] flex-shrink-0" />
+                      <p className="text-[11px] font-medium text-[#EF4444]">{w}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Stock Warnings - GİR/GİRME/DİKKATLİ OL */}
+              {newsImpact.stockWarnings?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2.5">
+                  {newsImpact.stockWarnings.map((sw: any, i: number) => (
+                    <span
+                      key={i}
+                      onClick={() => router.push(`/stock/${encodeURIComponent(sw.symbol + '.IS')}`)}
+                      className={`text-[10px] px-2 py-1 rounded-lg font-bold border cursor-pointer transition-all hover:scale-105 ${
+                        sw.warning === 'GİR' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30 hover:bg-[#22C55E]/20' :
+                        sw.warning === 'GİRME' ? 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/20' :
+                        'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30 hover:bg-[#F59E0B]/20'
+                      }`}
+                      title={sw.reason}
+                    >
+                      {sw.warning === 'GİR' ? '📈' : sw.warning === 'GİRME' ? '📉' : '⚠️'} {sw.symbol}: {sw.warning}
+                      <span className={`ml-1 font-mono text-[9px] opacity-80`}>{sw.impact > 0 ? '+' : ''}{sw.impact}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Sector Impacts */}
+              {newsImpact.sectorImpacts?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {newsImpact.sectorImpacts.map((s: any, i: number) => (
+                    <span key={i} className={`text-[9px] px-2 py-0.5 rounded-full font-medium border ${
+                      s.direction === 'yukarı' ? 'bg-[#22C55E]/8 text-[#22C55E] border-[#22C55E]/20' :
+                      s.direction === 'aşağı' ? 'bg-[#EF4444]/8 text-[#EF4444] border-[#EF4444]/20' :
+                      'bg-slate-500/8 text-slate-400 border-slate-500/20'
+                    }`}>
+                      {s.direction === 'yukarı' ? '▲' : s.direction === 'aşağı' ? '▼' : '●'} {s.sector}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Preview - top alert when collapsed */}
+          {!alertsExpanded && !alertsLoading && !newsImpact && marketAlerts.length > 0 && (
             <div className="px-4 py-2.5">
               <div className="flex items-start gap-2">
                 <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
@@ -196,28 +284,26 @@ export function DashboardClient() {
                   <p className="text-xs font-medium text-foreground truncate">{marketAlerts[0].title}</p>
                   <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{marketAlerts[0].summary}</p>
                 </div>
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                  marketAlerts[0].impact === 'yüksek' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
-                  marketAlerts[0].impact === 'orta' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'
-                }`}>
-                  {marketAlerts[0].impact === 'yüksek' ? '🔴 Yüksek' : marketAlerts[0].impact === 'orta' ? '🟡 Orta' : '🔵 Düşük'}
-                </span>
               </div>
-              {marketAlerts.length > 1 && (
-                <p className="text-[10px] text-[#3B82F6] font-medium mt-1.5 cursor-pointer" onClick={() => setAlertsExpanded(true)}>+ {marketAlerts.length - 1} uyarı daha →</p>
-              )}
+            </div>
+          )}
+
+          {/* Haber sayısı teaser (collapsed) */}
+          {!alertsExpanded && !alertsLoading && marketAlerts.length > 0 && (
+            <div className="px-4 pb-2.5">
+              <p className="text-[10px] text-[#3B82F6] font-medium cursor-pointer hover:underline" onClick={() => setAlertsExpanded(true)}>📰 {marketAlerts.length} haber detayını gör →</p>
             </div>
           )}
 
           {/* Loading */}
-          {alertsLoading && (
+          {(alertsLoading || newsLoading) && (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="w-4 h-4 animate-spin text-[#F59E0B] mr-2" />
-              <span className="text-xs text-muted-foreground">Haberler ve tarama verileri analiz ediliyor...</span>
+              <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6] mr-2" />
+              <span className="text-xs text-muted-foreground">AI ile haberler analiz ediliyor...</span>
             </div>
           )}
 
-          {/* Expanded view */}
+          {/* Expanded: Full news list */}
           {alertsExpanded && !alertsLoading && (
             <div className="divide-y divide-black/[0.05] dark:divide-white/[0.05]">
               {marketAlerts.length === 0 ? (
@@ -244,17 +330,11 @@ export function DashboardClient() {
                             alert.impact === 'yüksek' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
                             alert.impact === 'orta' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'
                           }`}>
-                            {alert.impact === 'yüksek' ? '🔴 Yüksek Etki' : alert.impact === 'orta' ? '🟡 Orta Etki' : '🔵 Düşük Etki'}
-                          </span>
-                          <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${
-                            alert.category === 'gece' ? 'bg-[#8B5CF6]/10 text-[#8B5CF6]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'
-                          }`}>
-                            {alert.category === 'gece' ? '🌙 Gece' : '☀️ Gün İçi'}
+                            {alert.impact === 'yüksek' ? '🔴 Yüksek' : alert.impact === 'orta' ? '🟡 Orta' : '🔵 Düşük'}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{alert.summary}</p>
 
-                        {/* Affected sectors & symbols */}
                         {(alert.affectedSectors?.length > 0 || alert.affectedSymbols?.length > 0) && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {alert.affectedSectors?.map((s: string) => (
@@ -266,7 +346,6 @@ export function DashboardClient() {
                           </div>
                         )}
 
-                        {/* Action suggestion */}
                         {alert.actionSuggestion && (
                           <div className="flex items-start gap-1.5 mt-2 p-2 rounded-lg bg-black/[0.02] dark:bg-white/[0.03]">
                             <Flame className="w-3 h-3 text-[#F59E0B] mt-0.5 flex-shrink-0" />
