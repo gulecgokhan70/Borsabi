@@ -63,7 +63,7 @@ export function BacktestClient() {
   const symbolGroups = [
     { label: 'BIST Hisseleri', items: BIST_STOCKS },
     { label: 'Borsa Yatırım Fonları', items: BIST_FUNDS },
-    { label: 'Kripto', items: CRYPTO_ASSETS.slice(0, 5) },
+    { label: 'Kripto', items: CRYPTO_ASSETS },
   ];
   const allSymbols = symbolGroups.flatMap(g => g.items);
   const [symbol, setSymbol] = useState(BIST_STOCKS[0].symbol);

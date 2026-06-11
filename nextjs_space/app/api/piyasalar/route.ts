@@ -39,7 +39,7 @@ export async function GET() {
     // Fetch all data in parallel
     const allCurrSymbols = CURRENCY_PAIRS.map(c => c.symbol);
     const allCommSymbols = COMMODITY_SYMBOLS.map(c => c.symbol);
-    const cryptoSymbols = CRYPTO_ASSETS.slice(0, 8).map(c => c.symbol);
+    const cryptoSymbols = CRYPTO_ASSETS.map(c => c.symbol);
     const bistTopSymbols = BIST_TOP_STOCKS.slice(0, 10).map(s => s.symbol);
 
     const [currQuotes, commQuotes, cryptoQuotes, indexQuotes, midasRes] = await Promise.allSettled([
@@ -141,7 +141,7 @@ export async function GET() {
     }
 
     // Format crypto
-    const crypto = CRYPTO_ASSETS.slice(0, 8).map(ca => {
+    const crypto = CRYPTO_ASSETS.map(ca => {
       const q: any = cryptoData.get(ca.symbol) || {};
       return {
         symbol: ca.symbol,

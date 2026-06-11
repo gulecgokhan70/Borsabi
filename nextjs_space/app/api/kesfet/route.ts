@@ -58,9 +58,9 @@ export async function GET() {
     // Crypto movers
     let cryptoMovers: any[] = [];
     try {
-      const cSymbols = CRYPTO_ASSETS.slice(0, 6).map(c => c.symbol);
+      const cSymbols = CRYPTO_ASSETS.map(c => c.symbol);
       const cQuotes = await cachedQuoteBatch(cSymbols);
-      cryptoMovers = CRYPTO_ASSETS.slice(0, 6).map(ca => {
+      cryptoMovers = CRYPTO_ASSETS.map(ca => {
         const q: any = cQuotes.get(ca.symbol) || {};
         return {
           symbol: ca.symbol,

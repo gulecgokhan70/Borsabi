@@ -97,7 +97,7 @@ export function DashboardClient() {
       const [indRes, stockRes, cryptoRes, portRes] = await Promise.allSettled([
         fetch(`/api/market?symbols=${BIST_INDICES.map((i: any) => i?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 20).map((s: any) => s?.symbol).join(',')}`).then((r: any) => r?.json?.()),
-        fetch(`/api/market?symbols=${CRYPTO_ASSETS.slice(0, 8).map((c: any) => c?.symbol).join(',')}`).then((r: any) => r?.json?.()),
+        fetch(`/api/market?symbols=${CRYPTO_ASSETS.map((c: any) => c?.symbol).join(',')}`).then((r: any) => r?.json?.()),
         fetch('/api/portfolio').then((r: any) => r?.json?.()),
       ]);
       if (indRes?.status === 'fulfilled') {

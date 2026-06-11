@@ -24,6 +24,16 @@ export const CRYPTO_ASSETS = [
   { symbol: 'DOGE-USD', name: 'Dogecoin', shortName: 'DOGE' },
   { symbol: 'DOT-USD', name: 'Polkadot', shortName: 'DOT' },
   { symbol: 'MATIC-USD', name: 'Polygon', shortName: 'MATIC' },
+  { symbol: 'LINK-USD', name: 'Chainlink', shortName: 'LINK' },
+  { symbol: 'UNI-USD', name: 'Uniswap', shortName: 'UNI' },
+  { symbol: 'ATOM-USD', name: 'Cosmos', shortName: 'ATOM' },
+  { symbol: 'LTC-USD', name: 'Litecoin', shortName: 'LTC' },
+  { symbol: 'NEAR-USD', name: 'NEAR Protocol', shortName: 'NEAR' },
+  { symbol: 'APT-USD', name: 'Aptos', shortName: 'APT' },
+  { symbol: 'ARB-USD', name: 'Arbitrum', shortName: 'ARB' },
+  { symbol: 'OP-USD', name: 'Optimism', shortName: 'OP' },
+  { symbol: 'FIL-USD', name: 'Filecoin', shortName: 'FIL' },
+  { symbol: 'SHIB-USD', name: 'Shiba Inu', shortName: 'SHIB' },
 ];
 
 // Yahoo -> TradingView sembol dönüşümü
