@@ -82,7 +82,7 @@ export function PortfolioClient() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08]">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
             <Activity className="w-4 h-4 text-[#3B82F6]" />
-            <h2 className="text-sm font-semibold text-foreground">Portföy Değeri</h2>
+            <h2 className="text-sm font-semibold text-foreground">Toplam Portföy Değeri</h2>
           </div>
           <div style={{ height: 220 }} className="px-2 py-3">
             {(portfolio?.equityCurve?.length ?? 0) > 1 ? (
@@ -100,7 +100,7 @@ export function PortfolioClient() {
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: '#94A3B8' }}
-                    formatter={(value: number) => [`₺${value.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, 'Bakiye']}
+                    formatter={(value: number) => [`₺${value.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, 'Portföy Değeri']}
                   />
                   <Area type="monotone" dataKey="balance" stroke={totalReturn >= 0 ? '#22C55E' : '#EF4444'} strokeWidth={2} fill="url(#eqGrad)" dot={false} />
                 </AreaChart>

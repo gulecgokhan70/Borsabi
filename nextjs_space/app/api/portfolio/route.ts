@@ -102,33 +102,53 @@ export async function GET(request: NextRequest) {
     const totalTrades = closedPositions?.length ?? 0;
     const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
 
-    // Bakiye eğrisi: işlem geçmişinden hesapla
+    // Toplam portföy değeri eğrisi: işlem geçmişinden hesapla
+    // Her işlem noktasında: nakit bakiye + açık pozisyonların maliyet değeri = toplam portföy
     const allTransactions = await prisma.transaction.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
-      select: { type: true, total: true, pnl: true, createdAt: true },
+      select: { type: true, total: true, pnl: true, price: true, quantity: true, symbol: true, createdAt: true },
     });
 
     const initBal = user?.initialBalance ?? 100000;
-    let runningBalance = initBal;
+    let cashBalance = initBal;
+    let positionCostMap = new Map<string, number>(); // symbol -> maliyet değeri
+
     const equityCurve: { date: string; balance: number }[] = [
-      { date: new Date(allTransactions[0]?.createdAt ?? Date.now()).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }), balance: initBal },
+      { date: allTransactions.length > 0
+        ? new Date(allTransactions[0].createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })
+        : new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
+        balance: initBal },
     ];
 
     for (const tx of allTransactions) {
-      if (tx.type === 'SELL') {
-        runningBalance += (tx.total ?? 0);
+      const txTotal = tx.total ?? ((tx.price ?? 0) * (tx.quantity ?? 0));
+      const sym = tx.symbol ?? '';
+      if (tx.type === 'BUY') {
+        cashBalance -= txTotal;
+        positionCostMap.set(sym, (positionCostMap.get(sym) ?? 0) + txTotal);
       } else {
-        runningBalance -= (tx.total ?? 0);
+        // SELL: nakit artar, pozisyon maliyeti azalır, realized PnL yansır
+        cashBalance += txTotal;
+        const prevCost = positionCostMap.get(sym) ?? 0;
+        const sellCost = (tx.price ?? 0) > 0 && (tx.quantity ?? 0) > 0
+          ? txTotal - (tx.pnl ?? 0) // maliyet = satış tutarı - kâr
+          : txTotal;
+        positionCostMap.set(sym, Math.max(0, prevCost - sellCost));
+        if ((positionCostMap.get(sym) ?? 0) < 0.01) positionCostMap.delete(sym);
       }
+      const totalPositionCost = Array.from(positionCostMap.values()).reduce((s, v) => s + v, 0);
+      const portfolioValue = cashBalance + totalPositionCost;
       equityCurve.push({
         date: new Date(tx.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-        balance: Math.round(runningBalance * 100) / 100,
+        balance: Math.round(portfolioValue * 100) / 100,
       });
     }
-    // Son durum: güncel bakiye + pozisyon değeri
+
+    // Son durum: güncel bakiye + güncel pozisyon değeri (canlı fiyatlarla)
     const currentTotal = (user?.balance ?? 100000) + totalPositionValue;
-    if (equityCurve.length > 0 && equityCurve[equityCurve.length - 1].balance !== currentTotal) {
+    const lastPoint = equityCurve[equityCurve.length - 1];
+    if (Math.abs((lastPoint?.balance ?? 0) - currentTotal) > 1) {
       equityCurve.push({
         date: 'Şimdi',
         balance: Math.round(currentTotal * 100) / 100,
