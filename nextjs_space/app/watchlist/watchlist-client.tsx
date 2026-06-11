@@ -126,13 +126,13 @@ export function WatchlistClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">İzleme Listesi</h1>
-          <p className="text-sm text-muted-foreground">Favori hisselerinizi takip edin ve hızlı işlem yapın</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">İzleme Listesi</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Favori hisselerinizi takip edin</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#3B82F6] text-white text-sm font-semibold hover:bg-[#2563EB] transition-colors">
+        <div className="flex gap-2 flex-shrink-0">
+          <button onClick={() => setShowAdd(!showAdd)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#3B82F6] text-white text-xs sm:text-sm font-semibold hover:bg-[#2563EB] transition-colors">
             <Plus className="w-4 h-4" /> Ekle
           </button>
           <button onClick={() => { setShowNotifs(!showNotifs); haptic.light(); }} className="relative p-2 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
@@ -164,12 +164,12 @@ export function WatchlistClient() {
               return (
                 <button key={a?.symbol} onClick={() => toggleWatchlist(a?.symbol, a?.name, a?.type)}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${isInList ? 'bg-[#3B82F6]/10' : 'hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${a?.type === 'CRYPTO' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'}`}>{a?.type}</span>
-                    <span className="text-sm text-foreground">{a?.shortName ?? a?.symbol}</span>
-                    <span className="text-xs text-muted-foreground">{a?.name}</span>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${a?.type === 'CRYPTO' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'}`}>{a?.type}</span>
+                    <span className="text-sm text-foreground truncate font-medium">{a?.shortName ?? a?.symbol}</span>
+                    <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">{a?.name}</span>
                   </div>
-                  <Star className={`w-4 h-4 ${isInList ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-slate-400 dark:text-slate-500'}`} />
+                  <Star className={`w-4 h-4 flex-shrink-0 ml-2 ${isInList ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-slate-400 dark:text-slate-500'}`} />
                 </button>
               );
             })}
@@ -182,15 +182,15 @@ export function WatchlistClient() {
         {showNotifs && (
           <motion.div initial={{ opacity: 0, y: -10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -10, height: 0 }}
             className="glass-card rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
-              <div className="flex items-center gap-2">
-                <BellRing className="w-4 h-4 text-[#F59E0B]" />
-                <h3 className="text-sm font-semibold text-foreground">Fiyat Bildirimleri</h3>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] font-semibold">
-                  %{ALERT_THRESHOLD}+ değişim veya ani hareket
+            <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08] gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <BellRing className="w-4 h-4 text-[#F59E0B] flex-shrink-0" />
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground whitespace-nowrap">Bildirimler</h3>
+                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] font-semibold whitespace-nowrap hidden sm:inline">
+                  %{ALERT_THRESHOLD}+ değişim
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {notifications.length > 0 && (
                   <button onClick={() => setNotifications([])} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">Temizle</button>
                 )}
@@ -252,17 +252,17 @@ export function WatchlistClient() {
                     {change >= 0 ? 'Sert Yükseliş' : 'Sert Düşüş'} ({formatPercent(change)})
                   </div>
                 )}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push(`/stock/${encodeURIComponent(w?.symbol)}`)}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${change >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <div className="flex items-center gap-2 cursor-pointer min-w-0 flex-1" onClick={() => router.push(`/stock/${encodeURIComponent(w?.symbol)}`)}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${change >= 0 ? 'bg-[#22C55E]/10' : 'bg-[#EF4444]/10'}`}>
                       {change >= 0 ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> : <TrendingDown className="w-4 h-4 text-[#EF4444]" />}
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground hover:text-[#3B82F6] transition-colors">{w?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
-                      <p className="text-[10px] text-muted-foreground">{w?.name}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground hover:text-[#3B82F6] transition-colors truncate">{w?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{w?.name}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-mono font-semibold text-foreground">{formatNumber(priceData?.price ?? 0)}</p>
                       <p className={`text-xs font-mono ${change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatPercent(change)}</p>
