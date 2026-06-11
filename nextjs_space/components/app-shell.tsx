@@ -243,20 +243,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Mobile overlay - button element for reliable iOS Safari touch */}
+      {/* Mobile overlay */}
       {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Menüyü kapat"
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden appearance-none border-0 outline-none cursor-pointer"
+        <div
+          className="fixed inset-0 z-[60] bg-black/40 lg:hidden"
           onClick={closeSidebar}
-          onTouchEnd={(e) => { e.preventDefault(); closeSidebar(); }}
-          style={{ WebkitTapHighlightColor: 'transparent', WebkitAppearance: 'none' }}
+          onTouchStart={closeSidebar}
+          role="button"
+          tabIndex={-1}
+          aria-label="Menüyü kapat"
         />
       )}
 
       {/* Sidebar */}
-      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 z-50 w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 z-[70] w-64 glass-sidebar transform transition-transform duration-300 lg:relative lg:translate-x-0 ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex flex-col h-full">
@@ -343,7 +343,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={`flex-1 overflow-y-auto ${sidebarOpen ? 'lg:pointer-events-auto pointer-events-none' : ''}`}>
         {/* Desktop top bar */}
         <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
           <Link href="/dashboard" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
@@ -397,7 +397,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <BreakingNewsBanner />
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 lg:hidden ${sidebarOpen ? 'pointer-events-none' : ''}`}>
         <div className="glass-nav border-t border-black/[0.06] dark:border-white/[0.06] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
           <div className="flex items-end justify-around">
             {[
