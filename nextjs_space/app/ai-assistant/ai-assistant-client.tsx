@@ -19,6 +19,7 @@ const SUGGESTIONS = [
   'Altın yatırımı hakkında bilgi ver',
   'Sektörel bazda en iyi performans gösteren hisseler',
   'Destek ve direnç seviyeleri nasıl hesaplanır?',
+  'Bugün için açılış öncesi piyasa analizi yap',
 ];
 
 interface ChatMsg {
