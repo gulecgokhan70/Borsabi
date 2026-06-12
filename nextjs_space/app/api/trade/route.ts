@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT } from '@/lib/constants';
+import { MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT, isIndexSymbol } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +16,10 @@ export async function POST(request: NextRequest) {
 
     if (!symbol || !type || !quantity || !price) {
       return NextResponse.json({ error: 'Eksik alanlar' }, { status: 400 });
+    }
+
+    if (isIndexSymbol(symbol)) {
+      return NextResponse.json({ error: 'Endeks sembolleri alınıp satılamaz. Endeksler sadece grafik görüntüleme içindir.' }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });

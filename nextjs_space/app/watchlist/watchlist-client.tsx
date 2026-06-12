@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, Plus, Loader2, TrendingUp, TrendingDown, RefreshCw, Search, X, Star, Bell, BellRing, AlertTriangle } from 'lucide-react';
-import { BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import { BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber, isIndexSymbol } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 import { PriceChart } from '@/components/price-chart';
 import { toast } from 'sonner';
@@ -273,10 +273,12 @@ export function WatchlistClient() {
                   </div>
                 </div>
                 <PriceChart symbol={w?.symbol} height="h-24" />
-                <button
-                  onClick={() => setTradeModal({ symbol: w?.symbol, name: w?.name, price: priceData?.price ?? 0, marketType: w?.type })}
-                  className="w-full mt-3 py-2 text-xs font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors"
-                >İşlem Yap</button>
+                {!isIndexSymbol(w?.symbol) && (
+                  <button
+                    onClick={() => setTradeModal({ symbol: w?.symbol, name: w?.name, price: priceData?.price ?? 0, marketType: w?.type })}
+                    className="w-full mt-3 py-2 text-xs font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors"
+                  >İşlem Yap</button>
+                )}
               </motion.div>
             );
           })}

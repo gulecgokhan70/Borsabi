@@ -7,7 +7,7 @@ import {
   Info, Percent, Building2, LineChart, Newspaper, ExternalLink, Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
+import { formatCurrency, formatNumber, formatPercent, isIndexSymbol } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 import { useHaptic } from '@/hooks/use-haptic';
 import {
@@ -344,16 +344,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 {displayChange >= 0 ? '+' : ''}{formatCurrency(Math.abs(displayChange))}
               </p>
             </div>
-            <div className="flex flex-col gap-2">
-              <button onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }}
-                className="px-5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4" /> Al
-              </button>
-              <button onClick={() => { setTradeSide('SELL'); setTradeOpen(true); }}
-                className="px-5 py-2 rounded-lg bg-[#EF4444] text-white text-sm font-semibold hover:bg-[#DC2626] transition-colors flex items-center gap-1.5">
-                <TrendingDown className="w-4 h-4" /> Sat
-              </button>
-            </div>
+            {!isIndexSymbol(data?.symbol ?? '') && (
+              <div className="flex flex-col gap-2">
+                <button onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }}
+                  className="px-5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4" /> Al
+                </button>
+                <button onClick={() => { setTradeSide('SELL'); setTradeOpen(true); }}
+                  className="px-5 py-2 rounded-lg bg-[#EF4444] text-white text-sm font-semibold hover:bg-[#DC2626] transition-colors flex items-center gap-1.5">
+                  <TrendingDown className="w-4 h-4" /> Sat
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
       ) : (
@@ -934,7 +936,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       </p>
 
       {/* Trade Modal */}
-      {data && (
+      {data && !isIndexSymbol(data.symbol) && (
         <TradeModal
           isOpen={tradeOpen}
           onClose={() => setTradeOpen(false)}

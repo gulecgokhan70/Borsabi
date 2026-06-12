@@ -12,6 +12,12 @@ export const BIST_INDICES = [
   { symbol: 'XU030.IS', name: 'BIST 30' },
 ];
 
+// Index symbols - sadece grafik görüntüleme, al/sat yok
+export const INDEX_SYMBOLS = ['XU100.IS', 'XU030.IS', 'XU050.IS', 'XU500.IS'];
+export function isIndexSymbol(symbol: string): boolean {
+  return INDEX_SYMBOLS.includes(symbol?.toUpperCase?.() ?? '');
+}
+
 // Crypto
 export const CRYPTO_ASSETS = [
   // Top 10
