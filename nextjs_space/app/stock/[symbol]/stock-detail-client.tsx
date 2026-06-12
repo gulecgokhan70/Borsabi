@@ -126,7 +126,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const haptic = useHaptic();
   const lastHapticTs = useRef(0);
   const isIndex = isIndexSymbol(symbol);
-  const fp = (v: number) => isIndex ? formatNumber(v) + ' puan' : formatCurrency(v);
+  const fp = (v: number) => isIndex ? formatNumber(v) : formatCurrency(v);
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
