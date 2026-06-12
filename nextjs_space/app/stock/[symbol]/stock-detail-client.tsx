@@ -125,6 +125,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
   const haptic = useHaptic();
   const lastHapticTs = useRef(0);
+  const isIndex = isIndexSymbol(symbol);
+  const fp = (v: number) => isIndex ? formatNumber(v) + ' puan' : formatCurrency(v);
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
@@ -276,10 +278,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       <div className="glass-card rounded-lg p-3 shadow-xl text-xs">
         <p className="text-muted-foreground mb-1.5 font-medium">{label}</p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <span className="text-slate-400 dark:text-slate-500">Açılış:</span><span className="text-foreground font-mono">{formatCurrency(d.open)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Yüksek:</span><span className="text-foreground font-mono">{formatCurrency(d.high)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Düşük:</span><span className="text-foreground font-mono">{formatCurrency(d.low)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Kapanış:</span><span className={`font-mono font-semibold ${d.close >= d.open ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatCurrency(d.close)}</span>
+          <span className="text-slate-400 dark:text-slate-500">Açılış:</span><span className="text-foreground font-mono">{fp(d.open)}</span>
+          <span className="text-slate-400 dark:text-slate-500">Yüksek:</span><span className="text-foreground font-mono">{fp(d.high)}</span>
+          <span className="text-slate-400 dark:text-slate-500">Düşük:</span><span className="text-foreground font-mono">{fp(d.low)}</span>
+          <span className="text-slate-400 dark:text-slate-500">Kapanış:</span><span className={`font-mono font-semibold ${d.close >= d.open ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{fp(d.close)}</span>
           <span className="text-slate-400 dark:text-slate-500">Hacim:</span><span className="text-foreground font-mono">{formatNumber(d.volume)}</span>
         </div>
       </div>
@@ -337,11 +339,11 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className={`text-3xl font-bold transition-colors duration-150 ${activePoint ? 'text-[#3B82F6]' : 'text-foreground'}`}>
-                {formatCurrency(displayPrice)}
+                {fp(displayPrice)}
               </p>
               <p className={`text-sm font-medium transition-colors duration-150 ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                 {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-                {displayChange >= 0 ? '+' : ''}{formatCurrency(Math.abs(displayChange))}
+                {isIndex ? `${displayChangePercent >= 0 ? '+' : ''}${displayChangePercent.toFixed(2)}%` : `${displayChange >= 0 ? '+' : ''}${formatCurrency(Math.abs(displayChange))}`}
               </p>
             </div>
             {!isIndexSymbol(data?.symbol ?? '') && (
@@ -527,12 +529,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {data && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
-            { label: 'Açılış', value: formatCurrency(data.open), icon: DollarSign, color: 'text-[#3B82F6]' },
-            { label: 'Önceki Kapanış', value: formatCurrency(data.prevClose), icon: ArrowUpDown, color: 'text-muted-foreground' },
-            { label: 'Gün Yüksek', value: formatCurrency(data.high), icon: TrendingUp, color: 'text-[#22C55E]' },
-            { label: 'Gün Düşük', value: formatCurrency(data.low), icon: TrendingDown, color: 'text-[#F87171]' },
-            ...(data.tavan ? [{ label: 'Tavan ↑', value: formatCurrency(data.tavan), icon: TrendingUp, color: 'text-[#22C55E]' }] : []),
-            ...(data.taban ? [{ label: 'Taban', value: formatCurrency(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
+            { label: 'Açılış', value: fp(data.open), icon: DollarSign, color: 'text-[#3B82F6]' },
+            { label: 'Önceki Kapanış', value: fp(data.prevClose), icon: ArrowUpDown, color: 'text-muted-foreground' },
+            { label: 'Gün Yüksek', value: fp(data.high), icon: TrendingUp, color: 'text-[#22C55E]' },
+            { label: 'Gün Düşük', value: fp(data.low), icon: TrendingDown, color: 'text-[#F87171]' },
+            ...(data.tavan ? [{ label: 'Tavan ↑', value: fp(data.tavan), icon: TrendingUp, color: 'text-[#22C55E]' }] : []),
+            ...(data.taban ? [{ label: 'Taban', value: fp(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
             { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2, color: 'text-[#8B5CF6]' },
             { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-slate-400 dark:text-slate-500' },
           ].map((item: any, i: number) => (
@@ -559,13 +561,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             <Target className="w-4 h-4 text-[#3B82F6]" /> 52 Haftalık Aralık
           </h3>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-[#F87171] font-mono whitespace-nowrap">{formatCurrency(data.fiftyTwoWeekLow)}</span>
+            <span className="text-xs text-[#F87171] font-mono whitespace-nowrap">{fp(data.fiftyTwoWeekLow)}</span>
             <div className="flex-1 relative h-3 glass-inner rounded-full overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-[#EF4444]/30 via-[#F59E0B]/30 to-[#22C55E]/30 rounded-full" />
               <div className="absolute top-0 h-full w-2 bg-white dark:bg-white rounded-full shadow-lg shadow-black/20 dark:shadow-white/20 transition-all"
                 style={{ left: `calc(${Math.min(Math.max(range52Pct, 2), 98)}% - 4px)` }} />
             </div>
-            <span className="text-xs text-[#22C55E] font-mono whitespace-nowrap">{formatCurrency(data.fiftyTwoWeekHigh)}</span>
+            <span className="text-xs text-[#22C55E] font-mono whitespace-nowrap">{fp(data.fiftyTwoWeekHigh)}</span>
           </div>
           {/* Distance indicators */}
           <div className="grid grid-cols-2 gap-3 mt-3">
@@ -604,7 +606,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               {data.vwap ? (
                 <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">VWAP</p>
-                  <p className="text-foreground font-bold font-mono">{formatCurrency(data.vwap)}</p>
+                  <p className="text-foreground font-bold font-mono">{fp(data.vwap)}</p>
                   <p className={`text-[10px] mt-0.5 ${data.price > data.vwap ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                     Fiyat {data.price > data.vwap ? 'üstünde ↑' : 'altında ↓'}
                   </p>
@@ -726,7 +728,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted-foreground">EMA 20</span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono text-foreground">{formatCurrency(data.indicators.ema20 ?? 0)}</span>
+                        <span className="text-xs font-mono text-foreground">{fp(data.indicators.ema20 ?? 0)}</span>
                         <span className={`w-2 h-2 rounded-full ${data.price > (data.indicators.ema20 ?? 0) ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
                       </div>
                     </div>
@@ -735,7 +737,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted-foreground">EMA 50</span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono text-foreground">{formatCurrency(data.indicators.ema50 ?? 0)}</span>
+                        <span className="text-xs font-mono text-foreground">{fp(data.indicators.ema50 ?? 0)}</span>
                         <span className={`w-2 h-2 rounded-full ${data.price > (data.indicators.ema50 ?? 0) ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
                       </div>
                     </div>
@@ -744,7 +746,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-muted-foreground">EMA 200</span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono text-foreground">{formatCurrency(data.indicators.ema200 ?? 0)}</span>
+                        <span className="text-xs font-mono text-foreground">{fp(data.indicators.ema200 ?? 0)}</span>
                         <span className={`w-2 h-2 rounded-full ${data.price > (data.indicators.ema200 ?? 0) ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
                       </div>
                     </div>
@@ -767,15 +769,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 <div className="space-y-1.5">
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Üst Bant</span>
-                    <span className="text-xs font-mono text-[#F59E0B]">{formatCurrency(data.indicators.bbUpper ?? 0)}</span>
+                    <span className="text-xs font-mono text-[#F59E0B]">{fp(data.indicators.bbUpper ?? 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Orta</span>
-                    <span className="text-xs font-mono text-foreground">{formatCurrency(data.indicators.bbMiddle ?? 0)}</span>
+                    <span className="text-xs font-mono text-foreground">{fp(data.indicators.bbMiddle ?? 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Alt Bant</span>
-                    <span className="text-xs font-mono text-[#F59E0B]">{formatCurrency(data.indicators.bbLower ?? 0)}</span>
+                    <span className="text-xs font-mono text-[#F59E0B]">{fp(data.indicators.bbLower ?? 0)}</span>
                   </div>
                 </div>
                 <p className={`text-[10px] mt-2 font-medium ${
@@ -811,7 +813,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     <div key={`r-${i}`} className="flex items-center gap-3">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-mono font-bold text-[#EF4444]">{formatCurrency(r.price)}</span>
+                          <span className="text-xs font-mono font-bold text-[#EF4444]">{fp(r.price)}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] text-[#EF4444]/70 font-mono">+{distPercent.toFixed(2)}%</span>
                             <div className="flex gap-0.5">
@@ -836,7 +838,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             {/* Mevcut Fiyat */}
             <div className="flex items-center gap-3 py-2.5 my-1 border-y border-dashed border-[#3B82F6]/30">
               <div className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
-              <span className="text-sm font-bold font-mono text-[#3B82F6]">{formatCurrency(data.price)}</span>
+              <span className="text-sm font-bold font-mono text-[#3B82F6]">{fp(data.price)}</span>
               <span className="text-[10px] text-muted-foreground">Mevcut Fiyat</span>
             </div>
 
@@ -852,7 +854,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     <div key={`s-${i}`} className="flex items-center gap-3">
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-mono font-bold text-[#22C55E]">{formatCurrency(s.price)}</span>
+                          <span className="text-xs font-mono font-bold text-[#22C55E]">{fp(s.price)}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] text-[#22C55E]/70 font-mono">-{distPercent.toFixed(2)}%</span>
                             <div className="flex gap-0.5">
