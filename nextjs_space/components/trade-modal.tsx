@@ -33,8 +33,22 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [userBalance, setUserBalance] = useState(0);
+  const [userPositionQty, setUserPositionQty] = useState(0);
 
   useEffect(() => { setType(side); }, [side]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/portfolio')
+      .then(r => r.json())
+      .then(data => {
+        setUserBalance(data?.balance ?? 0);
+        const pos = (data?.positions ?? []).find((p: any) => p.symbol === symbol);
+        setUserPositionQty(pos?.quantity ?? 0);
+      })
+      .catch(() => {});
+  }, [isOpen, symbol]);
 
   const execPrice = orderType === 'market' ? (price ?? 0) : (parseFloat(limitPrice) || (price ?? 0));
   const qty = parseFloat(quantity) || 0;
@@ -200,7 +214,15 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
             {/* Quantity */}
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Miktar {maxQuantity ? `(Max: ${maxQuantity})` : ''}</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-muted-foreground">Miktar {maxQuantity ? `(Max: ${maxQuantity})` : ''}</label>
+                {type === 'BUY' && price > 0 && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Bakiye: {formatCurrency(userBalance, currencyCode)}</span>
+                )}
+                {type === 'SELL' && (maxQuantity ?? userPositionQty) > 0 && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Pozisyon: {maxQuantity ?? userPositionQty} adet</span>
+                )}
+              </div>
               <input
                 type="number"
                 value={quantity}
@@ -208,6 +230,36 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                 placeholder="0"
                 className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
               />
+              {/* Percentage buttons */}
+              <div className="grid grid-cols-4 gap-1.5 mt-2">
+                {[25, 50, 75, 100].map(pct => {
+                  const handlePct = () => {
+                    if (type === 'BUY') {
+                      const ep = execPrice > 0 ? execPrice : 1;
+                      const available = userBalance * (pct / 100);
+                      const maxQty = Math.floor(available / (ep * (1 + COMMISSION_RATE)));
+                      setQuantity(String(Math.max(0, maxQty)));
+                    } else {
+                      const maxSell = maxQuantity ?? userPositionQty;
+                      const sellQty = Math.floor(maxSell * (pct / 100));
+                      setQuantity(String(Math.max(0, sellQty)));
+                    }
+                  };
+                  return (
+                    <button
+                      key={pct}
+                      onClick={handlePct}
+                      className={`py-1.5 rounded-md text-xs font-semibold transition-all border ${
+                        type === 'BUY'
+                          ? 'border-[#22C55E]/20 text-[#22C55E] hover:bg-[#22C55E]/10'
+                          : 'border-[#EF4444]/20 text-[#EF4444] hover:bg-[#EF4444]/10'
+                      } glass-inner`}
+                    >
+                      %{pct}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Advanced toggle */}
