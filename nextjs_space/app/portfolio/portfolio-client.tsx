@@ -39,12 +39,12 @@ export function PortfolioClient() {
   const closedPositions = portfolio?.closedPositions ?? [];
   const balance = portfolio?.balance ?? 100000;
   const initialBalance = portfolio?.initialBalance ?? 100000;
-  const totalReturn = balance - initialBalance;
-  const totalReturnPct = initialBalance > 0 ? (totalReturn / initialBalance) * 100 : 0;
   const totalPositionValue = portfolio?.totalPositionValue ?? 0;
   const totalInvested = portfolio?.totalInvested ?? 0;
   const unrealizedPnl = portfolio?.unrealizedPnl ?? 0;
   const totalPortfolioValue = balance + totalPositionValue;
+  const totalReturn = totalPortfolioValue - initialBalance;
+  const totalReturnPct = initialBalance > 0 ? (totalReturn / initialBalance) * 100 : 0;
 
   return (
     <div className="space-y-6">
