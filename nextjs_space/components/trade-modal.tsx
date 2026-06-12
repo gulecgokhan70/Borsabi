@@ -35,6 +35,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
   const [userPositionQty, setUserPositionQty] = useState(0);
+  const [cashAmount, setCashAmount] = useState('');
+  const [inputMode, setInputMode] = useState<'quantity' | 'cash'>('quantity');
 
   useEffect(() => { setType(side); }, [side]);
 
@@ -212,10 +214,23 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               </div>
             )}
 
-            {/* Quantity */}
+            {/* Input Mode Toggle */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-muted-foreground">Miktar {maxQuantity ? `(Max: ${maxQuantity})` : ''}</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1 p-0.5 glass-inner rounded-md">
+                  <button
+                    onClick={() => setInputMode('quantity')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${inputMode === 'quantity' ? 'bg-[#3B82F6] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Adet
+                  </button>
+                  <button
+                    onClick={() => setInputMode('cash')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${inputMode === 'cash' ? 'bg-[#3B82F6] text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Tutar ({currencyCode})
+                  </button>
+                </div>
                 {type === 'BUY' && price > 0 && (
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">Bakiye: {formatCurrency(userBalance, currencyCode)}</span>
                 )}
@@ -223,13 +238,52 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">Pozisyon: {maxQuantity ?? userPositionQty} adet</span>
                 )}
               </div>
-              <input
-                type="number"
-                value={quantity}
-                onChange={(e: any) => setQuantity(e?.target?.value ?? '')}
-                placeholder="0"
-                className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
-              />
+
+              {inputMode === 'quantity' ? (
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e: any) => {
+                    const val = e?.target?.value ?? '';
+                    setQuantity(val);
+                    const q = parseFloat(val) || 0;
+                    setCashAmount(q > 0 && execPrice > 0 ? String(Math.round(q * execPrice * 100) / 100) : '');
+                  }}
+                  placeholder="Adet girin"
+                  className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                />
+              ) : (
+                <input
+                  type="number"
+                  value={cashAmount}
+                  onChange={(e: any) => {
+                    const val = e?.target?.value ?? '';
+                    setCashAmount(val);
+                    const cash = parseFloat(val) || 0;
+                    if (cash > 0 && execPrice > 0) {
+                      const calcQty = Math.floor(cash / (execPrice * (1 + COMMISSION_RATE)));
+                      setQuantity(String(Math.max(0, calcQty)));
+                    } else {
+                      setQuantity('');
+                    }
+                  }}
+                  placeholder={`Tutar girin (${currencyCode})`}
+                  className="w-full px-3 py-2.5 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground font-mono focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
+                />
+              )}
+
+              {/* Calculated info */}
+              {inputMode === 'cash' && qty > 0 && (
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                  ≈ {qty} adet × {formatCurrency(execPrice, currencyCode)} = {formatCurrency(qty * execPrice, currencyCode)}
+                </p>
+              )}
+              {inputMode === 'quantity' && qty > 0 && execPrice > 0 && (
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                  Tutar: {formatCurrency(qty * execPrice, currencyCode)}
+                </p>
+              )}
+
               {/* Percentage buttons */}
               <div className="grid grid-cols-4 gap-1.5 mt-2">
                 {[25, 50, 75, 100].map(pct => {
@@ -239,10 +293,12 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                       const available = userBalance * (pct / 100);
                       const maxQty = Math.floor(available / (ep * (1 + COMMISSION_RATE)));
                       setQuantity(String(Math.max(0, maxQty)));
+                      setCashAmount(String(Math.round(available * 100) / 100));
                     } else {
                       const maxSell = maxQuantity ?? userPositionQty;
                       const sellQty = Math.floor(maxSell * (pct / 100));
                       setQuantity(String(Math.max(0, sellQty)));
+                      setCashAmount(String(Math.round(sellQty * execPrice * 100) / 100));
                     }
                   };
                   return (
