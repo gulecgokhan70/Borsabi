@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
         const totalValue = livePrice * p.quantity;
         const totalCost = p.entryPrice * p.quantity;
-        const pnl = totalValue - totalCost - (p.commission ?? 0);
+        const pnl = totalValue - totalCost;
         const pnlPct = totalCost > 0 ? (pnl / totalCost) * 100 : 0;
 
         return {
