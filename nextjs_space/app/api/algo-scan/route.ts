@@ -4,7 +4,7 @@ import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
-import { calculateRSI, calculateEMA, calculateMACD } from '@/lib/technical-indicators';
+import { calculateRSI, calculateEMA, calculateMACD, calculateBollingerBands, calculateStochastic, calculateADX } from '@/lib/technical-indicators';
 import { processInBatches, withTimeout, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
 
 export async function POST(req: NextRequest) {
@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
       changeMin = -100,
       changeMax = 100,
       sortBy = 'score',
+      bollingerPos = 'all',
+      stochSignal = 'all',
+      adxMin = 0,
     } = body;
 
     const stocks = market === 'CRYPTO' ? CRYPTO_ASSETS : BIST_TOP_STOCKS;
@@ -93,10 +96,16 @@ export async function POST(req: NextRequest) {
         const avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
         const volRatio = avgVolume > 0 ? volume / avgVolume : 1;
 
+        const highs = validQuotes.map((q: any) => q.high) as number[];
+        const lows = validQuotes.map((q: any) => q.low) as number[];
+
         const rsi = calculateRSI(closes);
         const macd = calculateMACD(closes);
         const ema = calculateEMA(closes, emaPeriod);
         const currentEma = ema[ema.length - 1];
+        const bb = calculateBollingerBands(closes);
+        const stoch = calculateStochastic(closes, highs, lows);
+        const adx = calculateADX(closes, highs, lows);
 
         // Filtre uygula
         if (rsi < rsiMin || rsi > rsiMax) return null;
@@ -108,6 +117,18 @@ export async function POST(req: NextRequest) {
         if (emaFilter === 'above' && price < currentEma) return null;
         if (emaFilter === 'below' && price > currentEma) return null;
 
+        // Bollinger filtre
+        if (bb) {
+          if (bollingerPos === 'upper' && price < bb.middle) return null;
+          if (bollingerPos === 'lower' && price > bb.middle) return null;
+          if (bollingerPos === 'squeeze' && bb.bandwidth > 4) return null;
+        }
+        // Stochastic filtre
+        if (stochSignal === 'oversold' && stoch.k > 20) return null;
+        if (stochSignal === 'overbought' && stoch.k < 80) return null;
+        // ADX filtre
+        if (adx.adx < adxMin) return null;
+
         // Skor
         let score = 50;
         if (rsi < 30) score += 15;
@@ -116,6 +137,9 @@ export async function POST(req: NextRequest) {
         if (price > currentEma) score += 10;
         if (volRatio > 1.5) score += 10;
         if (change > 0) score += 5;
+        if (adx.adx > 25) score += 5;
+        if (stoch.k < 20) score += 5;
+        if (bb && price <= bb.lower) score += 5;
         score = Math.min(100, Math.max(0, score));
 
         if (cpScore > 0) score = Math.min(100, score + cpScore);
@@ -132,6 +156,9 @@ export async function POST(req: NextRequest) {
           macd: { macd: Math.round(macd.macd * 1000) / 1000, signal: Math.round(macd.signal * 1000) / 1000, histogram: Math.round(macd.histogram * 1000) / 1000 },
           ema: Math.round(currentEma * 100) / 100,
           emaPeriod,
+          bollinger: bb ? { upper: Math.round(bb.upper * 100) / 100, lower: Math.round(bb.lower * 100) / 100, bandwidth: Math.round(bb.bandwidth * 100) / 100 } : null,
+          stochastic: stoch,
+          adx,
           score,
           candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
         };

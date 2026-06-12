@@ -17,7 +17,17 @@ const INDICATORS = [
   { id: 'ema10', name: 'EMA 10', group: 'Ortalama' },
   { id: 'ema20', name: 'EMA 20', group: 'Ortalama' },
   { id: 'ema50', name: 'EMA 50', group: 'Ortalama' },
+  { id: 'ema200', name: 'EMA 200', group: 'Ortalama' },
   { id: 'rsi', name: 'RSI (14)', group: 'Osilatör' },
+  { id: 'macd', name: 'MACD', group: 'Osilatör' },
+  { id: 'macdSignal', name: 'MACD Sinyal', group: 'Osilatör' },
+  { id: 'stochK', name: 'Stochastic %K', group: 'Osilatör' },
+  { id: 'stochD', name: 'Stochastic %D', group: 'Osilatör' },
+  { id: 'adx', name: 'ADX', group: 'Trend' },
+  { id: 'bollingerUpper', name: 'Bollinger Üst', group: 'Bant' },
+  { id: 'bollingerMiddle', name: 'Bollinger Orta', group: 'Bant' },
+  { id: 'bollingerLower', name: 'Bollinger Alt', group: 'Bant' },
+  { id: 'atr', name: 'ATR (14)', group: 'Volatilite' },
   { id: 'volume', name: 'Hacim', group: 'Hacim' },
   { id: 'avgVolume', name: 'Ort. Hacim', group: 'Hacim' },
 ];
@@ -98,6 +108,40 @@ const TEMPLATES = [
       { id: 3, direction: 'sell', indicator: 'rsi', operator: 'gt', compareWith: 'value', compareIndicator: 'ema20', value: 65 },
     ],
     stopLoss: 3, takeProfit: 5,
+  },
+  {
+    id: 'bollinger-bounce',
+    name: 'Bollinger Sıçraması',
+    desc: 'Fiyat Bollinger alt bandına dokunursa al, üst bantta sat',
+    icon: '📉',
+    rules: [
+      { id: 1, direction: 'buy', indicator: 'price', operator: 'lt', compareWith: 'indicator', compareIndicator: 'bollingerLower', value: 0 },
+      { id: 2, direction: 'sell', indicator: 'price', operator: 'gt', compareWith: 'indicator', compareIndicator: 'bollingerUpper', value: 0 },
+    ],
+    stopLoss: 4, takeProfit: 8,
+  },
+  {
+    id: 'macd-momentum',
+    name: 'MACD Momentum',
+    desc: 'MACD sinyal çizgisini yukarı keserse al, aşağı keserse sat',
+    icon: '📊',
+    rules: [
+      { id: 1, direction: 'buy', indicator: 'macd', operator: 'cross_above', compareWith: 'indicator', compareIndicator: 'macdSignal', value: 0 },
+      { id: 2, direction: 'sell', indicator: 'macd', operator: 'cross_below', compareWith: 'indicator', compareIndicator: 'macdSignal', value: 0 },
+    ],
+    stopLoss: 5, takeProfit: 10,
+  },
+  {
+    id: 'stochastic-reversal',
+    name: 'Stochastic Dönüş',
+    desc: 'Stochastic %K aşırı satımda yukarı keserse al, aşırı alımda sat',
+    icon: '🔄',
+    rules: [
+      { id: 1, direction: 'buy', indicator: 'stochK', operator: 'cross_above', compareWith: 'indicator', compareIndicator: 'stochD', value: 0 },
+      { id: 2, direction: 'buy', indicator: 'stochK', operator: 'lt', compareWith: 'value', compareIndicator: 'stochD', value: 25 },
+      { id: 3, direction: 'sell', indicator: 'stochK', operator: 'gt', compareWith: 'value', compareIndicator: 'stochD', value: 80 },
+    ],
+    stopLoss: 5, takeProfit: 12,
   },
 ];
 

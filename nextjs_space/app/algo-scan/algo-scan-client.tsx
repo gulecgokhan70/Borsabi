@@ -18,6 +18,9 @@ const DEFAULT_FILTERS = {
   changeMin: -100,
   changeMax: 100,
   sortBy: 'score',
+  bollingerPos: 'all',
+  stochSignal: 'all',
+  adxMin: 0,
 };
 
 export default function AlgoScanClient() {
@@ -134,6 +137,34 @@ export default function AlgoScanClient() {
               </div>
             </div>
 
+            {/* Bollinger, Stochastic, ADX */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Bollinger Pozisyon</label>
+                <select value={filters.bollingerPos} onChange={e => updateFilter('bollingerPos', e.target.value)}
+                  className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]">
+                  <option value="all">Tümü</option>
+                  <option value="upper">Üst Bant Yakını</option>
+                  <option value="lower">Alt Bant Yakını</option>
+                  <option value="squeeze">Sıkışma (Squeeze)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Stochastic Sinyal</label>
+                <select value={filters.stochSignal} onChange={e => updateFilter('stochSignal', e.target.value)}
+                  className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]">
+                  <option value="all">Tümü</option>
+                  <option value="oversold">Aşırı Satım (K&lt;20)</option>
+                  <option value="overbought">Aşırı Alım (K&gt;80)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Min ADX</label>
+                <input type="number" value={filters.adxMin} onChange={e => updateFilter('adxMin', Number(e.target.value))}
+                  className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]" min={0} max={100} />
+              </div>
+            </div>
+
             {/* Volume & Price */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
@@ -195,6 +226,9 @@ export default function AlgoScanClient() {
                       <span className="text-muted-foreground">MACD: <span className={r.macd.histogram > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{r.macd.histogram > 0 ? '+' : ''}{r.macd.histogram.toFixed(3)}</span></span>
                       <span className="text-muted-foreground">EMA{filters.emaPeriod}: <span className="text-foreground">{formatNumber(r.ema)}</span></span>
                       <span className="text-muted-foreground">Hacim: <span className={r.volRatio > 1.5 ? 'text-[#F59E0B]' : 'text-foreground'}>{r.volRatio}x</span></span>
+                      {r.stochastic && <span className="text-muted-foreground">Stoch: <span className={r.stochastic.k < 20 ? 'text-[#22C55E]' : r.stochastic.k > 80 ? 'text-[#EF4444]' : 'text-foreground'}>{r.stochastic.k.toFixed(1)}</span></span>}
+                      {r.adx && <span className="text-muted-foreground">ADX: <span className={r.adx.adx > 25 ? 'text-[#F59E0B]' : 'text-foreground'}>{r.adx.adx.toFixed(1)}</span></span>}
+                      {r.bollinger && <span className="text-muted-foreground">BB: <span className="text-foreground">{r.bollinger.bandwidth.toFixed(1)}%</span></span>}
                       {(r as any)?.candlePatterns?.map((cp: any, cpIdx: number) => (
                         <span key={cpIdx} className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
                           cp.type === 'bullish' ? 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30'

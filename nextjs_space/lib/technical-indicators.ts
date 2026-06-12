@@ -94,15 +94,69 @@ export function calculateVWAP(highs: number[], lows: number[], closes: number[],
 }
 
 // ===== Bollinger Bantları =====
-export function calculateBollingerBands(closes: number[], period = 20, stdDev = 2): { upper: number; middle: number; lower: number } | null {
+export function calculateBollingerBands(closes: number[], period = 20, stdDev = 2): { upper: number; middle: number; lower: number; bandwidth: number } | null {
   if (!closes || closes.length < period) return null;
   const slice = closes.slice(-period);
   const mean = slice.reduce((s, v) => s + v, 0) / period;
   const variance = slice.reduce((s, v) => s + (v - mean) ** 2, 0) / period;
   const sd = Math.sqrt(variance);
+  const upper = mean + sd * stdDev;
+  const lower = mean - sd * stdDev;
   return {
-    upper: mean + sd * stdDev,
+    upper,
     middle: mean,
-    lower: mean - sd * stdDev,
+    lower,
+    bandwidth: mean > 0 ? ((upper - lower) / mean) * 100 : 0,
   };
+}
+
+// ===== Stochastic Oscillator =====
+export function calculateStochastic(closes: number[], highs: number[], lows: number[], kPeriod = 14): { k: number; d: number } {
+  if (!closes || closes.length < kPeriod) return { k: 50, d: 50 };
+  const len = closes.length;
+  const kValues: number[] = [];
+  for (let i = Math.max(0, len - 5); i < len; i++) {
+    const start = Math.max(0, i - kPeriod + 1);
+    const hh = Math.max(...highs.slice(start, i + 1));
+    const ll = Math.min(...lows.slice(start, i + 1));
+    kValues.push(hh !== ll ? ((closes[i] - ll) / (hh - ll)) * 100 : 50);
+  }
+  const k = kValues[kValues.length - 1];
+  const d = kValues.reduce((a, b) => a + b, 0) / kValues.length;
+  return { k: Math.round(k * 100) / 100, d: Math.round(d * 100) / 100 };
+}
+
+// ===== ADX (Average Directional Index) =====
+export function calculateADX(closes: number[], highs: number[], lows: number[], period = 14): { adx: number; plusDI: number; minusDI: number } {
+  if (!closes || closes.length < period + 1) return { adx: 0, plusDI: 0, minusDI: 0 };
+  const len = closes.length;
+  let sumTR = 0, sumPlusDM = 0, sumMinusDM = 0;
+  for (let i = 1; i <= Math.min(period, len - 1); i++) {
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    const upMove = highs[i] - highs[i - 1];
+    const downMove = lows[i - 1] - lows[i];
+    sumTR += tr;
+    sumPlusDM += (upMove > downMove && upMove > 0 ? upMove : 0);
+    sumMinusDM += (downMove > upMove && downMove > 0 ? downMove : 0);
+  }
+  let smoothTR = sumTR;
+  let smoothPlusDM = sumPlusDM;
+  let smoothMinusDM = sumMinusDM;
+  const dxValues: number[] = [];
+  for (let i = period + 1; i < len; i++) {
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    const upMove = highs[i] - highs[i - 1];
+    const downMove = lows[i - 1] - lows[i];
+    smoothTR = smoothTR - smoothTR / period + tr;
+    smoothPlusDM = smoothPlusDM - smoothPlusDM / period + (upMove > downMove && upMove > 0 ? upMove : 0);
+    smoothMinusDM = smoothMinusDM - smoothMinusDM / period + (downMove > upMove && downMove > 0 ? downMove : 0);
+    const pDI = smoothTR > 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
+    const mDI = smoothTR > 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
+    const dx = (pDI + mDI) > 0 ? (Math.abs(pDI - mDI) / (pDI + mDI)) * 100 : 0;
+    dxValues.push(dx);
+  }
+  const adx = dxValues.length > 0 ? dxValues.slice(-period).reduce((a, b) => a + b, 0) / Math.min(period, dxValues.length) : 0;
+  const lastPDI = smoothTR > 0 ? (smoothPlusDM / smoothTR) * 100 : 0;
+  const lastMDI = smoothTR > 0 ? (smoothMinusDM / smoothTR) * 100 : 0;
+  return { adx: Math.round(adx * 100) / 100, plusDI: Math.round(lastPDI * 100) / 100, minusDI: Math.round(lastMDI * 100) / 100 };
 }

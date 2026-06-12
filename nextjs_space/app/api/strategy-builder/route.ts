@@ -26,6 +26,72 @@ function calculateRSI(closes: number[], period = 14): number[] {
   return rsis;
 }
 
+function calculateMACD(closes: number[]): { macd: number[]; signal: number[] } {
+  const ema12 = calculateEMA(closes, 12);
+  const ema26 = calculateEMA(closes, 26);
+  const macdLine = ema12.map((v, i) => v - ema26[i]);
+  const signalLine = calculateEMA(macdLine, 9);
+  return { macd: macdLine, signal: signalLine };
+}
+
+function calculateBollingerArray(closes: number[], period = 20, mult = 2): { upper: number[]; middle: number[]; lower: number[] } {
+  const upper: number[] = new Array(closes.length).fill(0);
+  const middle: number[] = new Array(closes.length).fill(0);
+  const lower: number[] = new Array(closes.length).fill(0);
+  for (let i = period - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - period + 1, i + 1);
+    const avg = slice.reduce((a, b) => a + b, 0) / period;
+    const std = Math.sqrt(slice.reduce((s, v) => s + (v - avg) ** 2, 0) / period);
+    middle[i] = avg;
+    upper[i] = avg + mult * std;
+    lower[i] = avg - mult * std;
+  }
+  return { upper, middle, lower };
+}
+
+function calculateStochasticArray(closes: number[], highs: number[], lows: number[], kPeriod = 14, dPeriod = 3): { k: number[]; d: number[] } {
+  const kValues: number[] = new Array(closes.length).fill(50);
+  for (let i = kPeriod - 1; i < closes.length; i++) {
+    const hh = Math.max(...highs.slice(i - kPeriod + 1, i + 1));
+    const ll = Math.min(...lows.slice(i - kPeriod + 1, i + 1));
+    kValues[i] = hh !== ll ? ((closes[i] - ll) / (hh - ll)) * 100 : 50;
+  }
+  const dValues = calculateEMA(kValues, dPeriod);
+  return { k: kValues, d: dValues };
+}
+
+function calculateADXArray(closes: number[], highs: number[], lows: number[], period = 14): number[] {
+  const len = closes.length;
+  const adx: number[] = new Array(len).fill(0);
+  const tr: number[] = [0];
+  const plusDM: number[] = [0];
+  const minusDM: number[] = [0];
+  for (let i = 1; i < len; i++) {
+    tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+    const up = highs[i] - highs[i - 1];
+    const down = lows[i - 1] - lows[i];
+    plusDM.push(up > down && up > 0 ? up : 0);
+    minusDM.push(down > up && down > 0 ? down : 0);
+  }
+  const smoothTR = calculateEMA(tr, period);
+  const smoothPDM = calculateEMA(plusDM, period);
+  const smoothMDM = calculateEMA(minusDM, period);
+  for (let i = period; i < len; i++) {
+    const pDI = smoothTR[i] > 0 ? (smoothPDM[i] / smoothTR[i]) * 100 : 0;
+    const mDI = smoothTR[i] > 0 ? (smoothMDM[i] / smoothTR[i]) * 100 : 0;
+    adx[i] = (pDI + mDI) > 0 ? (Math.abs(pDI - mDI) / (pDI + mDI)) * 100 : 0;
+  }
+  return calculateEMA(adx, period);
+}
+
+function calculateATRArray(closes: number[], highs: number[], lows: number[], period = 14): number[] {
+  const tr: number[] = [highs[0] - lows[0]];
+  for (let i = 1; i < closes.length; i++) {
+    tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1])));
+  }
+  return calculateEMA(tr, period);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -77,11 +143,26 @@ export async function POST(req: NextRequest) {
     const volumes = quotes.map((q: any) => (q.volume || 0) as number);
 
     // Pre-calculate indicators
+    const macdData = calculateMACD(closes);
+    const bbData = calculateBollingerArray(closes, 20, 2);
+    const stochData = calculateStochasticArray(closes, highs, lows);
+    const adxArr = calculateADXArray(closes, highs, lows);
+    const atrArr = calculateATRArray(closes, highs, lows);
     const indicators: Record<string, number[]> = {
       ema10: calculateEMA(closes, 10),
       ema20: calculateEMA(closes, 20),
       ema50: calculateEMA(closes, 50),
+      ema200: calculateEMA(closes, Math.min(200, closes.length - 1)),
       rsi14: calculateRSI(closes, 14),
+      macd: macdData.macd,
+      macdSignal: macdData.signal,
+      bollingerUpper: bbData.upper,
+      bollingerMiddle: bbData.middle,
+      bollingerLower: bbData.lower,
+      stochK: stochData.k,
+      stochD: stochData.d,
+      adx: adxArr,
+      atr: atrArr,
     };
 
     // Simulate strategy
@@ -104,11 +185,31 @@ export async function POST(req: NextRequest) {
         ema10: indicators.ema10[i],
         ema20: indicators.ema20[i],
         ema50: indicators.ema50[i],
+        ema200: indicators.ema200[i],
         prevEma10: indicators.ema10[i - 1],
         prevEma20: indicators.ema20[i - 1],
         prevEma50: indicators.ema50[i - 1],
+        prevEma200: indicators.ema200[i - 1],
         rsi: indicators.rsi14[i],
         prevRsi: indicators.rsi14[i - 1],
+        macd: indicators.macd[i],
+        macdSignal: indicators.macdSignal[i],
+        prevMacd: indicators.macd[i - 1],
+        prevMacdSignal: indicators.macdSignal[i - 1],
+        bollingerUpper: indicators.bollingerUpper[i],
+        bollingerMiddle: indicators.bollingerMiddle[i],
+        bollingerLower: indicators.bollingerLower[i],
+        prevBollingerUpper: indicators.bollingerUpper[i - 1],
+        prevBollingerMiddle: indicators.bollingerMiddle[i - 1],
+        prevBollingerLower: indicators.bollingerLower[i - 1],
+        stochK: indicators.stochK[i],
+        stochD: indicators.stochD[i],
+        prevStochK: indicators.stochK[i - 1],
+        prevStochD: indicators.stochD[i - 1],
+        adx: indicators.adx[i],
+        prevAdx: indicators.adx[i - 1],
+        atr: indicators.atr[i],
+        prevAtr: indicators.atr[i - 1],
       };
 
       if (position === 0) {

@@ -5,11 +5,20 @@ import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-reac
 
 const SUGGESTIONS = [
   'Bugün borsa nasıldı?',
-  'Borsa durumu nasıl?',
-  'Haberlere göre piyasa analizi yap',
   'THYAO teknik analizi yap',
-  'Portföyüm nasıl görünüyor?',
   'En güçlü BIST hisseleri hangileri?',
+  'Portföyümü risk açısından değerlendir',
+  'RSI nedir ve nasıl kullanılır?',
+  'Bitcoin ve kripto piyasası analizi yap',
+  'Dolar/TL için teknik görünüm nasıl?',
+  'En yüksek hacimli hisseler hangileri?',
+  'Swing trade fırsatları var mı?',
+  'Stop loss nasıl belirlenir?',
+  'Bollinger Bantları ile strateji öner',
+  'MACD göstergesini nasıl okurum?',
+  'Altın yatırımı hakkında bilgi ver',
+  'Sektörel bazda en iyi performans gösteren hisseler',
+  'Destek ve direnç seviyeleri nasıl hesaplanır?',
 ];
 
 interface ChatMsg {
@@ -122,7 +131,7 @@ export function AiAssistantClient() {
             </div>
             <h2 className="text-lg font-semibold text-foreground mb-1">Nasıl yardımcı olabilirim?</h2>
             <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">Gerçek piyasa verileriyle hisse analizi, teknik göstergeler, portföy değerlendirmesi ve risk yönetimi konularında sorabilirsiniz.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-w-3xl w-full">
               {SUGGESTIONS.map((s: string, i: number) => (
                 <button key={i} onClick={() => sendMessage(s)} className="flex items-center gap-2 px-4 py-2.5 glass-card rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-[#3B82F6]/50 transition-all text-left">
                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-[#3B82F6]" />
