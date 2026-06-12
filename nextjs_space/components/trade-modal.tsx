@@ -378,7 +378,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                 </div>
               )}
               <div className="flex justify-between text-xs"><span className="text-muted-foreground">Toplam</span><span className="text-foreground font-mono">{formatCurrency(total, currencyCode)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Komisyon (%0.2)</span><span className="text-[#F59E0B] font-mono">{formatCurrency(commission, currencyCode)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Komisyon (%{(userCommRate * 100).toFixed(2).replace(/\.?0+$/, '')})</span><span className="text-[#F59E0B] font-mono">{formatCurrency(commission, currencyCode)}</span></div>
               <div className="border-t border-black/[0.08] dark:border-white/[0.08] pt-2 flex justify-between text-sm"><span className="text-muted-foreground font-medium">Toplam Maliyet</span><span className="text-foreground font-bold font-mono">{formatCurrency(totalWithCommission, currencyCode)}</span></div>
               {riskReward > 0 && (
                 <div className="flex justify-between text-xs"><span className="text-muted-foreground">Risk/Getiri</span><span className="text-[#3B82F6] font-mono">1:{riskReward.toFixed(1)}</span></div>
