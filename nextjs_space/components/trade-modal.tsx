@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '@/lib/constants';
 import { toast } from 'sonner';
 import { useHaptic } from '@/hooks/use-haptic';
+import { useConfetti } from '@/hooks/use-confetti';
 
 interface TradeModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ type OrderType = 'market' | 'limit' | 'stop-limit';
 
 export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, side = 'BUY', maxQuantity, onSuccess }: TradeModalProps) {
   const haptic = useHaptic();
+  const confetti = useConfetti();
   const [type, setType] = useState<'BUY' | 'SELL'>(side);
   const [orderType, setOrderType] = useState<OrderType>('market');
   const [quantity, setQuantity] = useState('');
@@ -95,6 +97,11 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
       const orderLabel = orderType === 'market' ? '' : orderType === 'limit' ? ' (Limit Emir)' : ' (Stop-Limit Emir)';
       haptic.success();
       toast.success((data?.message ?? 'İşlem başarılı') + orderLabel);
+      // Confetti on profitable SELL or any successful trade
+      if (type === 'SELL' && (data?.pnl ?? 0) > 0) {
+        confetti.fire();
+        toast.success(`🎉 Tebrikler! ${formatCurrency(data.pnl)} kâr elde ettiniz!`);
+      }
       if (data?.warnings?.length > 0) {
         data.warnings.forEach((w: string) => toast.warning(w));
       }

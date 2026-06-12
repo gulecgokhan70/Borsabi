@@ -13,6 +13,9 @@ import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPer
 import { PriceChart, MiniSparkline } from '@/components/price-chart';
 import { TradeModal } from '@/components/trade-modal';
 import { useHaptic } from '@/hooks/use-haptic';
+import { Onboarding } from '@/components/onboarding';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
+import { PullRefreshIndicator } from '@/components/pull-refresh-indicator';
 
 function formatTimeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -158,8 +161,12 @@ export function DashboardClient() {
   const gainers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) > 0).sort((a: any, b: any) => (b?.changePercent ?? 0) - (a?.changePercent ?? 0)).slice(0, 5);
   const losers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) < 0).sort((a: any, b: any) => (a?.changePercent ?? 0) - (b?.changePercent ?? 0)).slice(0, 5);
 
+  const { pullDistance, refreshing: pullRefreshing } = usePullRefresh(async () => { await fetchData(); });
+
   return (
     <div className="space-y-6">
+      <PullRefreshIndicator pullDistance={pullDistance} refreshing={pullRefreshing} />
+      <Onboarding />
       {/* Ana Ekrana Ekle Bildirimi */}
       <AnimatePresence>
         {showInstallBanner && (

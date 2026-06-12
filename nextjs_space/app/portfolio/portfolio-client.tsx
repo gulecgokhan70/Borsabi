@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote, Activity } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend, Line, ComposedChart } from 'recharts';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 
@@ -13,6 +13,7 @@ export function PortfolioClient() {
   const router = useRouter();
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [bistComparison, setBistComparison] = useState<any[]>([]);
   const [tradeModal, setTradeModal] = useState<any>(null);
 
   const fetchPortfolio = useCallback(async () => {
@@ -25,6 +26,38 @@ export function PortfolioClient() {
   }, []);
 
   useEffect(() => { fetchPortfolio(); }, [fetchPortfolio]);
+
+  // BIST 100 vs Portföy karşılaştırma verisi
+  useEffect(() => {
+    if (!portfolio?.equityCurve || portfolio.equityCurve.length < 2) return;
+    const fetchBist = async () => {
+      try {
+        const res = await fetch('/api/market/history?symbol=XU100.IS&period=1mo&interval=1d');
+        const json = await res.json();
+        const bistData = json?.data ?? [];
+        if (bistData.length < 2) return;
+        const ec = portfolio.equityCurve as { date: string; balance: number }[];
+        const ecStart = ec[0].balance;
+        const bistStart = bistData[0].close;
+        const combined: any[] = [];
+        const bistMap = new Map<string, number>();
+        bistData.forEach((b: any) => {
+          const d = b.date?.slice(0, 10) ?? '';
+          bistMap.set(d, ((b.close - bistStart) / bistStart) * 100);
+        });
+        ec.forEach((p) => {
+          const d = p.date?.slice(0, 10) ?? '';
+          const portPct = ((p.balance - ecStart) / ecStart) * 100;
+          const bistPct = bistMap.get(d);
+          if (bistPct !== undefined) {
+            combined.push({ date: d.slice(5), portfolio: +portPct.toFixed(2), bist100: +bistPct.toFixed(2) });
+          }
+        });
+        if (combined.length > 1) setBistComparison(combined);
+      } catch (e) { console.error('BIST comparison fetch error:', e); }
+    };
+    fetchBist();
+  }, [portfolio?.equityCurve]);
 
   useEffect(() => {
     const interval = setInterval(() => { fetchPortfolio(); }, 60000);
@@ -160,6 +193,43 @@ export function PortfolioClient() {
           </div>
         </motion.div>
       </div>
+
+      {/* Portföy vs BIST 100 Karşılaştırma */}
+      {bistComparison.length > 1 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+          className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08]">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <BarChart3 className="w-4 h-4 text-[#F59E0B]" />
+            <h2 className="text-sm font-semibold text-foreground">Portföy vs BIST 100 Performansı</h2>
+          </div>
+          <div style={{ height: 220 }} className="px-2 py-3">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={bistComparison} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" opacity={0.3} />
+                <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={50} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#94A3B8' }}
+                  formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name === 'portfolio' ? 'Portföyüm' : 'BIST 100']}
+                />
+                <Area type="monotone" dataKey="portfolio" stroke="#3B82F6" strokeWidth={2} fill="url(#compGrad)" dot={false} />
+                <Line type="monotone" dataKey="bist100" stroke="#F59E0B" strokeWidth={1.5} dot={false} strokeDasharray="5 5" />
+                <defs>
+                  <linearGradient id="compGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center justify-center gap-6 pb-3">
+            <div className="flex items-center gap-2 text-xs"><div className="w-3 h-0.5 bg-[#3B82F6] rounded"></div><span className="text-muted-foreground">Portföyüm</span></div>
+            <div className="flex items-center gap-2 text-xs"><div className="w-3 h-0.5 bg-[#F59E0B] rounded" style={{ borderTop: '1px dashed #F59E0B' }}></div><span className="text-muted-foreground">BIST 100</span></div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">

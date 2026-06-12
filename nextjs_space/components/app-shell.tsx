@@ -8,6 +8,7 @@ import {
   User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PageTransition } from '@/components/page-transition';
 import { useTheme } from 'next-themes';
 import { BreakingNewsBanner } from '@/components/breaking-news';
 import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
@@ -381,7 +382,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
         <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
-          {children}
+          <PageTransition>{children}</PageTransition>
         </div>
       </main>
 

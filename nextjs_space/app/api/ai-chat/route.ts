@@ -531,7 +531,8 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: 'Oturum gerekli' }), { status: 401 });
     }
 
-    const body = await request.json();
+    let body: any;
+    try { body = await request.json(); } catch { return new Response(JSON.stringify({ error: 'Geçersiz istek gövdesi' }), { status: 400 }); }
     const { messages } = body ?? {};
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: 'Mesajlar gerekli' }), { status: 400 });

@@ -32,7 +32,7 @@ const BROKERS = [
     name: 'Garanti BBVA Yatırım',
     desc: 'BBVA\'nın global deneyimi ile Garanti\'nin yerel gücünü birleştiren köklü aracı kurum.',
     logo: '/brokers/garanti-bbva.png',
-    url: 'https://www.garantiyatirim.com.tr',
+    url: 'https://www.garantibbva.com.tr',
     features: ['Global Deneyim', 'Güçlü Altyapı', 'Eğitim İçerikleri'],
     rating: 4.4,
     color: '#00854A',
