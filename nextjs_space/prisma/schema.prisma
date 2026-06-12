@@ -19,6 +19,7 @@ model User {
   tier           String        @default("free") // free, pro, elite
   balance        Float         @default(100000)
   initialBalance Float         @default(100000)
+  commissionRate Float         @default(0.002) // kullanıcı özel komisyon oranı
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   positions      Position[]

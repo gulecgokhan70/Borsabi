@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { COMMISSION_RATE, formatCurrency } from '@/lib/constants';
+import { formatCurrency } from '@/lib/constants';
 import { toast } from 'sonner';
 import { useHaptic } from '@/hooks/use-haptic';
 
@@ -37,6 +37,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [userPositionQty, setUserPositionQty] = useState(0);
   const [cashAmount, setCashAmount] = useState('');
   const [inputMode, setInputMode] = useState<'quantity' | 'cash'>('quantity');
+  const [userCommRate, setUserCommRate] = useState(0.002);
 
   useEffect(() => { setType(side); }, [side]);
 
@@ -46,6 +47,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
       .then(r => r.json())
       .then(data => {
         setUserBalance(data?.balance ?? 0);
+        setUserCommRate(data?.commissionRate ?? 0.002);
         const pos = (data?.positions ?? []).find((p: any) => p.symbol === symbol);
         setUserPositionQty(pos?.quantity ?? 0);
       })
@@ -55,7 +57,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const execPrice = orderType === 'market' ? (price ?? 0) : (parseFloat(limitPrice) || (price ?? 0));
   const qty = parseFloat(quantity) || 0;
   const total = qty * execPrice;
-  const commission = total * COMMISSION_RATE;
+  const commission = total * userCommRate;
   const totalWithCommission = total + commission;
   const sl = parseFloat(stopLoss) || 0;
   const tp = parseFloat(takeProfit) || 0;
@@ -261,7 +263,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     setCashAmount(val);
                     const cash = parseFloat(val) || 0;
                     if (cash > 0 && execPrice > 0) {
-                      const calcQty = Math.floor(cash / (execPrice * (1 + COMMISSION_RATE)));
+                      const calcQty = Math.floor(cash / (execPrice * (1 + userCommRate)));
                       setQuantity(String(Math.max(0, calcQty)));
                     } else {
                       setQuantity('');
@@ -291,7 +293,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     if (type === 'BUY') {
                       const ep = execPrice > 0 ? execPrice : 1;
                       const available = userBalance * (pct / 100);
-                      const maxQty = Math.floor(available / (ep * (1 + COMMISSION_RATE)));
+                      const maxQty = Math.floor(available / (ep * (1 + userCommRate)));
                       setQuantity(String(Math.max(0, maxQty)));
                       setCashAmount(String(Math.round(available * 100) / 100));
                     } else {

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut } from 'lucide-react';
+import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut, Percent, Save } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { formatCurrency, formatPercent } from '@/lib/constants';
 
@@ -66,11 +66,14 @@ export default function ProfileClient() {
   const [upgrading, setUpgrading] = useState(false);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
+  const [commissionInput, setCommissionInput] = useState('');
+  const [savingCommission, setSavingCommission] = useState(false);
 
   useEffect(() => {
     fetch('/api/profile').then(r => r.json()).then(d => {
       setProfile(d);
       setNewName(d.name || '');
+      setCommissionInput(((d.commissionRate ?? 0.002) * 100).toFixed(2));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -256,6 +259,71 @@ export default function ProfileClient() {
           <span className="text-sm text-muted-foreground">rozet kazanıldı</span>
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Detaylar için Başarılar sayfasını ziyaret edin.</p>
+      </motion.div>
+
+      {/* Komisyon Oranı Ayarı */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+        className="glass-card rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Percent className="w-4 h-4 text-[#8B5CF6]" /> Komisyon Oranı
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          İşlemlerinizde uygulanacak komisyon oranını belirleyin. Varsayılan: %0.20
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 flex-1">
+            <span className="text-sm text-muted-foreground">%</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={commissionInput}
+              onChange={e => setCommissionInput(e.target.value)}
+              className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-[#8B5CF6] w-full"
+              placeholder="0.20"
+            />
+          </div>
+          <div className="flex gap-1">
+            {['0', '0.10', '0.20', '0.40'].map(v => (
+              <button
+                key={v}
+                onClick={() => setCommissionInput(v)}
+                className={`px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                  commissionInput === v
+                    ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40'
+                    : 'glass-inner text-muted-foreground hover:text-foreground border border-transparent'
+                }`}
+              >
+                %{v}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
+          onClick={async () => {
+            setSavingCommission(true);
+            const rate = parseFloat(commissionInput) / 100;
+            if (isNaN(rate) || rate < 0 || rate > 1) {
+              setSavingCommission(false);
+              return;
+            }
+            const res = await fetch('/api/profile', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ commissionRate: rate }),
+            });
+            if (res.ok) {
+              setProfile((p: any) => ({ ...p, commissionRate: rate }));
+            }
+            setSavingCommission(false);
+          }}
+          disabled={savingCommission}
+          className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-white bg-[#8B5CF6] hover:bg-[#7C3AED] transition-all disabled:opacity-50"
+        >
+          <Save className="w-4 h-4" />
+          {savingCommission ? 'Kaydediliyor...' : 'Kaydet'}
+        </button>
       </motion.div>
 
       {/* Logout */}

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend } from 'recharts';
-import { formatCurrency, formatPercent, formatNumber, COMMISSION_RATE } from '@/lib/constants';
+import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
 
 const DIST_COLORS = ['#3B82F6', '#22C55E', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#EC4899', '#14B8A6', '#F97316', '#6366F1'];

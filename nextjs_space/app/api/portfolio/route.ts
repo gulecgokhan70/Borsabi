@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
     const userId = (session.user as any).id;
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { balance: true, initialBalance: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { balance: true, initialBalance: true, commissionRate: true } });
     const positions = await prisma.position.findMany({ where: { userId, status: 'OPEN' }, orderBy: { openedAt: 'desc' } });
     const closedPositions = await prisma.position.findMany({ where: { userId, status: 'CLOSED' }, orderBy: { closedAt: 'desc' }, take: 50 });
 
@@ -169,6 +169,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       balance: user?.balance ?? 100000,
       initialBalance: user?.initialBalance ?? 100000,
+      commissionRate: user?.commissionRate ?? 0.002,
       positions: enrichedPositions,
       closedPositions,
       totalInvested,

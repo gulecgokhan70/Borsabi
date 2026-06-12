@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { COMMISSION_RATE, MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT, BIST_ALL_ASSETS } from '@/lib/constants';
+import { MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT, BIST_ALL_ASSETS } from '@/lib/constants';
 import { cachedQuoteBatch } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 

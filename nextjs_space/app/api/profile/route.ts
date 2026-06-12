@@ -113,6 +113,7 @@ export async function GET() {
       achievements: user.achievements,
       activeAlerts: user.priceAlerts.length,
       monthlyPerformance: monthlyPerf,
+      commissionRate: user.commissionRate ?? 0.002,
       memberSince: user.createdAt,
     });
   } catch (err: any) {
@@ -127,12 +128,18 @@ export async function PUT(req: NextRequest) {
     if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { name, tier, avatar } = body;
+    const { name, tier, avatar, commissionRate } = body;
 
     const updateData: any = {};
     if (name) updateData.name = name;
     if (tier && ['free', 'pro'].includes(tier)) updateData.tier = tier;
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (commissionRate !== undefined) {
+      const rate = parseFloat(commissionRate);
+      if (!isNaN(rate) && rate >= 0 && rate <= 0.01) {
+        updateData.commissionRate = rate;
+      }
+    }
 
     const user = await prisma.user.update({
       where: { email: session.user.email },

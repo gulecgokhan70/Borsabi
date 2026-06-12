@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { COMMISSION_RATE, MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT } from '@/lib/constants';
+import { MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +21,9 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
 
+    const userCommRate = user.commissionRate ?? 0.002;
     const total = quantity * price;
-    const commission = total * COMMISSION_RATE;
+    const commission = total * userCommRate;
     const totalWithCommission = total + commission;
 
     // Risk warnings
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
       if (quantity > (position?.quantity ?? 0)) return NextResponse.json({ error: 'Yetersiz miktar' }, { status: 400 });
 
       const sellTotal = quantity * price;
-      const sellCommission = sellTotal * COMMISSION_RATE;
+      const sellCommission = sellTotal * userCommRate;
       const costBasis = quantity * (position?.entryPrice ?? 0);
       const pnl = sellTotal - costBasis - commission - sellCommission;
       const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
