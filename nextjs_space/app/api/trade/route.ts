@@ -97,7 +97,9 @@ export async function POST(request: NextRequest) {
       const sellTotal = quantity * price;
       const sellCommission = sellTotal * userCommRate;
       const costBasis = quantity * (position?.entryPrice ?? 0);
-      const pnl = sellTotal - costBasis - commission - sellCommission;
+      // Alış komisyonunun oransal payı (satılan miktar / toplam pozisyon)
+      const buyCommissionShare = ((position?.commission ?? 0) * quantity) / (position?.quantity ?? 1);
+      const pnl = sellTotal - costBasis - buyCommissionShare - sellCommission;
       const pnlPercent = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
 
       const remainingQty = (position?.quantity ?? 0) - quantity;

@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         }
 
         const totalValue = livePrice * p.quantity;
-        const totalCost = p.entryPrice * p.quantity;
+        const totalCost = p.entryPrice * p.quantity + (p.commission ?? 0); // komisyon dahil gerçek maliyet
         const pnl = totalValue - totalCost;
         const pnlPct = totalCost > 0 ? (pnl / totalCost) * 100 : 0;
 
