@@ -202,7 +202,8 @@ export async function GET(
     let startDate = new Date();
     switch (period) {
       case '1d': startDate.setDate(endDate.getDate() - 2); break; // 2 gün geri al, sonra filtrele
-      case '5d': startDate.setDate(endDate.getDate() - 5); break;
+      case '2d': startDate.setDate(endDate.getDate() - 3); break;
+      case '5d': startDate.setDate(endDate.getDate() - 7); break; // 7 gün al, hafta sonu filtrele
       case '1w': startDate.setDate(endDate.getDate() - 7); break;
       case '1mo': startDate.setMonth(endDate.getMonth() - 1); break;
       case '3mo': startDate.setMonth(endDate.getMonth() - 3); break;

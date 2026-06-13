@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
     let startDate = new Date();
     switch (period) {
       case '1d': startDate.setDate(endDate.getDate() - 1); break;
-      case '5d': startDate.setDate(endDate.getDate() - 5); break;
+      case '2d': startDate.setDate(endDate.getDate() - 3); break;
+      case '5d': startDate.setDate(endDate.getDate() - 7); break;
       case '1w': startDate.setDate(endDate.getDate() - 7); break;
       case '1mo': startDate.setMonth(endDate.getMonth() - 1); break;
       case '3mo': startDate.setMonth(endDate.getMonth() - 3); break;

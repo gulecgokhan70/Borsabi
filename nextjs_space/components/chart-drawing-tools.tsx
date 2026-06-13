@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
-import { Minus, TrendingUp, Hash, Trash2, MousePointer, Undo2, Move } from 'lucide-react';
+import { Minus, TrendingUp, Hash, Trash2, MousePointer, Undo2, Magnet } from 'lucide-react';
 
 export type DrawingTool = 'none' | 'hline' | 'trendline' | 'fibonacci';
 
@@ -47,12 +47,14 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
 
 const HIT_THRESHOLD = 12; // pixels
 
-export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo, drawingCount }: {
+export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo, drawingCount, magnetEnabled, onToggleMagnet }: {
   activeTool: DrawingTool;
   onToolChange: (t: DrawingTool) => void;
   onClear: () => void;
   onUndo: () => void;
   drawingCount: number;
+  magnetEnabled: boolean;
+  onToggleMagnet: () => void;
 }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -74,6 +76,17 @@ export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo,
             </button>
           );
         })}
+        {/* Mıknatıs butonu */}
+        <button onClick={onToggleMagnet}
+          title="Mıknatıs (Mum değerlerine yapış)"
+          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all ${
+            magnetEnabled
+              ? 'text-white shadow-sm bg-[#8B5CF6]'
+              : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+          }`}>
+          <Magnet className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Mıknatıs</span>
+        </button>
       </div>
       {drawingCount > 0 && (
         <div className="flex items-center gap-0.5">
@@ -94,17 +107,28 @@ export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo,
   );
 }
 
-export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTool, drawings, setDrawings }: {
+interface CandleData {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  [key: string]: any;
+}
+
+export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTool, drawings, setDrawings, chartData, magnetEnabled = false }: {
   chartHeight: number;
   chartWidth: number;
   yDomain: [number, number];
   activeTool: DrawingTool;
   drawings: Drawing[];
   setDrawings: React.Dispatch<React.SetStateAction<Drawing[]>>;
+  chartData?: CandleData[];
+  magnetEnabled?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const [mousePos, setMousePos] = useState<Point | null>(null);
+  const [snapPrice, setSnapPrice] = useState<number | null>(null);
 
   // Drag state
   const [dragId, setDragId] = useState<string | null>(null);
@@ -118,6 +142,42 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
   const marginBottom = 25;
   const plotW = chartWidth - marginLeft - marginRight;
   const plotH = chartHeight - marginTop - marginBottom;
+
+  // Magnet snap: find nearest OHLC price to cursor Y
+  const snapToCandle = useCallback((pt: Point): { snappedY: number; snappedPrice: number } | null => {
+    if (!magnetEnabled || !chartData || chartData.length === 0) return null;
+
+    // Find nearest candle by X position
+    const candleCount = chartData.length;
+    const candleWidth = plotW / candleCount;
+    const candleIndex = Math.round((pt.x - marginLeft) / candleWidth);
+    const idx = Math.max(0, Math.min(candleIndex, candleCount - 1));
+    const candle = chartData[idx];
+    if (!candle) return null;
+
+    // Get OHLC values for this candle
+    const ohlcValues = [candle.open, candle.high, candle.low, candle.close].filter(v => v != null && v > 0);
+    if (ohlcValues.length === 0) return null;
+
+    // Find closest OHLC value to cursor's price
+    const cursorPrice = yToPrice(pt.y - marginTop, yMin, yMax, plotH);
+    let closestPrice = ohlcValues[0];
+    let closestDist = Math.abs(cursorPrice - closestPrice);
+    for (const p of ohlcValues) {
+      const dist = Math.abs(cursorPrice - p);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestPrice = p;
+      }
+    }
+
+    // Only snap if within reasonable distance (10% of visible range)
+    const snapThreshold = (yMax - yMin) * 0.1;
+    if (closestDist > snapThreshold) return null;
+
+    const snappedY = priceToY(closestPrice, yMin, yMax, plotH) + marginTop;
+    return { snappedY, snappedPrice: closestPrice };
+  }, [magnetEnabled, chartData, plotW, plotH, yMin, yMax, marginLeft, marginTop]);
 
   const getSvgPoint = useCallback((e: React.MouseEvent | React.TouchEvent): Point | null => {
     if (!svgRef.current) return null;
@@ -174,26 +234,31 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
       return;
     }
 
+    // Apply magnet snap
+    const snap = snapToCandle(clamped);
+    const finalY = snap ? snap.snappedY : cy;
+    const finalPoint = { x: cx, y: finalY };
+
     if (activeTool === 'hline') {
-      const price = yToPrice(cy - marginTop, yMin, yMax, plotH);
+      const price = snap ? snap.snappedPrice : yToPrice(cy - marginTop, yMin, yMax, plotH);
       const drawing: Drawing = {
         id: Date.now().toString(),
         type: 'hline',
-        points: [clamped],
+        points: [finalPoint],
         color: '#3B82F6',
         priceStart: price,
       };
       setDrawings(prev => [...prev, drawing]);
     } else if (activeTool === 'trendline' || activeTool === 'fibonacci') {
       if (!startPoint) {
-        setStartPoint(clamped);
+        setStartPoint(finalPoint);
       } else {
         const priceS = yToPrice(startPoint.y - marginTop, yMin, yMax, plotH);
-        const priceE = yToPrice(cy - marginTop, yMin, yMax, plotH);
+        const priceE = snap ? snap.snappedPrice : yToPrice(cy - marginTop, yMin, yMax, plotH);
         const drawing: Drawing = {
           id: Date.now().toString(),
           type: activeTool,
-          points: [startPoint, clamped],
+          points: [startPoint, finalPoint],
           color: activeTool === 'trendline' ? '#22C55E' : '#F59E0B',
           priceStart: priceS,
           priceEnd: priceE,
@@ -202,12 +267,25 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
         setStartPoint(null);
       }
     }
-  }, [activeTool, startPoint, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom, getSvgPoint, setDrawings, hitTestDrawing]);
+  }, [activeTool, startPoint, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom, getSvgPoint, setDrawings, hitTestDrawing, snapToCandle]);
 
   const handlePointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const pt = getSvgPoint(e);
     if (!pt) return;
-    setMousePos(pt);
+
+    // Update snap indicator
+    if (activeTool !== 'none') {
+      const snap = snapToCandle(pt);
+      setSnapPrice(snap ? snap.snappedPrice : null);
+      if (snap) {
+        setMousePos({ x: pt.x, y: snap.snappedY });
+      } else {
+        setMousePos(pt);
+      }
+    } else {
+      setMousePos(pt);
+      setSnapPrice(null);
+    }
 
     // Handle dragging
     if (dragId && activeTool === 'none') {
@@ -257,7 +335,7 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
         return d;
       }));
     }
-  }, [getSvgPoint, dragId, activeTool, dragOffset, setDrawings, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom]);
+  }, [getSvgPoint, dragId, activeTool, dragOffset, setDrawings, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom, snapToCandle]);
 
   const handlePointerUp = useCallback(() => {
     setDragId(null);
@@ -487,12 +565,17 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
           <line x1={mousePos.x} y1={marginTop} x2={mousePos.x} y2={chartHeight - marginBottom}
             stroke="#94A3B8" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.5} />
           {/* Price badge at cursor */}
-          <rect x={marginLeft} y={mousePos.y - 11} width={72} height={20} rx={5}
-            fill="#1E293B" opacity={0.85} />
+          <rect x={marginLeft} y={mousePos.y - 11} width={snapPrice ? 90 : 72} height={20} rx={5}
+            fill={snapPrice ? '#8B5CF6' : '#1E293B'} opacity={0.85} />
           <text x={marginLeft + 5} y={mousePos.y + 3}
             fill="#E2E8F0" fontSize={10} fontWeight={600} fontFamily="system-ui">
-            {yToPrice(mousePos.y - marginTop, yMin, yMax, plotH).toFixed(2)} TL
+            {snapPrice ? `🧲 ${snapPrice.toFixed(2)}` : `${yToPrice(mousePos.y - marginTop, yMin, yMax, plotH).toFixed(2)} TL`}
           </text>
+          {/* Snap dot indicator */}
+          {snapPrice && (
+            <circle cx={mousePos.x} cy={mousePos.y} r={6}
+              fill="#8B5CF6" opacity={0.9} stroke="#fff" strokeWidth={2} />
+          )}
         </>
       )}
 

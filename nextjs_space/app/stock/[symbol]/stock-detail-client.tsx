@@ -79,12 +79,17 @@ interface StockData {
 }
 
 const PERIODS = [
-  { label: 'Günlük', value: '1d', interval: '5m' },
-  { label: '1H', value: '1w', interval: '1h' },
-  { label: '1A', value: '1mo', interval: '1d' },
-  { label: '3A', value: '3mo', interval: '1d' },
-  { label: '6A', value: '6mo', interval: '1d' },
-  { label: '1Y', value: '1y', interval: '1d' },
+  { label: '5dk', value: '1d', interval: '5m', key: '5m' },
+  { label: '15dk', value: '2d', interval: '15m', key: '15m' },
+  { label: '30dk', value: '5d', interval: '30m', key: '30m' },
+  { label: '1sa', value: '5d', interval: '1h', key: '1h' },
+  { label: '4sa', value: '1mo', interval: '4h', key: '4h' },
+  { label: '1G', value: '3mo', interval: '1d', key: '1d-daily' },
+  { label: '1H', value: '1w', interval: '1h', key: '1w' },
+  { label: '1A', value: '1mo', interval: '1d', key: '1mo' },
+  { label: '3A', value: '3mo', interval: '1d', key: '3mo' },
+  { label: '6A', value: '6mo', interval: '1d', key: '6mo' },
+  { label: '1Y', value: '1y', interval: '1d', key: '1y' },
 ];
 
 type ChartOverlay = 'ema' | 'bb' | 'none';
@@ -137,6 +142,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('none');
   const [drawings, setDrawings] = useState<any[]>([]);
+  const [magnetEnabled, setMagnetEnabled] = useState(false);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 380 });
   const [showFundamentals, setShowFundamentals] = useState(true);
@@ -164,7 +170,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     setLoading(true);
     setActivePoint(null); // Periyod değişince aktif nokta sıfırla
     fetchData();
-    const refreshMs = period === '1d' ? 30000 : 60000;
+    const refreshMs = isIntraday ? 30000 : 60000;
     const interval = setInterval(fetchData, refreshMs);
     return () => clearInterval(interval);
   }, [fetchData]);
@@ -179,12 +185,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       .finally(() => setNewsLoading(false));
   }, [symbol]);
 
-  const isIntraday = period === '1d';
+  const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
 
   const chartData = useMemo(() => {
     const ohlcData = (data?.ohlc ?? []).map((d: OHLCData) => ({
       date: isIntraday
-        ? new Date(d.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        ? (['1d'].includes(period)
+          ? new Date(d.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+          : new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }))
         : new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
       open: d.open,
       high: d.high,
@@ -235,7 +243,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       }
     }
     return ohlcData;
-  }, [data?.ohlc, data?.price, data?.volume, isIntraday]);
+  }, [data?.ohlc, data?.price, data?.volume, isIntraday, period]);
 
   // Aktif nokta varsa o noktanın verisini göster, yoksa güncel fiyatı göster
   const firstClose = chartData.length > 0 ? chartData[0]?.close ?? 0 : 0;
@@ -412,8 +420,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           </div>
           <div className="flex flex-wrap gap-1">
             {PERIODS.map((p: any) => (
-              <button key={p.value} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${period === p.value ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
+              <button key={p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${(period === p.value && chartInterval === p.interval) ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
                 {p.label}
               </button>
             ))}
@@ -441,7 +449,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             }`}>MACD</button>
           <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
           <ChartDrawingToolbar activeTool={drawingTool} onToolChange={setDrawingTool}
-            onClear={() => setDrawings([])} onUndo={() => setDrawings(prev => prev.slice(0, -1))} drawingCount={drawings.length} />
+            onClear={() => setDrawings([])} onUndo={() => setDrawings(prev => prev.slice(0, -1))} drawingCount={drawings.length}
+            magnetEnabled={magnetEnabled} onToggleMagnet={() => setMagnetEnabled(prev => !prev)} />
         </div>
 
         {/* Main Price Chart */}
@@ -498,6 +507,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 activeTool={drawingTool}
                 drawings={drawings}
                 setDrawings={setDrawings}
+                chartData={chartData}
+                magnetEnabled={magnetEnabled}
               />
             )}
             </>
