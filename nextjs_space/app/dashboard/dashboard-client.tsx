@@ -15,6 +15,7 @@ import { TradeModal } from '@/components/trade-modal';
 import { useHaptic } from '@/hooks/use-haptic';
 import { Onboarding } from '@/components/onboarding';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
+import { useAlertNotifications } from '@/hooks/use-alert-notifications';
 import { PullRefreshIndicator } from '@/components/pull-refresh-indicator';
 
 function formatTimeAgo(ts: number): string {
@@ -162,6 +163,7 @@ export function DashboardClient() {
   const losers = [...(stocks ?? [])].filter((s: any) => (s?.changePercent ?? 0) < 0).sort((a: any, b: any) => (a?.changePercent ?? 0) - (b?.changePercent ?? 0)).slice(0, 5);
 
   const { pullDistance, refreshing: pullRefreshing } = usePullRefresh(async () => { await fetchData(); });
+  useAlertNotifications();
 
   return (
     <div className="space-y-6">

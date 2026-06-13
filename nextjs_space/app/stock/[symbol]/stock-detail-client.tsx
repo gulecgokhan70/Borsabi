@@ -14,6 +14,7 @@ import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
 } from 'recharts';
+import { ChartDrawingToolbar, ChartDrawingOverlay, type DrawingTool } from '@/components/chart-drawing-tools';
 
 interface OHLCData {
   time: number;
@@ -134,6 +135,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
   const [chartType, setChartType] = useState<ChartType>('line');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
+  const [drawingTool, setDrawingTool] = useState<DrawingTool>('none');
+  const [drawings, setDrawings] = useState<any[]>([]);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 380 });
   const [showFundamentals, setShowFundamentals] = useState(true);
   const [tradeOpen, setTradeOpen] = useState(false);
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
@@ -247,6 +252,31 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const chartPositive = activePoint
     ? (activePoint.close >= firstClose)
     : (chartData.length >= 2 ? (chartData[chartData.length - 1]?.close ?? 0) >= (chartData[0]?.close ?? 0) : true);
+
+  // Chart Y domain for drawing tools
+  const yDomain: [number, number] = useMemo(() => {
+    if (chartData.length === 0) return [0, 100];
+    const closes = chartData.map((d: any) => d.close).filter(Boolean);
+    const highs = chartData.map((d: any) => d.high).filter(Boolean);
+    const lows = chartData.map((d: any) => d.low).filter(Boolean);
+    const allVals = [...closes, ...highs, ...lows];
+    const mn = Math.min(...allVals);
+    const mx = Math.max(...allVals);
+    const pad = (mx - mn) * 0.05;
+    return [mn - pad, mx + pad];
+  }, [chartData]);
+
+  // Chart container dimensions for drawing overlay
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) {
+        setChartDimensions({ width: e.contentRect.width, height: e.contentRect.height });
+      }
+    });
+    ro.observe(chartContainerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   // Recharts mouse/touch event handler
   const handleChartMouseMove = useCallback((e: any) => {
@@ -409,11 +439,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
               bottomIndicator === 'macd' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>MACD</button>
+          <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
+          <ChartDrawingToolbar activeTool={drawingTool} onToolChange={setDrawingTool}
+            onClear={() => setDrawings([])} onUndo={() => setDrawings(prev => prev.slice(0, -1))} drawingCount={drawings.length} />
         </div>
 
         {/* Main Price Chart */}
-        <div style={{ height: '380px' }} onTouchEnd={() => setActivePoint(null)}>
+        <div ref={chartContainerRef} style={{ height: '380px', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
           {chartData.length > 0 ? (
+            <>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
                 onMouseMove={handleChartMouseMove}
@@ -456,6 +490,17 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
+            {chartDimensions.width > 0 && (
+              <ChartDrawingOverlay
+                chartHeight={chartDimensions.height}
+                chartWidth={chartDimensions.width}
+                yDomain={yDomain}
+                activeTool={drawingTool}
+                drawings={drawings}
+                setDrawings={setDrawings}
+              />
+            )}
+            </>
           ) : loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" />

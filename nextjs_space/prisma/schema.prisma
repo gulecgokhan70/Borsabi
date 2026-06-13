@@ -28,6 +28,8 @@ model User {
   chatMessages   ChatMessage[]
   priceAlerts    PriceAlert[]
   achievements   Achievement[]
+  followers      SocialFollow[] @relation("following")
+  following      SocialFollow[] @relation("followers")
 
   @@index([email])
 }
@@ -131,6 +133,19 @@ model Achievement {
 
   @@unique([userId, badge])
   @@index([userId])
+}
+
+model SocialFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("followers", fields: [followerId], references: [id])
+  followingId String
+  following   User     @relation("following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
 
 model ScanCache {

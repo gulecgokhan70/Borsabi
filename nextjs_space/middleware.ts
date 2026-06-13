@@ -30,5 +30,6 @@ export const config = {
     '/piyasalar/:path*',
     '/kesfet/:path*',
     '/brokers/:path*',
+    '/social/:path*',
   ],
 };

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft, Building2
+  User, Users, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/page-transition';
@@ -219,6 +219,7 @@ const NAV_ITEMS = [
   { href: '/backtest', label: 'Backtest', icon: FlaskConical },
   { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
   { href: '/strategy-builder', label: 'Strateji', icon: Wrench },
+  { href: '/social', label: 'Sosyal Trading', icon: Users },
   { href: '/leaderboard', label: 'Liderlik', icon: Trophy },
   { href: '/alerts', label: 'Alarmlar', icon: Bell },
   { href: '/achievements', label: 'Rozetler', icon: Award },

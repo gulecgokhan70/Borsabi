@@ -6,6 +6,7 @@ import { formatCurrency, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/co
 import { SymbolSearch } from '@/components/symbol-search';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { useAlertNotifications } from '@/hooks/use-alert-notifications';
 
 export default function AlertsClient() {
   const router = useRouter();
@@ -16,6 +17,14 @@ export default function AlertsClient() {
   const [condition, setCondition] = useState('above');
   const [targetPrice, setTargetPrice] = useState('');
   const [creating, setCreating] = useState(false);
+  const { requestPermission } = useAlertNotifications();
+  const [notifPermission, setNotifPermission] = useState<string>('default');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
 
   const symbolGroups = [
     { label: 'BIST Hisseleri', items: BIST_STOCKS },
@@ -82,10 +91,18 @@ export default function AlertsClient() {
             <p className="text-xs text-muted-foreground">Hedef fiyata ulaşıldığında bildirim alın</p>
           </div>
         </div>
-        <button onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1.5 bg-[#3B82F6] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#2563EB] transition">
-          <Plus className="w-4 h-4" /> Yeni Alarm
-        </button>
+        <div className="flex items-center gap-2">
+          {notifPermission !== 'granted' && (
+            <button onClick={async () => { await requestPermission(); setNotifPermission(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'); }}
+              className="flex items-center gap-1.5 glass-card text-[#F59E0B] px-3 py-2 rounded-lg text-xs font-medium hover:bg-[#F59E0B]/10 transition border border-[#F59E0B]/20">
+              <Bell className="w-3.5 h-3.5" /> Bildirimleri Aç
+            </button>
+          )}
+          <button onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-1.5 bg-[#3B82F6] text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-[#2563EB] transition">
+            <Plus className="w-4 h-4" /> Yeni Alarm
+          </button>
+        </div>
       </motion.div>
 
       {/* Create Form */}
