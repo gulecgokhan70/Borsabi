@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Minus, TrendingUp, Hash, Trash2, MousePointer, Undo2, Magnet } from 'lucide-react';
 
 export type DrawingTool = 'none' | 'hline' | 'trendline' | 'fibonacci';
@@ -45,7 +45,8 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
-const HIT_THRESHOLD = 12; // pixels
+const HIT_THRESHOLD_MOUSE = 12;
+const HIT_THRESHOLD_TOUCH = 24; // Mobilde daha geniş alan
 
 export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo, drawingCount, magnetEnabled, onToggleMagnet }: {
   activeTool: DrawingTool;
@@ -179,32 +180,45 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
     return { snappedY, snappedPrice: closestPrice };
   }, [magnetEnabled, chartData, plotW, plotH, yMin, yMax, marginLeft, marginTop]);
 
+  const isTouchRef = useRef(false);
+
   const getSvgPoint = useCallback((e: React.MouseEvent | React.TouchEvent): Point | null => {
     if (!svgRef.current) return null;
     const rect = svgRef.current.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0]?.clientX ?? 0 : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0]?.clientY ?? 0 : e.clientY;
+    let clientX = 0, clientY = 0;
+    if ('touches' in e) {
+      isTouchRef.current = true;
+      const touch = e.touches[0] || (e as any).changedTouches?.[0];
+      if (!touch) return null;
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      isTouchRef.current = false;
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
     return { x: clientX - rect.left, y: clientY - rect.top };
   }, []);
 
   // Find drawing under cursor for drag
   const hitTestDrawing = useCallback((pt: Point): string | null => {
+    const threshold = isTouchRef.current ? HIT_THRESHOLD_TOUCH : HIT_THRESHOLD_MOUSE;
     for (let i = drawings.length - 1; i >= 0; i--) {
       const d = drawings[i];
       if (d.type === 'hline') {
         const y = priceToY(d.priceStart!, yMin, yMax, plotH) + marginTop;
-        if (Math.abs(pt.y - y) < HIT_THRESHOLD && pt.x >= marginLeft && pt.x <= chartWidth - marginRight) {
+        if (Math.abs(pt.y - y) < threshold && pt.x >= marginLeft && pt.x <= chartWidth - marginRight) {
           return d.id;
         }
       } else if (d.type === 'trendline' && d.points.length === 2) {
         const dist = distToSegment(pt.x, pt.y, d.points[0].x, d.points[0].y, d.points[1].x, d.points[1].y);
-        if (dist < HIT_THRESHOLD) return d.id;
+        if (dist < threshold) return d.id;
       } else if (d.type === 'fibonacci' && d.points.length === 2) {
         const highP = Math.max(d.priceStart!, d.priceEnd!);
         const lowP = Math.min(d.priceStart!, d.priceEnd!);
         const yTop = priceToY(highP, yMin, yMax, plotH) + marginTop;
         const yBot = priceToY(lowP, yMin, yMax, plotH) + marginTop;
-        if (pt.y >= Math.min(yTop, yBot) - HIT_THRESHOLD && pt.y <= Math.max(yTop, yBot) + HIT_THRESHOLD
+        if (pt.y >= Math.min(yTop, yBot) - threshold && pt.y <= Math.max(yTop, yBot) + threshold
             && pt.x >= marginLeft && pt.x <= chartWidth - marginRight) {
           return d.id;
         }
@@ -227,11 +241,21 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
         setDragId(hitId);
         setSelectedId(hitId);
         setDragOffset(clamped);
-        e.preventDefault();
+        // Mobilde scroll'u engelle
+        if ('touches' in e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       } else {
         setSelectedId(null);
       }
       return;
+    }
+
+    // Çizim modunda dokunma scroll'unu engelle
+    if ('touches' in e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
 
     // Apply magnet snap
@@ -289,7 +313,13 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
 
     // Handle dragging
     if (dragId && activeTool === 'none') {
-      e.preventDefault();
+      // Mobilde scroll'u engelle
+      if ('touches' in e) {
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        e.preventDefault();
+      }
       const dx = pt.x - dragOffset.x;
       const dy = pt.y - dragOffset.y;
       setDragOffset(pt);
@@ -349,20 +379,50 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
     cursorStyle = 'grabbing';
   }
 
-  // SVG needs pointer events in select mode (for dragging) and in draw mode
-  const needsEvents = activeTool !== 'none' || drawings.length > 0;
+  // SVG needs pointer events:
+  // - Always in draw mode (crosshair + click to draw)
+  // - In select mode only when actively dragging (otherwise let chart handle touches)
+  const needsEvents = activeTool !== 'none' || dragId !== null || (activeTool === 'none' && drawings.length > 0);
+
+  // Native touch event listeners for { passive: false } — required for preventDefault
+  React.useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      handlePointerDown(e as any);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      handlePointerMove(e as any);
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      handlePointerUp();
+    };
+
+    svg.addEventListener('touchstart', onTouchStart, { passive: false });
+    svg.addEventListener('touchmove', onTouchMove, { passive: false });
+    svg.addEventListener('touchend', onTouchEnd, { passive: false });
+    svg.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+    return () => {
+      svg.removeEventListener('touchstart', onTouchStart);
+      svg.removeEventListener('touchmove', onTouchMove);
+      svg.removeEventListener('touchend', onTouchEnd);
+      svg.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [handlePointerDown, handlePointerMove, handlePointerUp]);
+
+  // touch-action: none sadece aktif çizim/sürükleme sırasında
+  const touchAction = (activeTool !== 'none' || dragId) ? 'none' : 'auto';
 
   return (
     <svg ref={svgRef}
       width={chartWidth} height={chartHeight}
-      style={{ position: 'absolute', top: 0, left: 0, cursor: cursorStyle, pointerEvents: needsEvents ? 'auto' : 'none' }}
+      style={{ position: 'absolute', top: 0, left: 0, cursor: cursorStyle, pointerEvents: needsEvents ? 'auto' : 'none', touchAction }}
       onMouseDown={handlePointerDown}
       onMouseMove={handlePointerMove}
       onMouseUp={handlePointerUp}
-      onMouseLeave={handlePointerUp}
-      onTouchStart={handlePointerDown}
-      onTouchMove={handlePointerMove}
-      onTouchEnd={handlePointerUp}>
+      onMouseLeave={handlePointerUp}>
 
       {/* Defs for filters */}
       <defs>
@@ -489,9 +549,9 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
             <g key={d.id} style={{ cursor: activeTool === 'none' ? (isDragging ? 'grabbing' : 'grab') : undefined }}>
               {/* Invisible hit area for the whole fib zone */}
               {activeTool === 'none' && (
-                <rect x={marginLeft} y={priceToY(highP, yMin, yMax, plotH) + marginTop - HIT_THRESHOLD}
+                <rect x={marginLeft} y={priceToY(highP, yMin, yMax, plotH) + marginTop - HIT_THRESHOLD_TOUCH}
                   width={plotW}
-                  height={Math.abs(priceToY(lowP, yMin, yMax, plotH) - priceToY(highP, yMin, yMax, plotH)) + HIT_THRESHOLD * 2}
+                  height={Math.abs(priceToY(lowP, yMin, yMax, plotH) - priceToY(highP, yMin, yMax, plotH)) + HIT_THRESHOLD_TOUCH * 2}
                   fill="transparent" />
               )}
               {/* Selection border */}
