@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
-import { Minus, TrendingUp, Hash, Trash2, MousePointer, Undo2, Pencil } from 'lucide-react';
+import { Minus, TrendingUp, Hash, Trash2, MousePointer, Undo2, Move } from 'lucide-react';
 
 export type DrawingTool = 'none' | 'hline' | 'trendline' | 'fibonacci';
 
@@ -33,6 +33,19 @@ function priceToY(price: number, yMin: number, yMax: number, height: number): nu
 function yToPrice(y: number, yMin: number, yMax: number, height: number): number {
   return yMin + ((height - y) / height) * (yMax - yMin);
 }
+
+// Hit-test: distance from point to a line segment
+function distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+const HIT_THRESHOLD = 12; // pixels
 
 export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo, drawingCount }: {
   activeTool: DrawingTool;
@@ -93,6 +106,11 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
   const [startPoint, setStartPoint] = useState<Point | null>(null);
   const [mousePos, setMousePos] = useState<Point | null>(null);
 
+  // Drag state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState<Point>({ x: 0, y: 0 });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   const [yMin, yMax] = yDomain;
   const marginLeft = 65;
   const marginRight = 5;
@@ -109,13 +127,52 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
     return { x: clientX - rect.left, y: clientY - rect.top };
   }, []);
 
+  // Find drawing under cursor for drag
+  const hitTestDrawing = useCallback((pt: Point): string | null => {
+    for (let i = drawings.length - 1; i >= 0; i--) {
+      const d = drawings[i];
+      if (d.type === 'hline') {
+        const y = priceToY(d.priceStart!, yMin, yMax, plotH) + marginTop;
+        if (Math.abs(pt.y - y) < HIT_THRESHOLD && pt.x >= marginLeft && pt.x <= chartWidth - marginRight) {
+          return d.id;
+        }
+      } else if (d.type === 'trendline' && d.points.length === 2) {
+        const dist = distToSegment(pt.x, pt.y, d.points[0].x, d.points[0].y, d.points[1].x, d.points[1].y);
+        if (dist < HIT_THRESHOLD) return d.id;
+      } else if (d.type === 'fibonacci' && d.points.length === 2) {
+        const highP = Math.max(d.priceStart!, d.priceEnd!);
+        const lowP = Math.min(d.priceStart!, d.priceEnd!);
+        const yTop = priceToY(highP, yMin, yMax, plotH) + marginTop;
+        const yBot = priceToY(lowP, yMin, yMax, plotH) + marginTop;
+        if (pt.y >= Math.min(yTop, yBot) - HIT_THRESHOLD && pt.y <= Math.max(yTop, yBot) + HIT_THRESHOLD
+            && pt.x >= marginLeft && pt.x <= chartWidth - marginRight) {
+          return d.id;
+        }
+      }
+    }
+    return null;
+  }, [drawings, yMin, yMax, plotH, chartWidth, marginLeft, marginRight, marginTop]);
+
   const handlePointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (activeTool === 'none') return;
     const pt = getSvgPoint(e);
     if (!pt) return;
     const cx = Math.max(marginLeft, Math.min(pt.x, chartWidth - marginRight));
     const cy = Math.max(marginTop, Math.min(pt.y, chartHeight - marginBottom));
     const clamped = { x: cx, y: cy };
+
+    // In select mode: try to grab a drawing for drag
+    if (activeTool === 'none') {
+      const hitId = hitTestDrawing(clamped);
+      if (hitId) {
+        setDragId(hitId);
+        setSelectedId(hitId);
+        setDragOffset(clamped);
+        e.preventDefault();
+      } else {
+        setSelectedId(null);
+      }
+      return;
+    }
 
     if (activeTool === 'hline') {
       const price = yToPrice(cy - marginTop, yMin, yMax, plotH);
@@ -145,23 +202,89 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
         setStartPoint(null);
       }
     }
-  }, [activeTool, startPoint, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom, getSvgPoint, setDrawings]);
+  }, [activeTool, startPoint, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom, getSvgPoint, setDrawings, hitTestDrawing]);
 
   const handlePointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const pt = getSvgPoint(e);
-    if (pt) setMousePos(pt);
-  }, [getSvgPoint]);
+    if (!pt) return;
+    setMousePos(pt);
 
-  const cursorStyle = activeTool !== 'none' ? 'crosshair' : 'default';
+    // Handle dragging
+    if (dragId && activeTool === 'none') {
+      e.preventDefault();
+      const dx = pt.x - dragOffset.x;
+      const dy = pt.y - dragOffset.y;
+      setDragOffset(pt);
+
+      setDrawings(prev => prev.map(d => {
+        if (d.id !== dragId) return d;
+
+        if (d.type === 'hline') {
+          const currentY = priceToY(d.priceStart!, yMin, yMax, plotH) + marginTop;
+          const newY = Math.max(marginTop, Math.min(currentY + dy, chartHeight - marginBottom));
+          const newPrice = yToPrice(newY - marginTop, yMin, yMax, plotH);
+          return { ...d, priceStart: newPrice, points: [{ x: d.points[0].x, y: newY }] };
+        }
+
+        if (d.type === 'trendline' && d.points.length === 2) {
+          const newP1 = {
+            x: Math.max(marginLeft, Math.min(d.points[0].x + dx, chartWidth - marginRight)),
+            y: Math.max(marginTop, Math.min(d.points[0].y + dy, chartHeight - marginBottom))
+          };
+          const newP2 = {
+            x: Math.max(marginLeft, Math.min(d.points[1].x + dx, chartWidth - marginRight)),
+            y: Math.max(marginTop, Math.min(d.points[1].y + dy, chartHeight - marginBottom))
+          };
+          const priceS = yToPrice(newP1.y - marginTop, yMin, yMax, plotH);
+          const priceE = yToPrice(newP2.y - marginTop, yMin, yMax, plotH);
+          return { ...d, points: [newP1, newP2], priceStart: priceS, priceEnd: priceE };
+        }
+
+        if (d.type === 'fibonacci' && d.points.length === 2) {
+          const newP1 = {
+            x: Math.max(marginLeft, Math.min(d.points[0].x + dx, chartWidth - marginRight)),
+            y: Math.max(marginTop, Math.min(d.points[0].y + dy, chartHeight - marginBottom))
+          };
+          const newP2 = {
+            x: Math.max(marginLeft, Math.min(d.points[1].x + dx, chartWidth - marginRight)),
+            y: Math.max(marginTop, Math.min(d.points[1].y + dy, chartHeight - marginBottom))
+          };
+          const priceS = yToPrice(newP1.y - marginTop, yMin, yMax, plotH);
+          const priceE = yToPrice(newP2.y - marginTop, yMin, yMax, plotH);
+          return { ...d, points: [newP1, newP2], priceStart: priceS, priceEnd: priceE };
+        }
+
+        return d;
+      }));
+    }
+  }, [getSvgPoint, dragId, activeTool, dragOffset, setDrawings, yMin, yMax, plotH, chartWidth, chartHeight, marginLeft, marginRight, marginTop, marginBottom]);
+
+  const handlePointerUp = useCallback(() => {
+    setDragId(null);
+  }, []);
+
+  // Determine cursor
+  let cursorStyle = 'default';
+  if (activeTool !== 'none') {
+    cursorStyle = 'crosshair';
+  } else if (dragId) {
+    cursorStyle = 'grabbing';
+  }
+
+  // SVG needs pointer events in select mode (for dragging) and in draw mode
+  const needsEvents = activeTool !== 'none' || drawings.length > 0;
 
   return (
     <svg ref={svgRef}
       width={chartWidth} height={chartHeight}
-      style={{ position: 'absolute', top: 0, left: 0, cursor: cursorStyle, pointerEvents: activeTool === 'none' ? 'none' : 'auto' }}
+      style={{ position: 'absolute', top: 0, left: 0, cursor: cursorStyle, pointerEvents: needsEvents ? 'auto' : 'none' }}
       onMouseDown={handlePointerDown}
       onMouseMove={handlePointerMove}
+      onMouseUp={handlePointerUp}
+      onMouseLeave={handlePointerUp}
       onTouchStart={handlePointerDown}
-      onTouchMove={handlePointerMove}>
+      onTouchMove={handlePointerMove}
+      onTouchEnd={handlePointerUp}>
 
       {/* Defs for filters */}
       <defs>
@@ -170,15 +293,33 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
         </filter>
       </defs>
       
+      {/* Transparent click blocker in draw mode so chart tooltip doesn't interfere */}
+      {activeTool !== 'none' && (
+        <rect x={0} y={0} width={chartWidth} height={chartHeight} fill="transparent" />
+      )}
+
       {/* Existing drawings */}
       {drawings.map(d => {
+        const isSelected = selectedId === d.id;
+        const isDragging = dragId === d.id;
+        const selectionOpacity = isSelected ? 1 : 0.85;
+
         if (d.type === 'hline') {
           const y = priceToY(d.priceStart!, yMin, yMax, plotH) + marginTop;
-          const labelText = `── ${d.priceStart?.toFixed(2)} TL`;
           return (
-            <g key={d.id}>
+            <g key={d.id} style={{ cursor: activeTool === 'none' ? 'grab' : undefined }}>
+              {/* Wider invisible hit area for easier grabbing */}
+              {activeTool === 'none' && (
+                <line x1={marginLeft} y1={y} x2={chartWidth - marginRight} y2={y}
+                  stroke="transparent" strokeWidth={20} />
+              )}
+              {/* Selection highlight */}
+              {isSelected && (
+                <line x1={marginLeft} y1={y} x2={chartWidth - marginRight} y2={y}
+                  stroke={d.color} strokeWidth={6} opacity={0.25} />
+              )}
               <line x1={marginLeft} y1={y} x2={chartWidth - marginRight} y2={y}
-                stroke={d.color} strokeWidth={2} strokeDasharray="8 4" opacity={0.9} />
+                stroke={d.color} strokeWidth={2} strokeDasharray="8 4" opacity={selectionOpacity} />
               {/* Price label with background */}
               <rect x={chartWidth - marginRight - 95} y={y - 12} width={90} height={22} rx={6}
                 fill={d.color} opacity={0.9} filter="url(#labelShadow)" />
@@ -193,6 +334,14 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
                 fill={d.color} fontSize={10} fontWeight={600} fontFamily="system-ui">
                 Yatay
               </text>
+              {/* Drag handle dots when selected */}
+              {isSelected && activeTool === 'none' && (
+                <>
+                  <circle cx={(chartWidth - marginRight + marginLeft) / 2 - 8} cy={y} r={3} fill={d.color} opacity={0.7} />
+                  <circle cx={(chartWidth - marginRight + marginLeft) / 2} cy={y} r={3} fill={d.color} opacity={0.7} />
+                  <circle cx={(chartWidth - marginRight + marginLeft) / 2 + 8} cy={y} r={3} fill={d.color} opacity={0.7} />
+                </>
+              )}
             </g>
           );
         }
@@ -204,16 +353,26 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
           const priceDiff = (d.priceEnd! - d.priceStart!).toFixed(2);
           const sign = d.priceEnd! >= d.priceStart! ? '+' : '';
           return (
-            <g key={d.id}>
+            <g key={d.id} style={{ cursor: activeTool === 'none' ? (isDragging ? 'grabbing' : 'grab') : undefined }}>
+              {/* Wider invisible hit area */}
+              {activeTool === 'none' && (
+                <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+                  stroke="transparent" strokeWidth={20} />
+              )}
+              {/* Selection glow */}
+              {isSelected && (
+                <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+                  stroke={d.color} strokeWidth={8} opacity={0.2} />
+              )}
               {/* Glow effect */}
               <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                 stroke={d.color} strokeWidth={6} opacity={0.15} />
               {/* Main line */}
               <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                stroke={d.color} strokeWidth={2.5} opacity={0.9} strokeLinecap="round" />
+                stroke={d.color} strokeWidth={2.5} opacity={selectionOpacity} strokeLinecap="round" />
               {/* Endpoints */}
-              <circle cx={p1.x} cy={p1.y} r={5} fill={d.color} opacity={0.9} stroke="#fff" strokeWidth={1.5} />
-              <circle cx={p2.x} cy={p2.y} r={5} fill={d.color} opacity={0.9} stroke="#fff" strokeWidth={1.5} />
+              <circle cx={p1.x} cy={p1.y} r={isSelected ? 6 : 5} fill={d.color} opacity={0.9} stroke="#fff" strokeWidth={isSelected ? 2 : 1.5} />
+              <circle cx={p2.x} cy={p2.y} r={isSelected ? 6 : 5} fill={d.color} opacity={0.9} stroke="#fff" strokeWidth={isSelected ? 2 : 1.5} />
               {/* Price labels at endpoints */}
               <rect x={p1.x - 35} y={p1.y - 22} width={70} height={18} rx={5}
                 fill={d.color} opacity={0.85} filter="url(#labelShadow)" />
@@ -234,6 +393,13 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
                 fill={d.priceEnd! >= d.priceStart! ? '#22C55E' : '#EF4444'} fontSize={10} fontWeight={700} fontFamily="system-ui">
                 {sign}{priceDiff}
               </text>
+              {/* Move icon when selected */}
+              {isSelected && activeTool === 'none' && (
+                <>
+                  <circle cx={midX} cy={midY + 18} r={10} fill={d.color} opacity={0.2} />
+                  <text x={midX} y={midY + 22} textAnchor="middle" fill={d.color} fontSize={10}>⤧</text>
+                </>
+              )}
             </g>
           );
         }
@@ -242,7 +408,22 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
           const lowP = Math.min(d.priceStart!, d.priceEnd!);
           const range = highP - lowP;
           return (
-            <g key={d.id}>
+            <g key={d.id} style={{ cursor: activeTool === 'none' ? (isDragging ? 'grabbing' : 'grab') : undefined }}>
+              {/* Invisible hit area for the whole fib zone */}
+              {activeTool === 'none' && (
+                <rect x={marginLeft} y={priceToY(highP, yMin, yMax, plotH) + marginTop - HIT_THRESHOLD}
+                  width={plotW}
+                  height={Math.abs(priceToY(lowP, yMin, yMax, plotH) - priceToY(highP, yMin, yMax, plotH)) + HIT_THRESHOLD * 2}
+                  fill="transparent" />
+              )}
+              {/* Selection border */}
+              {isSelected && (
+                <rect x={marginLeft - 2}
+                  y={priceToY(highP, yMin, yMax, plotH) + marginTop - 2}
+                  width={plotW + 4}
+                  height={Math.abs(priceToY(lowP, yMin, yMax, plotH) - priceToY(highP, yMin, yMax, plotH)) + 4}
+                  fill="none" stroke="#F59E0B" strokeWidth={2} strokeDasharray="4 4" rx={4} opacity={0.5} />
+              )}
               {/* Shaded zones between levels */}
               {FIB_LEVELS.slice(0, -1).map((level, i) => {
                 const nextLevel = FIB_LEVELS[i + 1];
@@ -323,6 +504,18 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
           <text x={chartWidth / 2} y={marginTop + 18} textAnchor="middle"
             fill="#E2E8F0" fontSize={10} fontWeight={500} fontFamily="system-ui">
             ✏️ {activeTool === 'hline' ? 'Tıkla: Yatay Çizgi' : startPoint ? 'Bitiş noktası seç' : 'Başlangıç noktası seç'}
+          </text>
+        </>
+      )}
+
+      {/* Drag mode indicator when selected */}
+      {activeTool === 'none' && selectedId && !dragId && (
+        <>
+          <rect x={chartWidth / 2 - 70} y={marginTop + 4} width={140} height={22} rx={8}
+            fill="#1E293B" opacity={0.75} />
+          <text x={chartWidth / 2} y={marginTop + 18} textAnchor="middle"
+            fill="#E2E8F0" fontSize={10} fontWeight={500} fontFamily="system-ui">
+            ✋ Sürükle taşı
           </text>
         </>
       )}

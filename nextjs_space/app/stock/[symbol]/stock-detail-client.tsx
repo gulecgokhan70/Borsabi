@@ -305,14 +305,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const d = payload[0]?.payload;
     if (!d) return null;
     return (
-      <div className="glass-card rounded-lg p-3 shadow-xl text-xs">
+      <div className="rounded-lg p-3 shadow-xl text-xs border border-black/10 dark:border-white/10" style={{ background: 'var(--tooltip-bg, #fff)', backdropFilter: 'blur(16px)' }}>
         <p className="text-muted-foreground mb-1.5 font-medium">{label}</p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <span className="text-slate-400 dark:text-slate-500">Açılış:</span><span className="text-foreground font-mono">{fp(d.open)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Yüksek:</span><span className="text-foreground font-mono">{fp(d.high)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Düşük:</span><span className="text-foreground font-mono">{fp(d.low)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Kapanış:</span><span className={`font-mono font-semibold ${d.close >= d.open ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{fp(d.close)}</span>
-          <span className="text-slate-400 dark:text-slate-500">Hacim:</span><span className="text-foreground font-mono">{formatNumber(d.volume)}</span>
+          <span className="text-slate-500 dark:text-slate-400">Açılış:</span><span className="text-foreground font-mono">{fp(d.open)}</span>
+          <span className="text-slate-500 dark:text-slate-400">Yüksek:</span><span className="text-foreground font-mono">{fp(d.high)}</span>
+          <span className="text-slate-500 dark:text-slate-400">Düşük:</span><span className="text-foreground font-mono">{fp(d.low)}</span>
+          <span className="text-slate-500 dark:text-slate-400">Kapanış:</span><span className={`font-mono font-semibold ${d.close >= d.open ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{fp(d.close)}</span>
+          <span className="text-slate-500 dark:text-slate-400">Hacim:</span><span className="text-foreground font-mono">{formatNumber(d.volume)}</span>
         </div>
       </div>
     );
@@ -537,7 +537,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   <XAxis dataKey="date" hide />
                   <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65}
                     tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : `${v}`} />
-                  <Tooltip contentStyle={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '8px', fontSize: '11px', backdropFilter: 'blur(16px)' }}
                     formatter={(value: any) => [formatNumber(value), 'Hacim']} />
                   <Bar dataKey="volume" radius={[1, 1, 0, 0]}>
                     {chartData.map((entry: any, idx: number) => (
