@@ -994,18 +994,31 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       </p>
 
       {/* Trade Modal */}
-      {data && !isIndexSymbol(data.symbol) && (
-        <TradeModal
-          isOpen={tradeOpen}
-          onClose={() => setTradeOpen(false)}
-          symbol={data.symbol}
-          name={data.name}
-          price={data.price}
-          marketType={data.symbol.endsWith('.IS') ? 'BIST' : data.symbol.endsWith('-USD') ? 'Kripto' : 'Diğer'}
-          side={tradeSide}
-          onSuccess={() => fetchData()}
-        />
-      )}
+      {data && !isIndexSymbol(data.symbol) && (() => {
+        // Destek/direnç seviyelerinden otomatik SL/TP hesapla
+        const supports = data.supportResistance?.supports ?? [];
+        const resistances = data.supportResistance?.resistances ?? [];
+        // En yakın destek (fiyatın altında) -> Stop Loss
+        const nearestSupport = supports.filter((s: any) => s.price < data.price).sort((a: any, b: any) => b.price - a.price)[0];
+        // En yakın direnç (fiyatın üstünde) -> Take Profit
+        const nearestResistance = resistances.filter((r: any) => r.price > data.price).sort((a: any, b: any) => a.price - b.price)[0];
+        const autoSL = nearestSupport ? nearestSupport.price : undefined;
+        const autoTP = nearestResistance ? nearestResistance.price : undefined;
+        return (
+          <TradeModal
+            isOpen={tradeOpen}
+            onClose={() => setTradeOpen(false)}
+            symbol={data.symbol}
+            name={data.name}
+            price={data.price}
+            marketType={data.symbol.endsWith('.IS') ? 'BIST' : data.symbol.endsWith('-USD') ? 'Kripto' : 'Diğer'}
+            side={tradeSide}
+            initialStopLoss={autoSL}
+            initialTakeProfit={autoTP}
+            onSuccess={() => fetchData()}
+          />
+        );
+      })()}
     </div>
   );
 }

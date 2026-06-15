@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 import type { NewsImpact, StockWarning } from '@/lib/news-analysis';
+import { TradeModal } from '@/components/trade-modal';
 
 interface TradeResult {
   symbol: string;
@@ -65,6 +66,7 @@ export default function AksamAnaliziClient() {
   const [newsImpact, setNewsImpact] = useState<NewsImpact | null>(null);
   const [newsLoading, setNewsLoading] = useState(false);
   const [showNewsPanel, setShowNewsPanel] = useState(false);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string; stopLoss?: number; takeProfit?: number } | null>(null);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -153,6 +155,7 @@ export default function AksamAnaliziClient() {
               <th className="text-right py-3 px-3 text-[#8B5CF6] font-medium">Hedef 2</th>
               <th className="text-right py-3 px-3 text-[#F59E0B] font-medium">R/G</th>
               <th className="text-left py-3 px-3 text-muted-foreground font-medium">Sinyaller</th>
+              <th className="text-center py-3 px-3 text-muted-foreground font-medium">İşlem</th>
             </tr>
           </thead>
           <tbody>
@@ -208,6 +211,14 @@ export default function AksamAnaliziClient() {
                       }`}>🕯 {cp.name}</span>
                     ))}
                   </div>
+                </td>
+                <td className="py-3 px-3 text-center">
+                  <button
+                    onClick={() => setTradeModal({ open: true, symbol: t.symbol, name: t.name, price: t.price, marketType: 'BIST', stopLoss: t.stopLoss, takeProfit: t.target1 })}
+                    className="px-3 py-1.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+                  >
+                    İşlem Aç
+                  </button>
                 </td>
               </tr>
             ))}
@@ -291,9 +302,17 @@ export default function AksamAnaliziClient() {
                     <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-[#334155] text-slate-700 dark:text-muted-foreground">{s}</span>
                   ))}
                 </div>
-                <span className="px-2 py-1 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] text-xs font-bold">
-                  R/G 1:{t.riskReward}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 rounded-full bg-[#F59E0B]/10 text-[#F59E0B] text-xs font-bold">
+                    R/G 1:{t.riskReward}
+                  </span>
+                  <button
+                    onClick={() => setTradeModal({ open: true, symbol: t.symbol, name: t.name, price: t.price, marketType: 'BIST', stopLoss: t.stopLoss, takeProfit: t.target1 })}
+                    className="px-3 py-1.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-xs font-medium transition-colors"
+                  >
+                    İşlem Aç
+                  </button>
+                </div>
               </div>
 
               {/* Detay toggle */}
@@ -642,6 +661,21 @@ export default function AksamAnaliziClient() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Trade Modal */}
+      {tradeModal?.open && (
+        <TradeModal
+          isOpen={tradeModal.open}
+          onClose={() => setTradeModal(null)}
+          symbol={tradeModal.symbol}
+          name={tradeModal.name}
+          price={tradeModal.price}
+          marketType={tradeModal.marketType}
+          initialStopLoss={tradeModal.stopLoss}
+          initialTakeProfit={tradeModal.takeProfit}
+          onSuccess={() => { setTradeModal(null); }}
+        />
       )}
     </div>
   );

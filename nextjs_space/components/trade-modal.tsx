@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -45,17 +45,31 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
   useEffect(() => { setType(side); }, [side]);
 
-  // Öneri varsa stop loss ve take profit otomatik doldur
+  // Öneri varsa veya yoksa otomatik stop loss / take profit hesapla
   useEffect(() => {
-    if (isOpen && initialStopLoss && initialStopLoss > 0) {
-      setStopLoss(initialStopLoss.toFixed(2));
+    if (!isOpen || !price || price <= 0) return;
+    const sl = initialStopLoss && initialStopLoss > 0 ? initialStopLoss : null;
+    const tp = initialTakeProfit && initialTakeProfit > 0 ? initialTakeProfit : null;
+    // Dışarıdan gelen değerler varsa onları kullan
+    if (sl) {
+      setStopLoss(sl.toFixed(2));
+      setShowAdvanced(true);
+    } else {
+      // Otomatik öneri: fiyatın %3 altı SL
+      const autoSL = +(price * 0.97).toFixed(2);
+      setStopLoss(autoSL.toString());
       setShowAdvanced(true);
     }
-    if (isOpen && initialTakeProfit && initialTakeProfit > 0) {
-      setTakeProfit(initialTakeProfit.toFixed(2));
+    if (tp) {
+      setTakeProfit(tp.toFixed(2));
+      setShowAdvanced(true);
+    } else {
+      // Otomatik öneri: fiyatın %5 üstü TP
+      const autoTP = +(price * 1.05).toFixed(2);
+      setTakeProfit(autoTP.toString());
       setShowAdvanced(true);
     }
-  }, [isOpen, initialStopLoss, initialTakeProfit]);
+  }, [isOpen, initialStopLoss, initialTakeProfit, price]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -347,7 +361,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-muted-foreground transition-colors"
             >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-              Gelişmiş Ayarlar (Stop Loss / Take Profit)
+              Zarar Kes / Kar Al Ayarları
             </button>
 
             {/* Stop Loss & Take Profit */}
@@ -355,7 +369,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-3 overflow-hidden">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-[#EF4444] mb-1 block">Stop Loss</label>
+                    <label className="text-xs text-[#EF4444] mb-1 flex items-center gap-1.5">Zarar Kes (SL) <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#EF4444]/10 text-[#EF4444] font-medium">{initialStopLoss ? 'Tavsiye' : 'Otomatik'}</span></label>
                     <input
                       type="number"
                       value={stopLoss}
@@ -365,7 +379,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-[#22C55E] mb-1 block">Take Profit</label>
+                    <label className="text-xs text-[#22C55E] mb-1 flex items-center gap-1.5">Kar Al (TP) <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#22C55E]/10 text-[#22C55E] font-medium">{initialTakeProfit ? 'Tavsiye' : 'Otomatik'}</span></label>
                     <input
                       type="number"
                       value={takeProfit}
@@ -407,10 +421,10 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             </div>
 
             {/* Warning */}
-            {!stopLoss && qty > 0 && !showAdvanced && (
-              <div className="flex items-start gap-2 p-2.5 bg-[#F59E0B]/10 rounded-lg">
-                <AlertTriangle className="w-4 h-4 text-[#F59E0B] flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-[#F59E0B]">Stop loss belirlemeniz önerilir. Gelişmiş ayarlardan ekleyebilirsiniz.</p>
+            {stopLoss && takeProfit && qty > 0 && (
+              <div className="flex items-start gap-2 p-2.5 bg-[#22C55E]/10 rounded-lg">
+                <Shield className="w-4 h-4 text-[#22C55E] flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-[#22C55E]">Zarar kes: {formatCurrency(parseFloat(stopLoss))} | Kar al: {formatCurrency(parseFloat(takeProfit))}</p>
               </div>
             )}
 

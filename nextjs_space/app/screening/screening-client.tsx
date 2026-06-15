@@ -243,7 +243,7 @@ export function ScreeningClient() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setTradeModal({ symbol: stock?.yahooSymbol ?? stock?.symbol, name: stock?.name, price: stock?.price ?? 0, marketType: 'BIST' })}
+                      onClick={() => setTradeModal({ symbol: stock?.yahooSymbol ?? stock?.symbol, name: stock?.name, price: stock?.price ?? 0, marketType: 'BIST', stopLoss: stock?.stop, takeProfit: stock?.target })}
                       className="px-4 py-2 text-xs font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors whitespace-nowrap"
                     >
                       İşlem Yap
@@ -272,6 +272,8 @@ export function ScreeningClient() {
           name={tradeModal?.name}
           price={tradeModal?.price}
           marketType={tradeModal?.marketType}
+          initialStopLoss={tradeModal?.stopLoss}
+          initialTakeProfit={tradeModal?.takeProfit}
           onSuccess={fetchScreening}
         />
       )}
