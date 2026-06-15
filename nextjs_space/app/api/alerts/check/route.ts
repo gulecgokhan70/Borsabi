@@ -65,30 +65,34 @@ export async function GET() {
     // İz süren stop (trailing stop) kontrolü
     const trailingAlerts: any[] = [];
     try {
-      const openPositions = await prisma.position.findMany({
-        where: { userId: user.id, status: 'OPEN', trailingStopPercent: { not: null } },
+      const allOpenPositions = await prisma.position.findMany({
+        where: { userId: user.id, status: 'OPEN' },
       });
+      const openPositions = allOpenPositions.filter((p: any) => p.trailingStopPercent != null);
 
       for (const pos of openPositions) {
-        const cp = prices[pos.symbol] || prices[pos.symbol + '.IS'];
-        if (!cp || !pos.trailingStopPercent) continue;
+        const p = pos as any;
+        const cp = prices[p.symbol] || prices[p.symbol + '.IS'];
+        if (!cp || !p.trailingStopPercent) continue;
 
-        const highest = Math.max(cp, pos.trailingStopHighest ?? pos.entryPrice);
-        const trailingStopLevel = highest * (1 - pos.trailingStopPercent / 100);
+        const tsp: number = p.trailingStopPercent;
+        const tsh: number = p.trailingStopHighest ?? p.entryPrice;
+        const highest = Math.max(cp, tsh);
+        const trailingStopLevel = highest * (1 - tsp / 100);
 
-        // Fiyat yüseldiyse en yüksek seviyeyi ve stop'u güncelle
-        if (highest > (pos.trailingStopHighest ?? 0)) {
+        // Fiyat yükseldiyse en yüksek seviyeyi ve stop'u güncelle
+        if (highest > tsh) {
           await prisma.position.update({
-            where: { id: pos.id },
+            where: { id: p.id },
             data: {
               trailingStopHighest: highest,
               stopLoss: +trailingStopLevel.toFixed(2),
               currentPrice: cp,
-            },
+            } as any,
           });
         } else {
           await prisma.position.update({
-            where: { id: pos.id },
+            where: { id: p.id },
             data: { currentPrice: cp },
           });
         }
@@ -96,10 +100,10 @@ export async function GET() {
         // Fiyat trailing stop seviyesinin altına düştü mü?
         if (cp <= trailingStopLevel) {
           trailingAlerts.push({
-            symbol: pos.symbol,
-            name: pos.name,
+            symbol: p.symbol,
+            name: p.name,
             type: 'trailing_stop',
-            message: `🚨 ${pos.symbol} iz süren stop tetiklendi! Fiyat: ${cp.toFixed(2)} ≤ Stop: ${trailingStopLevel.toFixed(2)} (En yüksek: ${highest.toFixed(2)}, -%${pos.trailingStopPercent})`,
+            message: `🚨 ${p.symbol} iz süren stop tetiklendi! Fiyat: ${cp.toFixed(2)} ≤ Stop: ${trailingStopLevel.toFixed(2)} (En yüksek: ${highest.toFixed(2)}, -%${tsp})`,
             currentPrice: cp,
             stopLevel: +trailingStopLevel.toFixed(2),
             highest,

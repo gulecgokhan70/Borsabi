@@ -70,10 +70,10 @@ export async function POST(request: NextRequest) {
             currentPrice: price,
             stopLoss: stopLoss ?? existingPosition?.stopLoss,
             takeProfit: takeProfit ?? existingPosition?.takeProfit,
-            trailingStopPercent: trailingStopPercent ?? existingPosition?.trailingStopPercent ?? null,
-            trailingStopHighest: trailingStopPercent ? Math.max(price, existingPosition?.trailingStopHighest ?? 0) : (existingPosition?.trailingStopHighest ?? null),
+            trailingStopPercent: trailingStopPercent ?? (existingPosition as any)?.trailingStopPercent ?? null,
+            trailingStopHighest: trailingStopPercent ? Math.max(price, (existingPosition as any)?.trailingStopHighest ?? 0) : ((existingPosition as any)?.trailingStopHighest ?? null),
             commission: (existingPosition?.commission ?? 0) + commission,
-          },
+          } as any,
         });
       } else {
         await prisma.position.create({
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             trailingStopPercent: trailingStopPercent ?? null,
             trailingStopHighest: trailingStopPercent ? price : null,
             commission, status: 'OPEN',
-          },
+          } as any,
         });
       }
 
