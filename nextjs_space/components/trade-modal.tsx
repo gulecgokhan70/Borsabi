@@ -18,11 +18,13 @@ interface TradeModalProps {
   side?: 'BUY' | 'SELL';
   maxQuantity?: number;
   onSuccess?: () => void;
+  initialStopLoss?: number;
+  initialTakeProfit?: number;
 }
 
 type OrderType = 'market' | 'limit' | 'stop-limit';
 
-export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, side = 'BUY', maxQuantity, onSuccess }: TradeModalProps) {
+export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, side = 'BUY', maxQuantity, onSuccess, initialStopLoss, initialTakeProfit }: TradeModalProps) {
   const haptic = useHaptic();
   const confetti = useConfetti();
   const [type, setType] = useState<'BUY' | 'SELL'>(side);
@@ -42,6 +44,18 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [userCommRate, setUserCommRate] = useState(0.002);
 
   useEffect(() => { setType(side); }, [side]);
+
+  // Öneri varsa stop loss ve take profit otomatik doldur
+  useEffect(() => {
+    if (isOpen && initialStopLoss && initialStopLoss > 0) {
+      setStopLoss(initialStopLoss.toFixed(2));
+      setShowAdvanced(true);
+    }
+    if (isOpen && initialTakeProfit && initialTakeProfit > 0) {
+      setTakeProfit(initialTakeProfit.toFixed(2));
+      setShowAdvanced(true);
+    }
+  }, [isOpen, initialStopLoss, initialTakeProfit]);
 
   useEffect(() => {
     if (!isOpen) return;

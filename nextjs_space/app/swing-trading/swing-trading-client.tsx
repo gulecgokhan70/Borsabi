@@ -49,7 +49,7 @@ export function SwingTradingClient() {
   const router = useRouter();
   const [data, setData] = useState<SwingTradeResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string } | null>(null);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string; stopLoss?: number; takeProfit?: number } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
   const [marketOpen, setMarketOpen] = useState(true);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
@@ -254,7 +254,7 @@ export function SwingTradingClient() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setTradeModal({ open: true, symbol: item.symbol, name: item.name, price: item.price, marketType: 'BIST' })}
+                      onClick={() => setTradeModal({ open: true, symbol: item.symbol, name: item.name, price: item.price, marketType: 'BIST', stopLoss: item.stop, takeProfit: item.target1 })}
                       className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       İşlem Aç
@@ -340,6 +340,8 @@ export function SwingTradingClient() {
           name={tradeModal.name}
           price={tradeModal.price}
           marketType={tradeModal.marketType}
+          initialStopLoss={tradeModal.stopLoss}
+          initialTakeProfit={tradeModal.takeProfit}
           onSuccess={() => { setTradeModal(null); }}
         />
       )}
