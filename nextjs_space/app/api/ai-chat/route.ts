@@ -553,7 +553,7 @@ export async function POST(request: NextRequest) {
 
     // Paralel veri çekme
     const dataPromises: Promise<string>[] = [];
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
 
     // Hisse/kripto verileri
     for (const asset of detectedAssets) {

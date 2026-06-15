@@ -27,7 +27,8 @@ export async function GET() {
     let prices: Record<string, number> = {};
 
     try {
-      const res = await fetch(`${process.env.NEXTAUTH_URL}/api/market?symbols=${symbols.join(',')}`);
+      const internalBase = `http://localhost:${process.env.PORT || 3000}`;
+      const res = await fetch(`${internalBase}/api/market?symbols=${symbols.join(',')}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         data.forEach((d: any) => { if (d?.symbol && d?.price) prices[d.symbol] = d.price; });

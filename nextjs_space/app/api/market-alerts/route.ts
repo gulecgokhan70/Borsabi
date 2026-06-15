@@ -126,7 +126,7 @@ function newsToAlert(item: NewsItem, idx: number): MarketAlert {
 
 export async function GET(req: Request) {
   try {
-    const baseUrl = req.url.split('/api/market-alerts')[0];
+    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
     // Fetch news from our own news API
     const newsRes = await fetch(`${baseUrl}/api/news?limit=30`, {
       headers: { 'Content-Type': 'application/json' },
