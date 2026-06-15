@@ -47,6 +47,8 @@ model Position {
   currentPrice  Float    @default(0)
   stopLoss      Float?   
   takeProfit    Float?   
+  trailingStopPercent Float?
+  trailingStopHighest Float?
   commission    Float    @default(0)
   status        String   @default("OPEN") // OPEN, CLOSED
   pnl           Float    @default(0)

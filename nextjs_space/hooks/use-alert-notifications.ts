@@ -68,6 +68,14 @@ export function useAlertNotifications() {
           `${alert.symbol.replace('.IS', '')} ${direction}: ${alert.currentPrice?.toFixed(2)} TL (Hedef: ${alert.targetPrice?.toFixed(2)} TL)`
         );
       });
+      // İz süren stop bildirimleri
+      const trailingAlerts = data.trailingAlerts || [];
+      trailingAlerts.forEach((ta: any) => {
+        sendNotification(
+          `🚨 ${ta.symbol} İz Süren Stop!`,
+          ta.message ?? `${ta.symbol} trailing stop tetiklendi: ${ta.currentPrice?.toFixed(2)} TL`
+        );
+      });
     } catch (e) {}
   }, [sendNotification]);
 

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as any).id;
 
     const body = await request.json();
-    const { symbol, name, type, marketType, quantity, price, stopLoss, takeProfit, note } = body ?? {};
+    const { symbol, name, type, marketType, quantity, price, stopLoss, takeProfit, trailingStopPercent, note } = body ?? {};
 
     if (!symbol || !type || !quantity || !price) {
       return NextResponse.json({ error: 'Eksik alanlar' }, { status: 400 });
@@ -70,6 +70,8 @@ export async function POST(request: NextRequest) {
             currentPrice: price,
             stopLoss: stopLoss ?? existingPosition?.stopLoss,
             takeProfit: takeProfit ?? existingPosition?.takeProfit,
+            trailingStopPercent: trailingStopPercent ?? existingPosition?.trailingStopPercent ?? null,
+            trailingStopHighest: trailingStopPercent ? Math.max(price, existingPosition?.trailingStopHighest ?? 0) : (existingPosition?.trailingStopHighest ?? null),
             commission: (existingPosition?.commission ?? 0) + commission,
           },
         });
@@ -77,7 +79,10 @@ export async function POST(request: NextRequest) {
         await prisma.position.create({
           data: {
             userId, symbol, name: name ?? symbol, type: marketType ?? 'BIST', quantity, entryPrice: price,
-            currentPrice: price, stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null, commission, status: 'OPEN',
+            currentPrice: price, stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null,
+            trailingStopPercent: trailingStopPercent ?? null,
+            trailingStopHighest: trailingStopPercent ? price : null,
+            commission, status: 'OPEN',
           },
         });
       }

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, Shield } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, Shield, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -34,6 +34,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [stopPrice, setStopPrice] = useState('');
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
+  const [trailingStop, setTrailingStop] = useState(false);
+  const [trailingPercent, setTrailingPercent] = useState('3');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -117,6 +119,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           stopPrice: orderType === 'stop-limit' ? parseFloat(stopPrice) : null,
           stopLoss: sl > 0 ? sl : null,
           takeProfit: tp > 0 ? tp : null,
+          trailingStopPercent: trailingStop ? (parseFloat(trailingPercent) || 3) : null,
           note: note || null,
         }),
       });
@@ -390,6 +393,55 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                   </div>
                 </div>
 
+                {/* Trailing Stop */}
+                <div className="flex items-center justify-between p-3 glass-inner rounded-lg border border-black/[0.06] dark:border-white/[0.08]">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-[#F59E0B]" />
+                    <div>
+                      <p className="text-xs font-medium text-foreground">İz Süren Stop</p>
+                      <p className="text-[10px] text-muted-foreground">Fiyat yüseldikçe stop otomatik yükselir</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTrailingStop(!trailingStop)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${trailingStop ? 'bg-[#F59E0B]' : 'bg-black/10 dark:bg-white/10'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${trailingStop ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {trailingStop && (
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-[#F59E0B] whitespace-nowrap">İz mesafesi:</label>
+                    <div className="flex items-center gap-1 flex-1">
+                      {['2', '3', '5', '7'].map(p => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setTrailingPercent(p)}
+                          className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-all border ${
+                            trailingPercent === p
+                              ? 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B]/40'
+                              : 'border-black/[0.06] dark:border-white/[0.08] text-muted-foreground hover:text-foreground'
+                          } glass-inner`}
+                        >
+                          %{p}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      value={trailingPercent}
+                      onChange={(e: any) => setTrailingPercent(e?.target?.value ?? '3')}
+                      className="w-16 px-2 py-1.5 glass-inner border border-[#F59E0B]/30 rounded-lg text-[#F59E0B] font-mono text-xs text-center focus:ring-1 focus:ring-[#F59E0B] outline-none"
+                      min="0.5"
+                      max="20"
+                      step="0.5"
+                    />
+                    <span className="text-xs text-muted-foreground">%</span>
+                  </div>
+                )}
+
                 {/* Note */}
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Not (isteğe bağlı)</label>
@@ -424,7 +476,10 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             {stopLoss && takeProfit && qty > 0 && (
               <div className="flex items-start gap-2 p-2.5 bg-[#22C55E]/10 rounded-lg">
                 <Shield className="w-4 h-4 text-[#22C55E] flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-[#22C55E]">Zarar kes: {formatCurrency(parseFloat(stopLoss))} | Kar al: {formatCurrency(parseFloat(takeProfit))}</p>
+                <p className="text-xs text-[#22C55E]">
+                  Zarar kes: {formatCurrency(parseFloat(stopLoss))} | Kar al: {formatCurrency(parseFloat(takeProfit))}
+                  {trailingStop && <span className="text-[#F59E0B]"> | İz süren: %{trailingPercent}</span>}
+                </p>
               </div>
             )}
 

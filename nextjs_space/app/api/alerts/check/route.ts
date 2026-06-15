@@ -55,7 +55,6 @@ export async function GET() {
         });
         triggered.push({ ...alert, currentPrice });
       } else {
-        // Güncel fiyatı kaydet
         await prisma.priceAlert.update({
           where: { id: alert.id },
           data: { currentPrice },
@@ -63,7 +62,55 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ triggered });
+    // İz süren stop (trailing stop) kontrolü
+    const trailingAlerts: any[] = [];
+    try {
+      const openPositions = await prisma.position.findMany({
+        where: { userId: user.id, status: 'OPEN', trailingStopPercent: { not: null } },
+      });
+
+      for (const pos of openPositions) {
+        const cp = prices[pos.symbol] || prices[pos.symbol + '.IS'];
+        if (!cp || !pos.trailingStopPercent) continue;
+
+        const highest = Math.max(cp, pos.trailingStopHighest ?? pos.entryPrice);
+        const trailingStopLevel = highest * (1 - pos.trailingStopPercent / 100);
+
+        // Fiyat yüseldiyse en yüksek seviyeyi ve stop'u güncelle
+        if (highest > (pos.trailingStopHighest ?? 0)) {
+          await prisma.position.update({
+            where: { id: pos.id },
+            data: {
+              trailingStopHighest: highest,
+              stopLoss: +trailingStopLevel.toFixed(2),
+              currentPrice: cp,
+            },
+          });
+        } else {
+          await prisma.position.update({
+            where: { id: pos.id },
+            data: { currentPrice: cp },
+          });
+        }
+
+        // Fiyat trailing stop seviyesinin altına düştü mü?
+        if (cp <= trailingStopLevel) {
+          trailingAlerts.push({
+            symbol: pos.symbol,
+            name: pos.name,
+            type: 'trailing_stop',
+            message: `🚨 ${pos.symbol} iz süren stop tetiklendi! Fiyat: ${cp.toFixed(2)} ≤ Stop: ${trailingStopLevel.toFixed(2)} (En yüksek: ${highest.toFixed(2)}, -%${pos.trailingStopPercent})`,
+            currentPrice: cp,
+            stopLevel: +trailingStopLevel.toFixed(2),
+            highest,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Trailing stop check error:', e);
+    }
+
+    return NextResponse.json({ triggered, trailingAlerts });
   } catch (error: any) {
     console.error('Alert check error:', error);
     return NextResponse.json({ triggered: [] });

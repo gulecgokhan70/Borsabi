@@ -309,11 +309,12 @@ export function PortfolioClient() {
                     </div>
                   </div>
 
-                  {/* Stop Loss / Take Profit */}
-                  {(p?.stopLoss || p?.takeProfit) && (
-                    <div className="flex gap-3 mt-2 text-[10px]">
+                  {/* Stop Loss / Take Profit / Trailing */}
+                  {(p?.stopLoss || p?.takeProfit || p?.trailingStopPercent) && (
+                    <div className="flex gap-2 mt-2 text-[10px] flex-wrap">
                       {p?.stopLoss && <span className="px-2 py-0.5 rounded bg-[#EF4444]/10 text-[#F87171]">SL: {formatNumber(p.stopLoss)}</span>}
                       {p?.takeProfit && <span className="px-2 py-0.5 rounded bg-[#22C55E]/10 text-[#22C55E]">TP: {formatNumber(p.takeProfit)}</span>}
+                      {p?.trailingStopPercent && <span className="px-2 py-0.5 rounded bg-[#F59E0B]/10 text-[#F59E0B]">📈 İz: %{p.trailingStopPercent}{p?.trailingStopHighest ? ` (↑${formatNumber(p.trailingStopHighest)})` : ''}</span>}
                     </div>
                   )}
                 </div>
