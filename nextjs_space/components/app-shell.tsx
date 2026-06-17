@@ -325,11 +325,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email ?? ''}</p>
               </div>
             </Link>
-            <Link href="/aydinlatma-metni" onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-all duration-200">
-              <Shield className="w-4 h-4" />
-              Aydınlatma Metni
-            </Link>
             <button
               onClick={() => signOut?.({ callbackUrl: '/login' })}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-all duration-200"
@@ -389,6 +384,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
           <PageTransition>{children}</PageTransition>
+          {/* Global Footer */}
+          <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-6 pb-2">
+            <Link href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</Link>
+            <span>·</span>
+            <Link href="/aydinlatma-metni" className="hover:text-[#3B82F6] transition-colors">Aydınlatma Metni</Link>
+          </div>
         </div>
       </main>
 

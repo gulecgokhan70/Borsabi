@@ -114,7 +114,11 @@ export function LandingPage() {
           <BorsaBiLogoFull size={28} />
           <div className="text-center space-y-1">
             <p className="text-xs text-[#64748B]">© 2024 BorsaBi Trader. Bu platform eğitim amaçlıdır, yatırım tavsiyesi değildir.</p>
-            <a href="/aydinlatma-metni" className="text-[10px] text-[#64748B] hover:text-[#3B82F6] transition-colors">Aydınlatma Metni (KVKK)</a>
+            <div className="flex items-center justify-center gap-3 text-[10px] text-[#64748B]">
+              <a href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</a>
+              <span>·</span>
+              <a href="/aydinlatma-metni" className="hover:text-[#3B82F6] transition-colors">Aydınlatma Metni</a>
+            </div>
           </div>
         </div>
       </footer>

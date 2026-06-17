@@ -94,9 +94,16 @@ export default function SignupPage() {
           </p>
         </form>
 
-        <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-4">
-          Kayıt olarak <a href="/aydinlatma-metni" className="text-[#3B82F6] hover:underline">Aydınlatma Metni</a>&apos;ni kabul etmiş olursunuz.
-        </p>
+        <div className="text-center mt-4 space-y-1">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500">
+            Kayıt olarak <a href="/aydinlatma-metni" className="text-[#3B82F6] hover:underline">Aydınlatma Metni</a>&apos;ni kabul etmiş olursunuz.
+          </p>
+          <div className="flex items-center justify-center gap-3 text-[10px] text-slate-400 dark:text-slate-500">
+            <a href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</a>
+            <span>·</span>
+            <a href="/aydinlatma-metni" className="hover:text-[#3B82F6] transition-colors">Aydınlatma Metni</a>
+          </div>
+        </div>
       </div>
     </div>
   );
