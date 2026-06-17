@@ -325,6 +325,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email ?? ''}</p>
               </div>
             </Link>
+            <Link href="/aydinlatma-metni" onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-all duration-200">
+              <Shield className="w-4 h-4" />
+              Aydınlatma Metni
+            </Link>
             <button
               onClick={() => signOut?.({ callbackUrl: '/login' })}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#EF4444] hover:bg-[#EF4444]/10 transition-all duration-200"
