@@ -275,7 +275,7 @@ export function PortfolioClient() {
                         <p className="text-sm font-semibold text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(p?.symbol)}`)}>
                           {p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">{p?.name} • {p?.quantity} adet</p>
+                        <p className="text-[10px] text-muted-foreground">{p?.name} • {p?.quantity} adet • {p?.openedAt ? new Date(p.openedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</p>
                       </div>
                     </div>
                     <button
@@ -343,7 +343,7 @@ export function PortfolioClient() {
                       {p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {formatNumber(p?.entryPrice)} → {formatNumber(p?.currentPrice)} • {p?.closedAt ? new Date(p.closedAt).toLocaleDateString('tr-TR') : '-'}
+                      {formatNumber(p?.entryPrice)} → {formatNumber(p?.currentPrice)} • {p?.openedAt ? new Date(p.openedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : ''} → {p?.closedAt ? new Date(p.closedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : '-'}
                     </p>
                   </div>
                 </div>
