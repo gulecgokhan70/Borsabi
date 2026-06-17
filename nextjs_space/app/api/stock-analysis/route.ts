@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     const { symbol, name, price, change, changePercent, high, low, open, prevClose, volume, marketCap,
       fiftyTwoWeekHigh, fiftyTwoWeekLow, indicators, vwap, tavan, taban, fk, pddd,
-      supportResistance } = await request.json();
+      supportResistance, recentNews } = await request.json();
 
     if (!symbol) return new Response(JSON.stringify({ error: 'Symbol required' }), { status: 400 });
 
@@ -105,10 +105,12 @@ ${priceChange20d !== null ? '- 20 Günlük Değişim: %' + priceChange20d.toFixe
 Destek/Direnç Seviyeleri:
 ${supportResistance?.supports?.length ? 'Destekler: ' + supportResistance.supports.map((s: any) => s.price.toFixed(2) + ' TL').join(', ') : 'Destek bilgisi yok'}
 ${supportResistance?.resistances?.length ? 'Dirençler: ' + supportResistance.resistances.map((r: any) => r.price.toFixed(2) + ' TL').join(', ') : 'Direnç bilgisi yok'}
+${recentNews?.length ? '\nSon Haberler:\n' + recentNews.map((n: any, i: number) => `${i + 1}. [${n.sentiment || 'nötr'}] ${n.title} (${n.source})`).join('\n') : ''}
 `;
 
     const systemPrompt = `Sen profesyonel bir Borsa İstanbul teknik analistisin. Türkçe yanıt ver.
-Kullanıcıya verilen hisse senedi verileri üzerinden kapsamlı bir teknik analiz yap.
+Kullanıcıya verilen hisse senedi verileri ve güncel haberleri üzerinden kapsamlı bir teknik analiz yap.
+Eğer haberler verilmişse, haberlerin fiyat üzerindeki olası etkisini de değerlendir.
 
 JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
 {
@@ -126,6 +128,7 @@ JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
     "kisa_vade": "1-5 gün için strateji önerisi (1-2 cümle)",
     "orta_vade": "1-4 hafta için strateji önerisi (1-2 cümle)"
   },
+  "haber_etkisi": "Haberlerin fiyat üzerindeki olası etkisinin özeti (1-2 cümle, haber yoksa boş string)",
   "riskler": ["Risk 1", "Risk 2", "Risk 3"],
   "onemli_seviyeler": {
     "destek1": sayı,

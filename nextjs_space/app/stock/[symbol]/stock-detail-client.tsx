@@ -153,6 +153,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [analysis, setAnalysis] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
+  const [insightTab, setInsightTab] = useState<'analysis' | 'news'>('analysis');
   const [newsLoading, setNewsLoading] = useState(true);
   // İnteraktif grafik: hover/touch noktasının verileri
   const [activePoint, setActivePoint] = useState<any>(null);
@@ -206,6 +207,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           fiftyTwoWeekHigh: data.fiftyTwoWeekHigh, fiftyTwoWeekLow: data.fiftyTwoWeekLow,
           indicators: data.indicators, vwap: data.vwap, tavan: data.tavan, taban: data.taban,
           fk: data.fk, pddd: data.pddd, supportResistance: data.supportResistance,
+          recentNews: news.slice(0, 5).map((n: any) => ({ title: n.title, sentiment: n.sentiment, source: n.source })),
         }),
       });
       if (!res.ok) throw new Error('Analiz isteği başarısız');
@@ -637,6 +639,296 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
       </motion.div>
 
+      {/* ===== AI ANALİZ & HABERLER ===== */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-2xl overflow-hidden">
+        {/* Tab Header */}
+        <div className="px-4 pt-4 pb-0">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-black/[0.04] dark:bg-white/[0.04]">
+            <button
+              onClick={() => { setInsightTab('analysis'); if (!analysis && !analysisLoading) fetchAnalysis(); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                insightTab === 'analysis'
+                  ? 'bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" /> AI Analiz
+            </button>
+            <button
+              onClick={() => setInsightTab('news')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                insightTab === 'news'
+                  ? 'bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Newspaper className="w-3.5 h-3.5" />
+              Haberler
+              {news.length > 0 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                insightTab === 'news' ? 'bg-white/20 text-white' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+              }`}>{news.length}</span>}
+            </button>
+          </div>
+        </div>
+
+        {/* ===== AI ANALİZ TAB ===== */}
+        {insightTab === 'analysis' && (
+          <div className="p-4">
+            {/* Loading */}
+            {analysisLoading && (
+              <div className="py-8 flex flex-col items-center gap-3">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-2 border-[#8B5CF6]/20 border-t-[#8B5CF6] animate-spin" />
+                  <Brain className="w-5 h-5 text-[#8B5CF6] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <p className="text-xs text-muted-foreground">Teknik göstergeler ve haberler analiz ediliyor...</p>
+              </div>
+            )}
+
+            {/* Error */}
+            {analysisError && !analysisLoading && (
+              <div className="py-6 flex flex-col items-center gap-2">
+                <AlertTriangle className="w-7 h-7 text-[#F59E0B]" />
+                <p className="text-xs text-muted-foreground">{analysisError}</p>
+                <button onClick={fetchAnalysis} className="text-xs text-[#8B5CF6] hover:underline mt-1">Tekrar Dene</button>
+              </div>
+            )}
+
+            {/* No Analysis - CTA */}
+            {!analysis && !analysisLoading && !analysisError && (
+              <div className="py-6 flex flex-col items-center gap-3 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8B5CF6]/10 to-[#6366F1]/10 flex items-center justify-center">
+                  <Sparkles className="w-7 h-7 text-[#8B5CF6]" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Yapay Zekâ Analizi</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Teknik göstergeleri ve haberleri analiz eder</p>
+                </div>
+                <button
+                  onClick={fetchAnalysis}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white hover:opacity-90 transition-opacity shadow-md"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Analiz Et
+                </button>
+              </div>
+            )}
+
+            {/* Analysis Result */}
+            {analysis && !analysisLoading && (
+              <div className="space-y-3">
+                {/* Sinyal + Trend + Güven Row */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className={`rounded-xl p-3 text-center ${
+                    analysis.sinyal === 'AL' ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
+                    analysis.sinyal === 'SAT' ? 'bg-[#EF4444]/10 border border-[#EF4444]/20' :
+                    'bg-[#F59E0B]/10 border border-[#F59E0B]/20'
+                  }`}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Sinyal</p>
+                    <p className={`text-lg font-bold ${
+                      analysis.sinyal === 'AL' ? 'text-[#22C55E]' :
+                      analysis.sinyal === 'SAT' ? 'text-[#EF4444]' :
+                      'text-[#F59E0B]'
+                    }`}>{analysis.sinyal}</p>
+                  </div>
+                  <div className={`rounded-xl p-3 text-center ${
+                    analysis.trend === 'YUKARI' ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
+                    analysis.trend === 'AŞAĞI' ? 'bg-[#EF4444]/10 border border-[#EF4444]/20' :
+                    'bg-[#6366F1]/10 border border-[#6366F1]/20'
+                  }`}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Trend</p>
+                    <div className="flex items-center justify-center gap-1">
+                      {analysis.trend === 'YUKARI' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
+                       analysis.trend === 'AŞAĞI' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
+                       <ArrowRight className="w-4 h-4 text-[#6366F1]" />}
+                      <p className={`text-xs font-bold ${
+                        analysis.trend === 'YUKARI' ? 'text-[#22C55E]' :
+                        analysis.trend === 'AŞAĞI' ? 'text-[#EF4444]' :
+                        'text-[#6366F1]'
+                      }`}>{analysis.trend}</p>
+                    </div>
+                  </div>
+                  <div className={`rounded-xl p-3 text-center ${
+                    (analysis.guven_skoru ?? 0) >= 70 ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
+                    (analysis.guven_skoru ?? 0) >= 40 ? 'bg-[#F59E0B]/10 border border-[#F59E0B]/20' :
+                    'bg-[#EF4444]/10 border border-[#EF4444]/20'
+                  }`}>
+                    <p className="text-[10px] text-muted-foreground uppercase">Güven</p>
+                    <p className={`text-lg font-bold ${
+                      (analysis.guven_skoru ?? 0) >= 70 ? 'text-[#22C55E]' :
+                      (analysis.guven_skoru ?? 0) >= 40 ? 'text-[#F59E0B]' : 'text-[#EF4444]'
+                    }`}>{analysis.guven_skoru ?? '-'}<span className="text-[10px] font-normal">/100</span></p>
+                  </div>
+                </div>
+
+                {/* Genel Görünüm */}
+                <div className="glass-inner rounded-xl p-3.5">
+                  <p className="text-xs text-foreground leading-relaxed">{analysis.genel_gorunum}</p>
+                </div>
+
+                {/* Haber Etkisi */}
+                {analysis.haber_etkisi && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[#8B5CF6]/5 border border-[#8B5CF6]/10">
+                    <Newspaper className="w-3.5 h-3.5 text-[#8B5CF6] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-semibold text-[#8B5CF6] uppercase">Haber Etkisi</p>
+                      <p className="text-[11px] text-foreground leading-relaxed mt-0.5">{analysis.haber_etkisi}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Teknik Analiz 4'lü Grid */}
+                {analysis.teknik_analiz && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[{
+                      title: 'Trend', text: analysis.teknik_analiz.trend_analizi,
+                      icon: <TrendingUp className="w-3.5 h-3.5" />, color: '#6366F1'
+                    }, {
+                      title: 'Momentum', text: analysis.teknik_analiz.momentum,
+                      icon: <Activity className="w-3.5 h-3.5" />, color: '#F59E0B'
+                    }, {
+                      title: 'Hacim', text: analysis.teknik_analiz.hacim_analizi,
+                      icon: <BarChart3 className="w-3.5 h-3.5" />, color: '#22C55E'
+                    }, {
+                      title: 'Destek/Direnç', text: analysis.teknik_analiz.destek_direnc,
+                      icon: <Layers className="w-3.5 h-3.5" />, color: '#8B5CF6'
+                    }].map((item, i) => (
+                      <div key={i} className="glass-inner rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: item.color + '15', color: item.color }}>
+                            {item.icon}
+                          </div>
+                          <h4 className="text-[11px] font-semibold text-foreground">{item.title}</h4>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Önemli Seviyeler + Strateji yan yana */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Önemli Seviyeler */}
+                  {analysis.onemli_seviyeler && (
+                    <div className="glass-inner rounded-xl p-3">
+                      <h4 className="text-[11px] font-semibold text-foreground mb-2 flex items-center gap-1">
+                        <Gauge className="w-3.5 h-3.5 text-[#F59E0B]" /> Seviyeler
+                      </h4>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[{ label: 'Destek 1', value: analysis.onemli_seviyeler.destek1, color: '#22C55E' },
+                          { label: 'Destek 2', value: analysis.onemli_seviyeler.destek2, color: '#16A34A' },
+                          { label: 'Direnç 1', value: analysis.onemli_seviyeler.direnc1, color: '#EF4444' },
+                          { label: 'Direnç 2', value: analysis.onemli_seviyeler.direnc2, color: '#DC2626' },
+                        ].filter(s => s.value).map((s, i) => (
+                          <div key={i} className="text-center p-1.5 rounded-lg" style={{ backgroundColor: s.color + '08', border: `1px solid ${s.color}15` }}>
+                            <p className="text-[9px] text-muted-foreground">{s.label}</p>
+                            <p className="text-xs font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? s.value.toFixed(2) : s.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Strateji */}
+                  {analysis.strateji && (
+                    <div className="glass-inner rounded-xl p-3">
+                      <h4 className="text-[11px] font-semibold text-foreground mb-2 flex items-center gap-1">
+                        <Target className="w-3.5 h-3.5 text-[#8B5CF6]" /> Strateji
+                      </h4>
+                      <div className="space-y-1.5">
+                        {analysis.strateji.kisa_vade && (
+                          <div className="p-2 rounded-lg bg-[#6366F1]/5 border border-[#6366F1]/10">
+                            <p className="text-[9px] font-medium text-[#6366F1] uppercase">Kısa Vade</p>
+                            <p className="text-[11px] text-foreground leading-relaxed mt-0.5">{analysis.strateji.kisa_vade}</p>
+                          </div>
+                        )}
+                        {analysis.strateji.orta_vade && (
+                          <div className="p-2 rounded-lg bg-[#8B5CF6]/5 border border-[#8B5CF6]/10">
+                            <p className="text-[9px] font-medium text-[#8B5CF6] uppercase">Orta Vade</p>
+                            <p className="text-[11px] text-foreground leading-relaxed mt-0.5">{analysis.strateji.orta_vade}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Riskler */}
+                {analysis.riskler?.length > 0 && (
+                  <div className="glass-inner rounded-xl p-3">
+                    <h4 className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#F59E0B]" /> Riskler
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {analysis.riskler.map((risk: string, i: number) => (
+                        <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#F59E0B]/5 border border-[#F59E0B]/10 text-muted-foreground">
+                          ⚠️ {risk}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Yenile butonu */}
+                <div className="flex justify-center pt-1">
+                  <button
+                    onClick={fetchAnalysis}
+                    disabled={analysisLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Analizi Yenile
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== HABERLER TAB ===== */}
+        {insightTab === 'news' && (
+          <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] max-h-[400px] overflow-y-auto">
+            {newsLoading ? (
+              <div className="px-5 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6] mx-auto" /></div>
+            ) : news.length === 0 ? (
+              <div className="px-5 py-8 text-center text-xs text-muted-foreground">
+                {symbol.endsWith('.IS') ? 'Bu hisse için güncel haber veya KAP bildirimi bulunamadı' : 'Güncel haber bulunamadı'}
+              </div>
+            ) : (
+              news.map((n: any, i: number) => (
+                <a
+                  key={i}
+                  href={n.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    n.category === 'kap' ? 'bg-[#F59E0B]/10' : n.sentiment === 'positive' ? 'bg-[#22C55E]/10' : n.sentiment === 'negative' ? 'bg-[#EF4444]/10' : 'bg-[#8B5CF6]/10'
+                  }`}>
+                    {n.category === 'kap' ? <Shield className="w-4 h-4 text-[#F59E0B]" /> :
+                     n.sentiment === 'positive' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
+                     n.sentiment === 'negative' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
+                     <Newspaper className="w-4 h-4 text-[#8B5CF6]" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        n.category === 'kap' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
+                      }`}>{n.source}</span>
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Clock className="w-2.5 h-2.5" />
+                        {n.date ? new Date(n.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-1" />
+                </a>
+              ))
+            )}
+          </div>
+        )}
+      </motion.div>
+
       {/* ===== QUICK STATS ROW ===== */}
       {data && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
@@ -993,268 +1285,6 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </motion.div>
       )}
 
-      {/* Haberler & KAP */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="glass-card rounded-2xl overflow-hidden">
-        <div className="flex items-center gap-2 px-5 pt-5 pb-3">
-          <Newspaper className="w-5 h-5 text-[#8B5CF6]" />
-          <h3 className="text-sm font-bold text-foreground">
-            {symbol.endsWith('.IS') ? 'Haberler & KAP Bildirimleri' : 'Haberler'}
-          </h3>
-        </div>
-        <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] max-h-[360px] overflow-y-auto">
-          {newsLoading ? (
-            <div className="px-5 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6] mx-auto" /></div>
-          ) : news.length === 0 ? (
-            <div className="px-5 py-8 text-center text-xs text-muted-foreground">
-              {symbol.endsWith('.IS') ? 'Bu hisse için güncel haber veya KAP bildirimi bulunamadı' : 'Güncel haber bulunamadı'}
-            </div>
-          ) : (
-            news.map((n: any, i: number) => (
-              <a
-                key={i}
-                href={n.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-3 px-5 py-3 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  n.category === 'kap' ? 'bg-[#F59E0B]/10' : n.sentiment === 'positive' ? 'bg-[#22C55E]/10' : n.sentiment === 'negative' ? 'bg-[#EF4444]/10' : 'bg-[#8B5CF6]/10'
-                }`}>
-                  {n.category === 'kap' ? <Shield className="w-4 h-4 text-[#F59E0B]" /> :
-                   n.sentiment === 'positive' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
-                   n.sentiment === 'negative' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
-                   <Newspaper className="w-4 h-4 text-[#8B5CF6]" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                      n.category === 'kap' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
-                    }`}>{n.source}</span>
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                      <Clock className="w-2.5 h-2.5" />
-                      {n.date ? new Date(n.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                    </span>
-                  </div>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-1" />
-              </a>
-            ))
-          )}
-        </div>
-      </motion.div>
-
-      {/* AI Analiz Bölümü */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] flex items-center justify-center">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground text-sm">AI Teknik Analiz</h3>
-              <p className="text-[10px] text-muted-foreground">Yapay zekâ destekli hisse analizi</p>
-            </div>
-          </div>
-          <button
-            onClick={fetchAnalysis}
-            disabled={analysisLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {analysisLoading ? (
-              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analiz Ediliyor...</>
-            ) : analysis ? (
-              <><RefreshCw className="w-3.5 h-3.5" /> Yenile</>
-            ) : (
-              <><Sparkles className="w-3.5 h-3.5" /> Analiz Et</>
-            )}
-          </button>
-        </div>
-
-        {/* Loading */}
-        {analysisLoading && (
-          <div className="px-5 py-10 flex flex-col items-center gap-3">
-            <div className="relative">
-              <div className="w-14 h-14 rounded-full border-2 border-[#8B5CF6]/20 border-t-[#8B5CF6] animate-spin" />
-              <Brain className="w-6 h-6 text-[#8B5CF6] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-            </div>
-            <p className="text-sm text-muted-foreground">Teknik göstergeler analiz ediliyor...</p>
-          </div>
-        )}
-
-        {/* Error */}
-        {analysisError && !analysisLoading && (
-          <div className="px-5 py-6 flex flex-col items-center gap-2">
-            <AlertTriangle className="w-8 h-8 text-[#F59E0B]" />
-            <p className="text-sm text-muted-foreground">{analysisError}</p>
-            <button onClick={fetchAnalysis} className="text-xs text-[#8B5CF6] hover:underline mt-1">Tekrar Dene</button>
-          </div>
-        )}
-
-        {/* No Analysis Yet */}
-        {!analysis && !analysisLoading && !analysisError && (
-          <div className="px-5 py-8 flex flex-col items-center gap-2 text-center">
-            <Sparkles className="w-8 h-8 text-[#8B5CF6]/40" />
-            <p className="text-sm text-muted-foreground">Yapay zekâ ile bu hissenin detaylı teknik analizini görüntülemek için butona tıklayın</p>
-          </div>
-        )}
-
-        {/* Analysis Result */}
-        {analysis && !analysisLoading && (
-          <div className="p-5 space-y-4">
-            {/* Genel Görünüm + Sinyal */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 glass-inner rounded-xl p-4">
-                <p className="text-sm text-foreground leading-relaxed">{analysis.genel_gorunum}</p>
-              </div>
-              <div className="flex flex-row sm:flex-col gap-2 sm:w-28">
-                <div className={`flex-1 rounded-xl p-3 text-center ${
-                  analysis.sinyal === 'AL' ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
-                  analysis.sinyal === 'SAT' ? 'bg-[#EF4444]/10 border border-[#EF4444]/20' :
-                  'bg-[#F59E0B]/10 border border-[#F59E0B]/20'
-                }`}>
-                  <p className="text-[10px] text-muted-foreground uppercase">Sinyal</p>
-                  <p className={`text-lg font-bold ${
-                    analysis.sinyal === 'AL' ? 'text-[#22C55E]' :
-                    analysis.sinyal === 'SAT' ? 'text-[#EF4444]' :
-                    'text-[#F59E0B]'
-                  }`}>{analysis.sinyal}</p>
-                </div>
-                <div className={`flex-1 rounded-xl p-3 text-center ${
-                  analysis.trend === 'YUKARI' ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
-                  analysis.trend === 'AŞAĞI' ? 'bg-[#EF4444]/10 border border-[#EF4444]/20' :
-                  'bg-[#6366F1]/10 border border-[#6366F1]/20'
-                }`}>
-                  <p className="text-[10px] text-muted-foreground uppercase">Trend</p>
-                  <div className="flex items-center justify-center gap-1">
-                    {analysis.trend === 'YUKARI' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
-                     analysis.trend === 'AŞAĞI' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
-                     <ArrowRight className="w-4 h-4 text-[#6366F1]" />}
-                    <p className={`text-xs font-bold ${
-                      analysis.trend === 'YUKARI' ? 'text-[#22C55E]' :
-                      analysis.trend === 'AŞAĞI' ? 'text-[#EF4444]' :
-                      'text-[#6366F1]'
-                    }`}>{analysis.trend}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Güven Skoru */}
-            {analysis.guven_skoru && (
-              <div className="glass-inner rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground">Güven Skoru</span>
-                  <span className={`text-sm font-bold ${
-                    analysis.guven_skoru >= 70 ? 'text-[#22C55E]' :
-                    analysis.guven_skoru >= 40 ? 'text-[#F59E0B]' : 'text-[#EF4444]'
-                  }`}>{analysis.guven_skoru}/100</span>
-                </div>
-                <div className="w-full h-2 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-1000 ${
-                      analysis.guven_skoru >= 70 ? 'bg-gradient-to-r from-[#22C55E] to-[#16A34A]' :
-                      analysis.guven_skoru >= 40 ? 'bg-gradient-to-r from-[#F59E0B] to-[#D97706]' :
-                      'bg-gradient-to-r from-[#EF4444] to-[#DC2626]'
-                    }`}
-                    style={{ width: `${Math.min(100, analysis.guven_skoru)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Teknik Analiz Detayları */}
-            {analysis.teknik_analiz && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[{
-                  title: 'Trend Analizi', text: analysis.teknik_analiz.trend_analizi,
-                  icon: <TrendingUp className="w-4 h-4" />, color: '#6366F1'
-                }, {
-                  title: 'Momentum', text: analysis.teknik_analiz.momentum,
-                  icon: <Activity className="w-4 h-4" />, color: '#F59E0B'
-                }, {
-                  title: 'Hacim Analizi', text: analysis.teknik_analiz.hacim_analizi,
-                  icon: <BarChart3 className="w-4 h-4" />, color: '#22C55E'
-                }, {
-                  title: 'Destek/Direnç', text: analysis.teknik_analiz.destek_direnc,
-                  icon: <Layers className="w-4 h-4" />, color: '#8B5CF6'
-                }].map((item, i) => (
-                  <div key={i} className="glass-inner rounded-xl p-3.5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: item.color + '15', color: item.color }}>
-                        {item.icon}
-                      </div>
-                      <h4 className="text-xs font-semibold text-foreground">{item.title}</h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Strateji */}
-            {analysis.strateji && (
-              <div className="glass-inner rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                  <Target className="w-4 h-4 text-[#8B5CF6]" /> Strateji Önerileri
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {analysis.strateji.kisa_vade && (
-                    <div className="p-3 rounded-lg bg-[#6366F1]/5 border border-[#6366F1]/10">
-                      <p className="text-[10px] font-medium text-[#6366F1] uppercase mb-1">Kısa Vade (1-5 Gün)</p>
-                      <p className="text-xs text-foreground leading-relaxed">{analysis.strateji.kisa_vade}</p>
-                    </div>
-                  )}
-                  {analysis.strateji.orta_vade && (
-                    <div className="p-3 rounded-lg bg-[#8B5CF6]/5 border border-[#8B5CF6]/10">
-                      <p className="text-[10px] font-medium text-[#8B5CF6] uppercase mb-1">Orta Vade (1-4 Hafta)</p>
-                      <p className="text-xs text-foreground leading-relaxed">{analysis.strateji.orta_vade}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Önemli Seviyeler */}
-            {analysis.onemli_seviyeler && (
-              <div className="glass-inner rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                  <Gauge className="w-4 h-4 text-[#F59E0B]" /> Önemli Seviyeler
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[{ label: 'Destek 1', value: analysis.onemli_seviyeler.destek1, color: '#22C55E' },
-                    { label: 'Destek 2', value: analysis.onemli_seviyeler.destek2, color: '#16A34A' },
-                    { label: 'Direnç 1', value: analysis.onemli_seviyeler.direnc1, color: '#EF4444' },
-                    { label: 'Direnç 2', value: analysis.onemli_seviyeler.direnc2, color: '#DC2626' },
-                  ].filter(s => s.value).map((s, i) => (
-                    <div key={i} className="text-center p-2.5 rounded-lg" style={{ backgroundColor: s.color + '08', border: `1px solid ${s.color}15` }}>
-                      <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                      <p className="text-sm font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? s.value.toFixed(2) : s.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Riskler */}
-            {analysis.riskler?.length > 0 && (
-              <div className="glass-inner rounded-xl p-4">
-                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-[#F59E0B]" /> Riskler
-                </h4>
-                <div className="space-y-1.5">
-                  {analysis.riskler.map((risk: string, i: number) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="text-[#F59E0B] text-xs mt-0.5">•</span>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{risk}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </motion.div>
 
       {/* Disclaimer */}
       <p className="text-center text-xs text-[#475569] py-4">
