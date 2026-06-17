@@ -105,7 +105,7 @@ ${priceChange20d !== null ? '- 20 Günlük Değişim: %' + priceChange20d.toFixe
 Destek/Direnç Seviyeleri:
 ${supportResistance?.supports?.length ? 'Destekler: ' + supportResistance.supports.map((s: any) => s.price.toFixed(2) + ' TL').join(', ') : 'Destek bilgisi yok'}
 ${supportResistance?.resistances?.length ? 'Dirençler: ' + supportResistance.resistances.map((r: any) => r.price.toFixed(2) + ' TL').join(', ') : 'Direnç bilgisi yok'}
-${recentNews?.length ? '\nSon Haberler:\n' + recentNews.map((n: any, i: number) => `${i + 1}. [${n.sentiment || 'nötr'}] ${n.title} (${n.source})`).join('\n') : ''}
+${recentNews?.length ? '\nSon Haberler ve KAP Bildirimleri:\n' + recentNews.map((n: any, i: number) => `${i + 1}. [${n.sentiment || 'nötr'}] [${n.category === 'kap' ? 'KAP' : 'Haber'}] ${n.title} (Kaynak: ${n.source})`).join('\n') : 'Son haber bulunamadı.'}
 `;
 
     const systemPrompt = `Sen profesyonel bir Borsa İstanbul teknik analistisin. Türkçe yanıt ver.
@@ -128,7 +128,11 @@ JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
     "kisa_vade": "1-5 gün için strateji önerisi (1-2 cümle)",
     "orta_vade": "1-4 hafta için strateji önerisi (1-2 cümle)"
   },
-  "haber_etkisi": "Haberlerin fiyat üzerindeki olası etkisinin özeti (1-2 cümle, haber yoksa boş string)",
+  "haber_etkisi": {
+    "ozet": "Haberlerin genel etkisi ve fiyata yansıması (2-3 cümle)",
+    "duygu": "OLUMLU" | "OLUMSUZ" | "NÖTR",
+    "onemli_gelismeler": ["Gelişme 1", "Gelişme 2"]
+  },
   "riskler": ["Risk 1", "Risk 2", "Risk 3"],
   "onemli_seviyeler": {
     "destek1": sayı,

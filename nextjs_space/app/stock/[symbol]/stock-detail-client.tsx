@@ -207,7 +207,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           fiftyTwoWeekHigh: data.fiftyTwoWeekHigh, fiftyTwoWeekLow: data.fiftyTwoWeekLow,
           indicators: data.indicators, vwap: data.vwap, tavan: data.tavan, taban: data.taban,
           fk: data.fk, pddd: data.pddd, supportResistance: data.supportResistance,
-          recentNews: news.slice(0, 5).map((n: any) => ({ title: n.title, sentiment: n.sentiment, source: n.source })),
+          recentNews: news.slice(0, 8).map((n: any) => ({ title: n.title, sentiment: n.sentiment, source: n.source, category: n.category })),
         }),
       });
       if (!res.ok) throw new Error('Analiz isteği başarısız');
@@ -241,7 +241,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [data, analysisLoading]);
+  }, [data, news, analysisLoading]);
+
+  // Data yüklenince otomatik analiz başlat
+  const analysisTriggered = useRef(false);
+  useEffect(() => {
+    if (data && !analysis && !analysisLoading && !analysisTriggered.current) {
+      analysisTriggered.current = true;
+      // Haberlerin yüklenmesini biraz bekle
+      const t = setTimeout(() => fetchAnalysis(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [data, analysis, analysisLoading, fetchAnalysis]);
 
   const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
 
@@ -766,13 +777,40 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 </div>
 
                 {/* Haber Etkisi */}
-                {analysis.haber_etkisi && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-[#8B5CF6]/5 border border-[#8B5CF6]/10">
-                    <Newspaper className="w-3.5 h-3.5 text-[#8B5CF6] flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[10px] font-semibold text-[#8B5CF6] uppercase">Haber Etkisi</p>
-                      <p className="text-[11px] text-foreground leading-relaxed mt-0.5">{analysis.haber_etkisi}</p>
+                {analysis.haber_etkisi && (typeof analysis.haber_etkisi === 'object' ? analysis.haber_etkisi.ozet : analysis.haber_etkisi) && (
+                  <div className={`rounded-xl border p-3 ${
+                    (analysis.haber_etkisi?.duygu || '') === 'OLUMLU' ? 'bg-[#22C55E]/5 border-[#22C55E]/15' :
+                    (analysis.haber_etkisi?.duygu || '') === 'OLUMSUZ' ? 'bg-[#EF4444]/5 border-[#EF4444]/15' :
+                    'bg-[#8B5CF6]/5 border-[#8B5CF6]/15'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Newspaper className={`w-3.5 h-3.5 ${
+                        (analysis.haber_etkisi?.duygu || '') === 'OLUMLU' ? 'text-[#22C55E]' :
+                        (analysis.haber_etkisi?.duygu || '') === 'OLUMSUZ' ? 'text-[#EF4444]' :
+                        'text-[#8B5CF6]'
+                      }`} />
+                      <p className="text-[10px] font-semibold uppercase text-muted-foreground">Haber Etkisi</p>
+                      {analysis.haber_etkisi?.duygu && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                          analysis.haber_etkisi.duygu === 'OLUMLU' ? 'bg-[#22C55E]/10 text-[#22C55E]' :
+                          analysis.haber_etkisi.duygu === 'OLUMSUZ' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                          'bg-[#6366F1]/10 text-[#6366F1]'
+                        }`}>{analysis.haber_etkisi.duygu}</span>
+                      )}
                     </div>
+                    <p className="text-[11px] text-foreground leading-relaxed">
+                      {typeof analysis.haber_etkisi === 'string' ? analysis.haber_etkisi : analysis.haber_etkisi.ozet}
+                    </p>
+                    {analysis.haber_etkisi?.onemli_gelismeler?.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {analysis.haber_etkisi.onemli_gelismeler.map((g: string, i: number) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className="text-[#8B5CF6] text-[10px] mt-0.5">▸</span>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">{g}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
