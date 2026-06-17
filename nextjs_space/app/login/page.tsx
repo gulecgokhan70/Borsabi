@@ -86,6 +86,9 @@ export default function LoginPage() {
         <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-4">
           Bu platform eğitim ve simülasyon amaçlıdır. Gerçek para işlemi yapılmaz.
         </p>
+        <p className="text-center mt-2">
+          <a href="/aydinlatma-metni" className="text-[10px] text-slate-400 dark:text-slate-500 hover:text-[#3B82F6] transition-colors">Aydınlatma Metni (KVKK)</a>
+        </p>
       </div>
     </div>
   );

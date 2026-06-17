@@ -112,7 +112,10 @@ export function LandingPage() {
       <footer className="py-8 px-4 border-t border-white/[0.06]">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <BorsaBiLogoFull size={28} />
-          <p className="text-xs text-[#64748B] text-center">© 2024 BorsaBi Trader. Bu platform eğitim amaçlıdır, yatırım tavsiyesi değildir.</p>
+          <div className="text-center space-y-1">
+            <p className="text-xs text-[#64748B]">© 2024 BorsaBi Trader. Bu platform eğitim amaçlıdır, yatırım tavsiyesi değildir.</p>
+            <a href="/aydinlatma-metni" className="text-[10px] text-[#64748B] hover:text-[#3B82F6] transition-colors">Aydınlatma Metni (KVKK)</a>
+          </div>
         </div>
       </footer>
     </div>

@@ -95,7 +95,7 @@ export default function SignupPage() {
         </form>
 
         <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-4">
-          Bu platform eğitim ve simülasyon amaçlıdır. Gerçek para işlemi yapılmaz.
+          Kayıt olarak <a href="/aydinlatma-metni" className="text-[#3B82F6] hover:underline">Aydınlatma Metni</a>&apos;ni kabul etmiş olursunuz.
         </p>
       </div>
     </div>
