@@ -4,7 +4,7 @@ BIST ve kripto piyasaları için Türkçe eğitim ve sanal işlem uygulaması. G
 
 ## Yerel kurulum
 
-Gereksinimler: Node.js 22 ve PostgreSQL. Uygulama `nextjs_space` klasöründedir.
+Gereksinimler: Node.js 22, npm 11.9.0 ve PostgreSQL. Kilit dosyasıyla aynı npm sürümünü kullanın (`npm install --global npm@11.9.0`). Uygulama `nextjs_space` klasöründedir.
 
 ```bash
 cd nextjs_space
