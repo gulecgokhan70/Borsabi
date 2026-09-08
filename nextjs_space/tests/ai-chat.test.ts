@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
 vi.mock('../lib/auth', () => ({ authOptions: {} }));
 vi.mock('../lib/db', () => ({ prisma: {} }));
+vi.mock('../lib/news-analysis', () => ({ getNewsImpact: vi.fn() }));
 vi.mock('../lib/midas-api', () => ({ getMidasStock: vi.fn(), getMidasStockMap: vi.fn() }));
 vi.mock('../lib/yahoo-finance', () => ({ cachedQuote: vi.fn(), cachedChart: vi.fn() }));
 vi.mock('../lib/ai-provider', async (original) => ({
@@ -11,12 +12,15 @@ vi.mock('../lib/ai-provider', async (original) => ({
 }));
 import { getServerSession } from 'next-auth';
 import { AIServiceError, getAIConfig, requestAICompletion } from '../lib/ai-provider';
+import { getNewsImpact } from '../lib/news-analysis';
+import { getMidasStockMap } from '../lib/midas-api';
 import { POST } from '../app/api/ai-chat/route';
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getServerSession).mockResolvedValue({ user: { id: 'test-user' } });
 });
+afterEach(() => { vi.unstubAllGlobals(); });
 const request = (messages: unknown) => new NextRequest('http://localhost/api/ai-chat', {
   method: 'POST', body: JSON.stringify({ messages }),
 });
@@ -52,4 +56,28 @@ it('forwards a quota error to the existing client instead of a generic 500', asy
   const response = await POST(request([{ role: 'user', content: 'Merhaba' }]));
   expect(response.status).toBe(429);
   expect(await response.json()).toEqual({ error: 'Kota doldu.' });
+});
+
+it('continues after a long answer with more than 100 earlier turns', async () => {
+  vi.mocked(requestAICompletion).mockResolvedValue(new Response('data: [DONE]\n\n'));
+  const messages = Array.from({ length: 102 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: 'eski' }));
+  messages.push({ role: 'assistant', content: 'a'.repeat(9000) }, { role: 'user', content: 'Merhaba' });
+  expect((await POST(request(messages))).status).toBe(200);
+  const sent = vi.mocked(requestAICompletion).mock.calls[0][0].messages;
+  expect(sent).toHaveLength(7); // System prompt plus six recent turns.
+  expect(sent.at(-2)?.content).toHaveLength(6000);
+  expect(sent.at(-1)).toEqual({ role: 'user', content: 'Merhaba' });
+});
+
+it('uses the shared analysis service for news context without an unauthenticated HTTP self-call', async () => {
+  vi.mocked(getMidasStockMap).mockResolvedValue(new Map());
+  const fetchNews = vi.fn(async () => Response.json({ news: [{ title: 'Test headline' }] }));
+  vi.stubGlobal('fetch', fetchNews);
+  vi.mocked(getNewsImpact).mockResolvedValue({ summary: 'Cached impact', overallSentiment: 'nötr', riskLevel: 'Orta' } as any);
+  vi.mocked(requestAICompletion).mockResolvedValue(new Response('data: [DONE]\n\n'));
+  expect((await POST(request([{ role: 'user', content: 'Son haberler neler?' }]))).status).toBe(200);
+  expect(getNewsImpact).toHaveBeenCalledTimes(1);
+  expect(fetchNews).toHaveBeenCalledTimes(1);
+  expect(fetchNews.mock.calls[0]).not.toContain(expect.stringContaining('/api/news-analysis'));
+  expect(vi.mocked(requestAICompletion).mock.calls[0][0].messages[0].content).toContain('Cached impact');
 });

@@ -6,7 +6,8 @@ import { BIST_ALL_STOCKS, BIST_TOP_STOCKS, CRYPTO_ASSETS, BIST_INDICES } from '@
 import { getMidasStock, getMidasStockMap } from '@/lib/midas-api';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { prisma } from '@/lib/db';
-import { z } from 'zod';
+import { parseChatContext } from '@/lib/chat-context';
+import { getNewsImpact } from '@/lib/news-analysis';
 import { aiErrorResponse, getAIConfig, requestAICompletion } from '@/lib/ai-provider';
 
 // ============================
@@ -399,23 +400,19 @@ async function fetchNewsData(baseUrl: string): Promise<string> {
 
     // AI haber analizi çek
     try {
-      const analysisRes = await fetch(`${baseUrl}/api/news-analysis`, { headers: { 'Content-Type': 'application/json' } });
-      if (analysisRes.ok) {
-        const analysisData = await analysisRes.json();
-        const impact = analysisData?.impact;
-        if (impact) {
-          lines.push('\n🤖 AI Haber Analiz Özeti:');
-          lines.push(`Genel Hissiyat: ${impact.overallSentiment} | Risk: ${impact.riskLevel}`);
-          lines.push(`Özet: ${impact.summary}`);
-          if (impact.criticalWarnings?.length > 0) {
-            lines.push(`Kritik Uyarılar: ${impact.criticalWarnings.join('; ')}`);
-          }
-          if (impact.sectorImpacts?.length > 0) {
-            lines.push('Sektör Etkileri: ' + impact.sectorImpacts.map((s: any) => `${s.sector} ${s.direction === 'yukarı' ? '↑' : s.direction === 'aşağı' ? '↓' : '→'}`).join(', '));
-          }
-          if (impact.stockWarnings?.length > 0) {
-            lines.push('Hisse Uyarıları: ' + impact.stockWarnings.map((w: any) => `${w.symbol}: ${w.warning}`).join(', '));
-          }
+      const impact = await getNewsImpact(baseUrl);
+      if (impact) {
+        lines.push('\n🤖 AI Haber Analiz Özeti:');
+        lines.push(`Genel Hissiyat: ${impact.overallSentiment} | Risk: ${impact.riskLevel}`);
+        lines.push(`Özet: ${impact.summary}`);
+        if (impact.criticalWarnings?.length > 0) {
+          lines.push(`Kritik Uyarılar: ${impact.criticalWarnings.join('; ')}`);
+        }
+        if (impact.sectorImpacts?.length > 0) {
+          lines.push('Sektör Etkileri: ' + impact.sectorImpacts.map((s: any) => `${s.sector} ${s.direction === 'yukarı' ? '↑' : s.direction === 'aşağı' ? '↓' : '→'}`).join(', '));
+        }
+        if (impact.stockWarnings?.length > 0) {
+          lines.push('Hisse Uyarıları: ' + impact.stockWarnings.map((w: any) => `${w.symbol}: ${w.warning}`).join(', '));
         }
       }
     } catch (_e) { /* skip analysis */ }
@@ -535,14 +532,10 @@ export async function POST(request: NextRequest) {
 
     let body: any;
     try { body = await request.json(); } catch { return new Response(JSON.stringify({ error: 'Geçersiz istek gövdesi' }), { status: 400 }); }
-    const parsed = z.object({ messages: z.array(z.object({
-      role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(6000),
-    })).min(1).max(100) }).safeParse(body);
-    if (!parsed.success || parsed.data.messages.at(-1)?.role !== 'user') {
+    const messages = parseChatContext(body);
+    if (!messages) {
       return Response.json({ error: 'Geçerli ve kısa bir kullanıcı mesajı gerekli.' }, { status: 400 });
     }
-    // Keep recent turns while bounding the free provider's request size.
-    const messages = parsed.data.messages.slice(-6);
     getAIConfig();
 
     // Son kullanıcı mesajını al

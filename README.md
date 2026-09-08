@@ -48,7 +48,9 @@ Groq başarısız olursa başka bir sağlayıcıya otomatik ve ücretli geçiş 
 
 Ücretsiz kotalar hesabın tüm kullanıcıları arasında paylaşılır; uzun konuşmalar
 metin kotasını daha erken tüketebilir. Kota hataları 429 ve Türkçe açıklamayla döner.
-Yeni sohbetlerde yalnızca son altı mesaj gönderilir. Haber ve portföy bağlamı hâlâ
+Sohbette yalnızca son altı mesaj gönderilir. Yeni soru en fazla 6.000 karakter olabilir;
+eski uzun yanıtlar sunucuya verilen bağlamda kısaltılır, ekrandaki sohbet korunur.
+Haber ve portföy bağlamı hâlâ
 seçilen sağlayıcıya iletilir; model çıktıları doğrulanmış yatırım sinyali değildir.
 AI verileri kaynak gecikmelerine tabidir. Groq verileri ve sınırlar için
 [Groq belgelerini](https://console.groq.com/docs/rate-limits) inceleyin.
@@ -68,6 +70,32 @@ derlemeden sonra servisi yeniden başlatır (kısa kesinti olabilir). Yerel HTTP
 kontrolü başarısızsa önceki derleme ayarına döner. Eski derlemeler silinmez.
 Üretim veritabanında şema veya seed komutu çalıştırmaz. Anahtar ve kota hesabınıza
 bağlı olduğundan gerçek sağlayıcı testi VPS'deki ilk komutla tamamlanır.
+
+Anahtarı zaten ayarlanmış bu VPS'de sonraki kod güncellemeleri için:
+
+```bash
+runuser -u borsabi -- git -C /opt/borsabi pull --ff-only
+bash /opt/borsabi/nextjs_space/scripts/deploy-ai.sh
+```
+
+## Kayıt ve haber analizi sınırları
+
+Kayıt formu ve API ortak doğrulamayı kullanır: geçerli e-posta, en az sekiz karakter
+ve bcrypt sınırı nedeniyle en fazla 72 UTF-8 bayt şifre; isim en fazla 80 karakterdir.
+Bu kurallar yeni kayıtlar içindir; mevcut kullanıcıların şifreleri değiştirilmez.
+Kayıt API'si istemci IP'si başına 15 dakikada beş denemeye izin verir.
+
+Haber analizi API'si oturum gerektirir ve kullanıcı başına dakikada on isteğe izin verir.
+Analiz 30 dakika saklanır; aynı anda isteyenler tek model çağrısını paylaşır.
+Boş haber akışı veya sağlayıcı hatasında en az bir dakika beklenir; daha uzun
+`Retry-After` süresine uyulur. Hata sırasında varsa altı saatten yeni analiz, kendi
+`analyzedAt` tarihi korunarak döner. Sohbet bu ortak servisi doğrudan kullanır.
+
+Önbellek ve hız sınırları mevcut tek Node sürecinin belleğindedir; yeniden başlatmada
+sıfırlanır. Birden fazla süreç/sunucuya geçmeden önce ortak depoya taşınmalıdır.
+IP sınırı, Nginx'in `$proxy_add_x_forwarded_for` ile eklediği son adresi kullanır;
+Node yalnızca `127.0.0.1` üzerinde dinlemelidir. Önüne başka proxy/CDN konursa güvenilen
+istemci IP zinciri ayrıca yapılandırılmalıdır.
 
 ## İşlem davranışı
 

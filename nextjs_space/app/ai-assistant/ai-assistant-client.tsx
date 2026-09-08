@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { CHAT_HISTORY_LIMIT } from '@/lib/chat-context';
 import { motion } from 'framer-motion';
 import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-react';
 
@@ -50,7 +51,7 @@ export function AiAssistantClient() {
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages.filter(m => m.content.trim()).slice(-CHAT_HISTORY_LIMIT) }),
       });
 
       if (!res.ok) {
