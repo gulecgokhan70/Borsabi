@@ -11,8 +11,11 @@ export async function GET(request: NextRequest) {
     const userId = (session.user as any).id;
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') ?? '1');
-    const limit = parseInt(searchParams.get('limit') ?? '50');
+    const page = Number(searchParams.get('page') ?? '1');
+    const limit = Number(searchParams.get('limit') ?? '50');
+    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger((page - 1) * limit)) {
+      return NextResponse.json({ error: 'Geçersiz sayfa veya limit (1–100)' }, { status: 400 });
+    }
 
     const [rawTransactions, total] = await Promise.all([
       prisma.transaction.findMany({

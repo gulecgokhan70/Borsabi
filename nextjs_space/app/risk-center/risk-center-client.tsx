@@ -447,7 +447,7 @@ export function RiskCenterClient() {
       {/* Golden Rule */}
       <div className="text-center py-6 space-y-2">
         <p className="text-sm text-[#F59E0B] font-medium">
-          "İşlem açmak zorunda değilsin. En iyi işlem bazen işlem yapmamaktır."
+          &quot;İşlem açmak zorunda değilsin. En iyi işlem bazen işlem yapmamaktır.&quot;
         </p>
         <p className="text-xs text-slate-400 dark:text-slate-500">
           ⚠️ Bu platform eğitim ve simülasyon amaçlıdır. Yatırım tavsiyesi içermez.

@@ -256,7 +256,7 @@ export function PortfolioClient() {
         {(positions?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
             <p className="text-sm text-muted-foreground">Henüz açık pozisyonunuz yok</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Dashboard'dan bir hisseye tıklayarak işlem yapabilirsiniz</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Dashboard&#39;dan bir hisseye tıklayarak işlem yapabilirsiniz</p>
           </div>
         ) : (
           <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">

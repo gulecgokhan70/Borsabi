@@ -16,19 +16,18 @@ export async function GET() {
       where: { email: session.user.email },
       include: {
         positions: true,
-        transactions: { orderBy: { createdAt: 'desc' }, take: 100 },
+        transactions: { where: { type: 'SELL' }, orderBy: { createdAt: 'desc' } },
         achievements: true,
         priceAlerts: { where: { active: true } },
       },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const closedPositions = user.positions.filter((p: any) => p.status === 'CLOSED');
     const openPositions = user.positions.filter((p: any) => p.status === 'OPEN');
-    const totalTrades = closedPositions.length;
-    const wins = closedPositions.filter((p: any) => (p.pnl ?? 0) > 0).length;
-    const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
-    const totalPnl = closedPositions.reduce((s: number, p: any) => s + (p.pnl || 0), 0);
+    const totalTrades = user.transactions.length;
+    const wins = user.transactions.filter(t => (t.pnl ?? 0) > 0).length;
+    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+    const totalPnl = user.transactions.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
 
     // Açık pozisyonlar için canlı fiyatları çek (portföy API'si ile aynı mantık)
     let openPositionValue = 0;
@@ -86,10 +85,10 @@ export async function GET() {
     const monthlyPerf: { month: string; pnl: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
       const monthTxns = user.transactions.filter((t: any) => {
         const td = new Date(t.createdAt);
-        return td >= d && td <= end && t.pnl != null;
+        return td >= d && td < end && t.pnl != null;
       });
       const pnl = monthTxns.reduce((s: number, t: any) => s + (t.pnl || 0), 0);
       monthlyPerf.push({ month: d.toLocaleString('tr-TR', { month: 'short' }), pnl });

@@ -116,7 +116,7 @@ export function TradeLogClient() {
           <div className="p-8 text-center">
             <ScrollText className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Henüz işlem yapılmamış</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Dashboard'dan hisse seçerek ilk işleminizi yapın</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Dashboard&#39;dan hisse seçerek ilk işleminizi yapın</p>
           </div>
         ) : (
           <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
@@ -194,7 +194,7 @@ export function TradeLogClient() {
                     </div>
                   </div>
                   {t?.note && (
-                    <p className="text-xs text-muted-foreground mt-1.5 ml-12 italic">"{t.note}"</p>
+                    <p className="text-xs text-muted-foreground mt-1.5 ml-12 italic">&quot;{t.note}&quot;</p>
                   )}
                 </div>
               );

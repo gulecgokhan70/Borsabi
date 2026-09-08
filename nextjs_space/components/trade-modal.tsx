@@ -98,6 +98,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const riskReward = potentialLoss > 0 ? potentialGain / potentialLoss : 0;
 
   const handleTrade = async () => {
+    if (loading) return;
     if (qty <= 0) { toast.error('Geçerli bir miktar girin'); return; }
     if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) {
       toast.error('Limit fiyatı girin'); return;
@@ -212,8 +213,9 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                 ].map((ot) => (
                   <button
                     key={ot.value}
+                    disabled={ot.value !== 'market'}
                     onClick={() => setOrderType(ot.value)}
-                    className={`py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    className={`py-1.5 rounded-md text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       orderType === ot.value ? 'bg-[#3B82F6] text-white' : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -221,6 +223,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                   </button>
                 ))}
               </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5">Yalnızca piyasa emri kullanılabilir. İşlem, sunucudan alınan son fiyatla gerçekleşir; veriler gecikmeli olabilir.</p>
             </div>
 
             {/* Limit Price */}

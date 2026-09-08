@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { cachedQuoteBatch } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { BIST_ALL_ASSETS } from '@/lib/constants';
+import { buildEquityCurve, summarizeSales } from '@/lib/portfolio-accounting';
 
 export async function GET(request: NextRequest) {
   try {
@@ -97,53 +98,16 @@ export async function GET(request: NextRequest) {
     const totalInvested = enrichedPositions.reduce((sum: number, p: any) => sum + (p.totalCost ?? 0), 0);
     const totalPositionValue = enrichedPositions.reduce((sum: number, p: any) => sum + (p.totalValue ?? 0), 0);
     const unrealizedPnl = enrichedPositions.reduce((sum: number, p: any) => sum + (p.pnl ?? 0), 0);
-    const realizedPnl = closedPositions.reduce((sum: number, p: any) => sum + (p?.pnl ?? 0), 0);
-    const winCount = closedPositions.filter((p: any) => (p?.pnl ?? 0) > 0).length;
-    const totalTrades = closedPositions?.length ?? 0;
-    const winRate = totalTrades > 0 ? (winCount / totalTrades) * 100 : 0;
-
     // Toplam portföy değeri eğrisi: işlem geçmişinden hesapla
     // Her işlem noktasında: nakit bakiye + açık pozisyonların maliyet değeri = toplam portföy
     const allTransactions = await prisma.transaction.findMany({
       where: { userId },
       orderBy: { createdAt: 'asc' },
-      select: { type: true, total: true, pnl: true, price: true, quantity: true, symbol: true, createdAt: true },
+      select: { type: true, total: true, pnl: true, commission: true, price: true, quantity: true, symbol: true, createdAt: true },
     });
 
-    const initBal = user?.initialBalance ?? 100000;
-    let cashBalance = initBal;
-    let positionCostMap = new Map<string, number>(); // symbol -> maliyet değeri
-
-    const equityCurve: { date: string; balance: number }[] = [
-      { date: allTransactions.length > 0
-        ? new Date(allTransactions[0].createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })
-        : new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }),
-        balance: initBal },
-    ];
-
-    for (const tx of allTransactions) {
-      const txTotal = tx.total ?? ((tx.price ?? 0) * (tx.quantity ?? 0));
-      const sym = tx.symbol ?? '';
-      if (tx.type === 'BUY') {
-        cashBalance -= txTotal;
-        positionCostMap.set(sym, (positionCostMap.get(sym) ?? 0) + txTotal);
-      } else {
-        // SELL: nakit artar, pozisyon maliyeti azalır, realized PnL yansır
-        cashBalance += txTotal;
-        const prevCost = positionCostMap.get(sym) ?? 0;
-        const sellCost = (tx.price ?? 0) > 0 && (tx.quantity ?? 0) > 0
-          ? txTotal - (tx.pnl ?? 0) // maliyet = satış tutarı - kâr
-          : txTotal;
-        positionCostMap.set(sym, Math.max(0, prevCost - sellCost));
-        if ((positionCostMap.get(sym) ?? 0) < 0.01) positionCostMap.delete(sym);
-      }
-      const totalPositionCost = Array.from(positionCostMap.values()).reduce((s, v) => s + v, 0);
-      const portfolioValue = cashBalance + totalPositionCost;
-      equityCurve.push({
-        date: new Date(tx.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-        balance: Math.round(portfolioValue * 100) / 100,
-      });
-    }
+    const { realizedPnl, winRate, totalTrades } = summarizeSales(allTransactions);
+    const equityCurve = buildEquityCurve(user?.initialBalance ?? 100000, allTransactions);
 
     // Son durum: güncel bakiye + güncel pozisyon değeri (canlı fiyatlarla)
     const currentTotal = (user?.balance ?? 100000) + totalPositionValue;

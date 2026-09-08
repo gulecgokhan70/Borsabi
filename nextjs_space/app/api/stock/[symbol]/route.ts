@@ -150,10 +150,10 @@ function calculateSupportResistance(ohlc: { high: number; low: number; close: nu
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    let symbol = decodeURIComponent(params.symbol);
+    let symbol = decodeURIComponent((await params).symbol);
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') ?? '1mo';
     const interval = searchParams.get('interval') ?? '1d';
@@ -168,7 +168,7 @@ export async function GET(
       if (bistMatch) {
         symbol = bistMatch.symbol; // AGESA -> AGESA.IS
         assetInfo = bistMatch;
-        console.log(`[StockDetail] Sembol normalize edildi: ${params.symbol} -> ${symbol}`);
+        console.log(`[StockDetail] Sembol normalize edildi: ${(await params).symbol} -> ${symbol}`);
       }
     }
 
@@ -387,7 +387,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Stock detail API error:', error);
     // Son çare: en azından sembol bilgisiyle dön, 500 yerine kısmi veri ver
-    const symbol = decodeURIComponent(params.symbol);
+    const symbol = decodeURIComponent((await params).symbol);
     const allAssets = [...BIST_ALL_ASSETS, ...CRYPTO_ASSETS];
     const assetInfo = allAssets.find((a: any) => a.symbol === symbol);
     return NextResponse.json({

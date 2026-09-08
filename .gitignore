@@ -18,3 +18,7 @@ out
 .deploy
 .logs
 *.tsbuildinfo
+.env
+.env.*
+!.env.example
+coverage/

@@ -138,6 +138,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
   const [chartInterval, setChartInterval] = useState('5m');
+  const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
   const [chartType, setChartType] = useState<ChartType>('line');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
@@ -178,7 +179,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const refreshMs = isIntraday ? 30000 : 60000;
     const interval = setInterval(fetchData, refreshMs);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, isIntraday]);
 
   // Fetch news for this symbol
   useEffect(() => {
@@ -254,7 +255,6 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     }
   }, [data, analysis, analysisLoading, fetchAnalysis]);
 
-  const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
 
   const chartData = useMemo(() => {
     const ohlcData = (data?.ohlc ?? []).map((d: OHLCData) => ({
