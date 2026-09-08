@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getMidasStock } from '@/lib/midas-api';
 import { cachedChart } from '@/lib/yahoo-finance';
+import { aiErrorResponse, getAIConfig, requestAICompletion } from '@/lib/ai-provider';
 
 function calcRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest) {
       supportResistance, recentNews } = await request.json();
 
     if (!symbol) return new Response(JSON.stringify({ error: 'Symbol required' }), { status: 400 });
+
+    getAIConfig();
 
     // Fetch historical data for analysis
     let ohlcData: any[] = [];
@@ -144,30 +147,14 @@ JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
 
 ÖNEMLİ: Sadece teknik verilere dayalı analiz yap. Her zaman "Bu yatırım tavsiyesi değildir" uyarısını genel görünümün sonuna ekle. Respond with raw JSON only. Do not include code blocks, markdown, or any other formatting.`;
 
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.4-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Aşağıdaki hisse senedi verilerini analiz et:\n${dataContext}` }
-        ],
-        stream: true,
-        max_tokens: 2000,
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-      }),
+    const response = await requestAICompletion({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Aşağıdaki hisse senedi verilerini analiz et:\n${dataContext}` },
+      ],
+      stream: true, max_tokens: 3000, temperature: 0.3,
+      response_format: { type: 'json_object' }, signal: request.signal,
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('LLM API error:', errText);
-      return new Response(JSON.stringify({ error: 'Analiz servisi şu an kullanılamıyor' }), { status: 500 });
-    }
 
     // Stream back with buffering for JSON
     const reader = response.body?.getReader();
@@ -232,7 +219,6 @@ JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
       },
     });
   } catch (error: any) {
-    console.error('Stock analysis error:', error);
-    return new Response(JSON.stringify({ error: 'Analiz yapılamadı: ' + (error?.message || 'Bilinmeyen hata') }), { status: 500 });
+    return aiErrorResponse(error);
   }
 }

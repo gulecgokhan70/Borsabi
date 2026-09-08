@@ -1,3 +1,5 @@
+import { getAIConfig, requestAICompletion } from './ai-provider';
+
 /* Haber Analiz Motoru - AI destekli piyasa etki analizi */
 
 export interface StockWarning {
@@ -48,8 +50,7 @@ async function fetchNewsForAnalysis(baseUrl: string): Promise<string> {
 
 /* ── AI ile analiz ── */
 async function analyzeWithAI(newsText: string): Promise<NewsImpact> {
-  const apiKey = process.env.ABACUSAI_API_KEY;
-  if (!apiKey) throw new Error('API key bulunamadı');
+  getAIConfig();
 
   const systemPrompt = `Sen bir finansal haber analisti ve borsa uzmanısın. Türkiye piyasalarını (BIST, döviz, kripto) çok iyi biliyorsun.
 
@@ -77,29 +78,13 @@ JSON formatında cevap ver, başka bir şey yazma.`;
 
   const userPrompt = `Aşağıdaki güncel Türkiye finans haberlerini analiz et:\n\n${newsText}`;
 
-  const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-5.4-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-      max_tokens: 2000,
-      temperature: 0.3,
-    }),
+  const response = await requestAICompletion({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    response_format: { type: 'json_object' }, max_tokens: 3000, temperature: 0.3,
   });
-
-  if (!response.ok) {
-    const err = await response.text();
-    console.error('AI analysis error:', err);
-    throw new Error('AI analiz hatası');
-  }
 
   const result = await response.json();
   const content = result?.choices?.[0]?.message?.content;

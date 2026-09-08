@@ -39,6 +39,36 @@ Gerçek PostgreSQL üzerinde işlem/geri alma/eşzamanlılık testleri için **a
 
 GitHub Actions aynı kontrolleri PostgreSQL 16 servisiyle çalıştırır.
 
+## Groq ile AI özellikleri
+
+Sohbet, hisse analizi ve haber analizi ortak sunucu bağlantısını kullanır. Groq için
+`AI_PROVIDER=groq`, `GROQ_API_KEY` ve `GROQ_MODEL=openai/gpt-oss-120b` tanımlayın.
+Eski Abacus kurulumu `AI_PROVIDER=abacus` ve `ABACUSAI_API_KEY` ile çalışmaya devam eder.
+Groq başarısız olursa başka bir sağlayıcıya otomatik ve ücretli geçiş yapılmaz.
+
+Ücretsiz kotalar hesabın tüm kullanıcıları arasında paylaşılır; uzun konuşmalar
+metin kotasını daha erken tüketebilir. Kota hataları 429 ve Türkçe açıklamayla döner.
+Yeni sohbetlerde yalnızca son altı mesaj gönderilir. Haber ve portföy bağlamı hâlâ
+seçilen sağlayıcıya iletilir; model çıktıları doğrulanmış yatırım sinyali değildir.
+AI verileri kaynak gecikmelerine tabidir. Groq verileri ve sınırlar için
+[Groq belgelerini](https://console.groq.com/docs/rate-limits) inceleyin.
+
+Mevcut Ubuntu VPS kurulumunda, kod güncellendikten sonra root terminalinde:
+
+```bash
+python3 /opt/borsabi/nextjs_space/scripts/configure-groq.py
+bash /opt/borsabi/nextjs_space/scripts/deploy-ai.sh
+```
+
+İlk komut anahtarı gizli ister, küçük bir JSON yanıtıyla Groq erişimini sınar,
+başarılıysa mevcut veritabanı/oturum ayarlarını koruyarak izinleri 600 olan
+ayar dosyalarına kaydeder. Anahtarı komuta, Git'e veya sohbete yazmayın.
+İkinci komut mevcut site açıkken ayrı bir derleme klasörü oluşturur; yalnızca başarılı
+derlemeden sonra servisi yeniden başlatır (kısa kesinti olabilir). Yerel HTTP sağlık
+kontrolü başarısızsa önceki derleme ayarına döner. Eski derlemeler silinmez.
+Üretim veritabanında şema veya seed komutu çalıştırmaz. Anahtar ve kota hesabınıza
+bağlı olduğundan gerçek sağlayıcı testi VPS'deki ilk komutla tamamlanır.
+
 ## İşlem davranışı
 
 - Yalnızca piyasa emri desteklenir. Limit/stop-limit emirleri koşul beklemeden gerçekleşmesin diye arayüzde kapalıdır ve API tarafından reddedilir.

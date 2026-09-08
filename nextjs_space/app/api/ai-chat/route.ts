@@ -6,6 +6,8 @@ import { BIST_ALL_STOCKS, BIST_TOP_STOCKS, CRYPTO_ASSETS, BIST_INDICES } from '@
 import { getMidasStock, getMidasStockMap } from '@/lib/midas-api';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { prisma } from '@/lib/db';
+import { z } from 'zod';
+import { aiErrorResponse, getAIConfig, requestAICompletion } from '@/lib/ai-provider';
 
 // ============================
 // Teknik Gösterge Hesaplamaları
@@ -533,15 +535,15 @@ export async function POST(request: NextRequest) {
 
     let body: any;
     try { body = await request.json(); } catch { return new Response(JSON.stringify({ error: 'Geçersiz istek gövdesi' }), { status: 400 }); }
-    const { messages } = body ?? {};
-    if (!messages || !Array.isArray(messages)) {
-      return new Response(JSON.stringify({ error: 'Mesajlar gerekli' }), { status: 400 });
+    const parsed = z.object({ messages: z.array(z.object({
+      role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(6000),
+    })).min(1).max(100) }).safeParse(body);
+    if (!parsed.success || parsed.data.messages.at(-1)?.role !== 'user') {
+      return Response.json({ error: 'Geçerli ve kısa bir kullanıcı mesajı gerekli.' }, { status: 400 });
     }
-
-    const apiKey = process.env.ABACUSAI_API_KEY;
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API anahtarı yapılandırılmamış' }), { status: 500 });
-    }
+    // Keep recent turns while bounding the free provider's request size.
+    const messages = parsed.data.messages.slice(-6);
+    getAIConfig();
 
     // Son kullanıcı mesajını al
     const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user')?.content || '';
@@ -592,63 +594,21 @@ export async function POST(request: NextRequest) {
       systemPrompt += `\n\n=== GÜNCEL PİYASA VERİLERİ (${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}) ===\n${dataContext}\n=== VERİ SONU ===\n\nYukarıdaki veriler gerçek zamanlı piyasa verileridir. Bu verileri temel alarak analiz yap. Verilerdeki rakamları aynen kullan, değiştirme veya uydurma.`;
     }
 
-    const apiMessages = [
+    const apiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       { role: 'system', content: systemPrompt },
-      ...(messages ?? []).slice(-20),
+      ...messages,
     ];
 
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.4-mini',
-        messages: apiMessages,
-        stream: true,
-        max_tokens: 3000,
-        temperature: 0.4,
-      }),
+    const response = await requestAICompletion({
+      messages: apiMessages, stream: true, max_tokens: 3000, temperature: 0.4,
+      signal: request.signal,
     });
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => 'Unknown error');
-      console.error('LLM API error:', errText);
-      return new Response(JSON.stringify({ error: 'AI yanıtı alınamadı' }), { status: 500 });
-    }
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        const encoder = new TextEncoder();
-        if (!reader) { controller.close(); return; }
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            controller.enqueue(encoder.encode(chunk));
-          }
-        } catch (error: any) {
-          console.error('Stream error:', error);
-          controller.error(error);
-        } finally {
-          controller.close();
-        }
-      },
+    // Forward bytes intact, including UTF-8 characters split across network chunks.
+    return new Response(response.body, {
+      headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache' },
     });
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
-  } catch (error: any) {
-    console.error('AI Chat error:', error);
-    return new Response(JSON.stringify({ error: 'AI asistan hatası' }), { status: 500 });
+  } catch (error: unknown) {
+    return aiErrorResponse(error);
   }
 }
