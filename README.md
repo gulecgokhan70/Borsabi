@@ -21,7 +21,7 @@ npx prisma db push
 npm run dev
 ```
 
-Mevcut üretim veritabanında bu kurulum komutunu otomatik çalıştırmayın. Bu düzeltme veritabanı modeli değişikliği gerektirmez; Prisma Client artık proje içindeki göreli yola üretilir.
+Mevcut üretim veritabanında `prisma db push` çalıştırmayın. USD/TL güncellemesi üç yeni, nullable (boş bırakılabilir) alan ekler; aşağıdaki VPS betiği önce eski kayıtları denetler ve yedek alır. Prisma Client proje içindeki göreli yola üretilir.
 
 İsteğe bağlı geliştirme hesabı: `SEED_EMAIL` ve en az 12 karakterlik benzersiz `SEED_PASSWORD` tanımlandıktan sonra `npx prisma db seed`. Sabit parolalı yönetici oluşturulmaz; üretimde seed kapalıdır.
 
@@ -65,11 +65,15 @@ bash /opt/borsabi/nextjs_space/scripts/deploy-ai.sh
 İlk komut anahtarı gizli ister, küçük bir JSON yanıtıyla Groq erişimini sınar,
 başarılıysa mevcut veritabanı/oturum ayarlarını koruyarak izinleri 600 olan
 ayar dosyalarına kaydeder. Anahtarı komuta, Git'e veya sohbete yazmayın.
-İkinci komut mevcut site açıkken ayrı bir derleme klasörü oluşturur; yalnızca başarılı
-derlemeden sonra servisi yeniden başlatır (kısa kesinti olabilir). Yerel HTTP sağlık
-kontrolü başarısızsa önceki derleme ayarına döner. Eski derlemeler silinmez.
-Üretim veritabanında şema veya seed komutu çalıştırmaz. Anahtar ve kota hesabınıza
-bağlı olduğundan gerçek sağlayıcı testi VPS'deki ilk komutla tamamlanır.
+İkinci komut artık `deploy-currency.sh` üzerinden yeni sürümü ayrı bir klasöre çıkarır,
+bağımlılıklarını kurar ve derler. Eski site bu hazırlık sırasında açık kalır. Eski kripto
+kayıtlarında kur yoksa mevcut siteye dokunmadan durur ve yalnızca kayıt sayılarını gösterir.
+Derleme başarılıysa servis kısa süre durdurulur; geçmiş tekrar kontrol edilir, yerel
+PostgreSQL veritabanının yedeği alınır ve yalnızca üç yeni kolon eklenir. Seed çalıştırılmaz.
+Yeni sürümün HTTP kontrolleri başarısızsa önceki uygulama ayarına dönülür; yeni kolonlar
+eski sürümle uyumlu olduğu için kullanıcı verileri üzerine yedek geri yüklenmez.
+Eski sürüm klasörleri ve `/root/borsabi-currency-backup.*` yedekleri silinmez.
+Anahtar ve kota hesabınıza bağlı olduğundan sağlayıcı testi ilk komutla tamamlanır.
 
 Anahtarı zaten ayarlanmış bu VPS'de sonraki kod güncellemeleri için:
 
@@ -105,9 +109,25 @@ istemci IP zinciri ayrıca yapılandırılmalıdır.
 - BIST miktarı pozitif tam sayı, kripto miktarı pozitif kesir olabilir. Endeks alım satımı kapalıdır.
 - Fiyat alarmları tek kez tetiklenir. İz süren stop alarmları, normal fiyat alarmı olmasa da kontrol edilir; otomatik satış emri oluşturmaz.
 
+## Kripto ve TL muhasebesi
+
+- Hesap bakiyesi, işlem toplamı, komisyon, gerçekleşmiş/gerçekleşmemiş K/Z ve portföy toplamları **TRY** cinsindedir.
+- Kripto birim fiyatı, stop/kar al seviyeleri ve grafikler **USD** cinsinde kalır. BIST fiyatları TRY'dir.
+- Sunucu, her kripto işleminde `USDTRY=X` kaynağını doğrular; istemciden kur kabul etmez. `Transaction.fxRate` ve `fxAsOf` işlemde kullanılan kuru ve kaynağın zamanını saklar.
+- `Position.entryPriceTry`, komisyon hariç ağırlıklı TL birim maliyetidir. Kur değişse veya kısmi satış yapılsa da alış maliyeti korunur; gerçekleşen K/Z satışın TL geliri ve orantılı alış komisyonu ile hesaplanır.
+- Portföy, profil, risk merkezi ve AI portföy bilgisi ortak TL değerleme servisini kullanır. Tek bir eski BUY satırına yanlış gerçekleşmemiş K/Z atamak yerine açık pozisyon K/Z'si Portföy'de gösterilir.
+- USD/TL kaynağı en fazla dört günlük olabilir (hafta sonu için son döviz kotasyonu). Eksik, geçersiz, daha eski veya ileri tarihli kurla işlem yapılmaz. Kur yokken USD değeri TRY gibi gösterilmez; ilgili toplam yerine hata gösterilir.
+- İşlem penceresindeki TL tutarları tahmindir. Bakiyenin yüzdesiyle alım komisyonu içerir; kriptoda kesirli miktar korunur ve satışın net TL geliri gösterilir.
+
+Eski BIST kayıtları mevcut TL maliyetiyle okunur. Eski kripto kayıtlarına bugünün kuru
+yazılmaz; nakit ve geçmiş işlemler değiştirilmez. Geçiş denetimi kur kaydı eksik kripto
+pozisyonu/işlemi bulursa dağıtımı durdurur. Bu durumda çıkan sayılarla geçmiş kayıtları
+incelemek ve veriye dayalı ayrı bir düzeltme hazırlamak gerekir. Bu sürüm eski, hatalı
+USD/TL işlemlerini otomatik olarak düzeltmiş sayılmaz.
+
 ## Mevcut sınırlamalar
 
-- Kripto USD fiyatları ve TL bakiyeleri eski modelde aynı sayısal hesapta kullanılıyor. Çoklu para birimi muhasebesi ve mevcut kayıtların kur dönüşümü ayrı bir veri geçişi gerektirir. Kripto portföy toplamları bu geçişten önce güvenilir TL değerlemesi olarak sunulmamalıdır.
+- Önceki sürümlerdeki kripto USD/TL muhasebe hatası için yukarıdaki eski kayıt denetimi geçerlidir. Bu güncelleme yeni işlemleri düzeltir; doğrulanmamış tarihsel kur üretmez.
 - Paket seçimi halen simülasyon davranışıdır; kullanıcı profilinden değiştirilebilir. Gerçek ücretli abonelik için doğrulanmış ödeme ve sunucuda özellik yetkisi kontrolü gerekir.
 - Bu değişiklik önceki yanlış işlem kayıtlarını geriye dönük yeniden hesaplamaz.
 

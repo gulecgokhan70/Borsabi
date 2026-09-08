@@ -123,6 +123,7 @@ export default function ProfileClient() {
     </div>
   );
 
+  if (profile?.error) return <div role="alert" className="glass-card p-6">{profile.error}</div>;
   if (!profile) return <div className="text-center text-muted-foreground py-20">Profil yüklenemedi.</div>;
 
   const effectiveTier = profile.tier === 'elite' ? 'pro' : profile.tier;

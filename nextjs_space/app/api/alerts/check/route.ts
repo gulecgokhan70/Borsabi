@@ -49,7 +49,7 @@ export async function GET() {
       if (result.count === 1 && currentPrice <= stopLevel && pos.currentPrice > previousStopLevel) {
         trailingAlerts.push({
           symbol: pos.symbol, name: pos.name, type: 'trailing_stop', currentPrice, stopLevel, highest,
-          message: `🚨 ${pos.symbol} iz süren stop tetiklendi! Fiyat: ${currentPrice.toFixed(2)} ≤ Stop: ${stopLevel.toFixed(2)} (En yüksek: ${highest.toFixed(2)}, -%${percent})`,
+          message: `🚨 ${pos.symbol} iz süren stop tetiklendi! Fiyat: ${currentPrice.toFixed(2)} ${pos.type === 'CRYPTO' ? 'USD' : 'TL'} ≤ Stop: ${stopLevel.toFixed(2)} ${pos.type === 'CRYPTO' ? 'USD' : 'TL'} (En yüksek: ${highest.toFixed(2)}, -%${percent})`,
         });
       }
     }

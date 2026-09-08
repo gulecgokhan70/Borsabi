@@ -41,6 +41,7 @@ interface RiskData {
     name: string;
     quantity: number;
     entryPrice: number;
+    currency: string;
     currentPrice: number;
     positionValue: number;
     unrealizedPnL: number;
@@ -59,13 +60,15 @@ export function RiskCenterClient() {
   const router = useRouter();
   const [data, setData] = useState<RiskData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/risk-center');
       const json = await res.json();
-      setData(json);
+      if (!res.ok) { setData(null); setError(json.error || 'Risk verileri yüklenemedi.'); return; }
+      setError(''); setData(json);
     } catch (e) {
       console.error('Risk center fetch error:', e);
     } finally {
@@ -122,7 +125,7 @@ export function RiskCenterClient() {
     return (
       <div className="text-center py-32">
         <Shield className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
-        <p className="text-muted-foreground">Risk verileri yüklenemedi</p>
+        <p className="text-muted-foreground">{error || 'Risk verileri yüklenemedi'}</p>
         <button onClick={fetchData} className="mt-4 px-4 py-2 bg-[#3B82F6] text-white rounded-lg text-sm">
           Tekrar Dene
         </button>
@@ -385,7 +388,7 @@ export function RiskCenterClient() {
                       {pos.hasStopLoss ? (
                         <div className="flex items-center gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5 text-[#22C55E]" />
-                          <span className="text-xs text-[#22C55E]">{formatCurrency(pos.stopLoss ?? 0)}</span>
+                          <span className="text-xs text-[#22C55E]">{formatCurrency(pos.stopLoss ?? 0, pos.currency)}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">

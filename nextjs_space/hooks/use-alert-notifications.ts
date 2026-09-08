@@ -65,7 +65,7 @@ export function useAlertNotifications() {
         const direction = alert.condition === 'above' ? '⬆️ Üstüne çıktı' : '⬇️ Altına düştü';
         sendNotification(
           `🔔 ${alert.name} Alarmı!`,
-          `${alert.symbol.replace('.IS', '')} ${direction}: ${alert.currentPrice?.toFixed(2)} TL (Hedef: ${alert.targetPrice?.toFixed(2)} TL)`
+          `${alert.symbol.replace('.IS', '')} ${direction}: ${alert.currentPrice?.toFixed(2)} ${alert.symbol.endsWith('-USD') ? 'USD' : 'TL'} (Hedef: ${alert.targetPrice?.toFixed(2)} ${alert.symbol.endsWith('-USD') ? 'USD' : 'TL'})`
         );
       });
       // İz süren stop bildirimleri
@@ -73,7 +73,7 @@ export function useAlertNotifications() {
       trailingAlerts.forEach((ta: any) => {
         sendNotification(
           `🚨 ${ta.symbol} İz Süren Stop!`,
-          ta.message ?? `${ta.symbol} trailing stop tetiklendi: ${ta.currentPrice?.toFixed(2)} TL`
+          ta.message ?? `${ta.symbol} trailing stop tetiklendi: ${ta.currentPrice?.toFixed(2)} ${ta.symbol.endsWith('-USD') ? 'USD' : 'TL'}`
         );
       });
     } catch (e) {}

@@ -44,6 +44,7 @@ model Position {
   side          String   @default("LONG") // LONG or SHORT
   quantity       Float
   entryPrice    Float
+  entryPriceTry Float?   // Weighted cost per unit in TRY; null legacy crypto requires review
   currentPrice  Float    @default(0)
   stopLoss      Float?   
   takeProfit    Float?   
@@ -71,6 +72,8 @@ model Transaction {
   marketType  String   @default("BIST") // BIST, CRYPTO
   quantity    Float
   price       Float
+  fxRate      Float?    // TRY per quote currency unit at execution; null on legacy records
+  fxAsOf      DateTime? // Source timestamp for the USD/TRY quote
   total       Float
   commission  Float    @default(0)
   stopLoss    Float?

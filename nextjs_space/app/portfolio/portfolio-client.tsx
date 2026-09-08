@@ -22,7 +22,7 @@ export function PortfolioClient() {
       const res = await fetch('/api/portfolio');
       const data = await res.json();
       setPortfolio(data);
-    } catch (e: any) { console.error(e); } finally { setLoading(false); }
+    } catch (e: any) { setPortfolio({ error: 'Portföy verileri alınamadı.' }); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchPortfolio(); }, [fetchPortfolio]);
@@ -68,6 +68,9 @@ export function PortfolioClient() {
     <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
   );
 
+  if (portfolio?.error) return <div className="glass-card p-6 space-y-3" role="alert">
+    <p>{portfolio.error}</p><button onClick={fetchPortfolio} className="text-[#3B82F6]">Tekrar dene</button>
+  </div>;
   const positions = portfolio?.positions ?? [];
   const closedPositions = portfolio?.closedPositions ?? [];
   const balance = portfolio?.balance ?? 100000;
@@ -91,6 +94,8 @@ export function PortfolioClient() {
         </button>
       </div>
 
+      {positions.some((p: any) => p.priceStale) && <p className="text-xs text-muted-foreground">Bazı varlıklarda son bilinen fiyat kullanılıyor.</p>}
+      {positions.find((p: any) => p.fxAsOf) && <p className="text-xs text-muted-foreground">Kripto TL değerlemesinde kullanılan kur zamanı: {new Date(positions.find((p: any) => p.fxAsOf).fxAsOf).toLocaleString('tr-TR')}</p>}
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
@@ -288,11 +293,11 @@ export function PortfolioClient() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="glass-inner rounded-lg p-2">
                       <p className="text-slate-400 dark:text-slate-500 mb-0.5">Giriş Fiyatı</p>
-                      <p className="font-mono font-medium text-foreground">{formatCurrency(p?.entryPrice)}</p>
+                      <p className="font-mono font-medium text-foreground">{formatCurrency(p?.entryPrice, p?.type === 'CRYPTO' ? 'USD' : 'TRY')}</p>
                     </div>
                     <div className="glass-inner rounded-lg p-2">
                       <p className="text-slate-400 dark:text-slate-500 mb-0.5">Güncel Fiyat</p>
-                      <p className="font-mono font-medium text-foreground">{formatCurrency(p?.currentPrice)}</p>
+                      <p className="font-mono font-medium text-foreground">{formatCurrency(p?.currentPrice, p?.type === 'CRYPTO' ? 'USD' : 'TRY')}</p>
                     </div>
                     <div className="glass-inner rounded-lg p-2">
                       <p className="text-slate-400 dark:text-slate-500 mb-0.5">Toplam Değer</p>
@@ -343,7 +348,7 @@ export function PortfolioClient() {
                       {p?.symbol?.replace?.('.IS', '')?.replace?.('-USD', '')}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      {formatNumber(p?.entryPrice)} → {formatNumber(p?.currentPrice)} • {p?.openedAt ? new Date(p.openedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : ''} → {p?.closedAt ? new Date(p.closedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : '-'}
+                      {formatCurrency(p?.entryPrice, p?.type === 'CRYPTO' ? 'USD' : 'TRY')} → {formatCurrency(p?.currentPrice, p?.type === 'CRYPTO' ? 'USD' : 'TRY')} • {p?.openedAt ? new Date(p.openedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : ''} → {p?.closedAt ? new Date(p.closedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' }) : '-'}
                     </p>
                   </div>
                 </div>

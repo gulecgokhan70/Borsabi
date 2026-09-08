@@ -150,17 +150,18 @@ export function TradeLogClient() {
                       </div>
                     </div>
 
-                    {/* Middle: Quantity x Price = Total */}
+                    {/* Native quote and TRY settlement */}
                     <div className="flex items-center gap-2 sm:flex-1">
                       <div className="glass-inner rounded-lg px-3 py-1.5 flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">{t?.quantity} adet</span>
                         <span className="text-slate-400 dark:text-slate-500">×</span>
-                        <span className="text-xs font-mono text-foreground">{formatCurrency(t?.price)}</span>
-                        <span className="text-slate-400 dark:text-slate-500">=</span>
+                        <span className="text-xs font-mono text-foreground">{formatCurrency(t?.price, t?.marketType === 'CRYPTO' ? 'USD' : 'TRY')}</span>
+                        <span className="text-slate-400 dark:text-slate-500">→</span>
                         <span className="text-xs font-mono font-semibold text-foreground">{formatCurrency(t?.total)}</span>
                       </div>
-                      {t?.commission > 0 && (
-                        <span className="text-[10px] text-[#F59E0B]">Kom: {formatCurrency(t?.commission)}</span>
+                      {(t?.commission > 0 || t?.marketType === 'CRYPTO') && (
+                        <span className="text-[10px] text-[#F59E0B]">Kom: {formatCurrency(t?.commission)}
+                          {t?.marketType === 'CRYPTO' && <span className="block text-muted-foreground">{t?.fxRate ? `İşlem kuru: ${formatCurrency(t.fxRate)} / USD` : 'Eski kayıt: kur uygulanmamış'}</span>}</span>
                       )}
                     </div>
 

@@ -227,6 +227,7 @@ export function DashboardClient() {
         </div>
       )}
 
+      {portfolio?.error ? <div role="alert" className="glass-card p-4 text-sm text-[#F59E0B]">{portfolio.error}</div> : <>
       {/* Portfolio summary cards */}
       <motion.div {...fadeIn} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
@@ -266,6 +267,7 @@ export function DashboardClient() {
         </div>
       </motion.div>
 
+      </>}
       {/* Piyasa Uyarıları + AI Analiz */}
       <motion.div {...fadeIn} transition={{ delay: 0.05 }}>
         <div className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">

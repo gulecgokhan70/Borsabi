@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { executeTrade, tradeSchema } from '../../lib/trading';
+import { applyCurrencySchema, currencyAudit } from '../../lib/currency-migration';
 
 const connection = process.env.TEST_DATABASE_URL;
 if (!connection) throw new Error('TEST_DATABASE_URL is required; use a disposable localhost borsabi_test database.');
@@ -72,10 +73,85 @@ describe('PostgreSQL trading ledger', () => {
   });
   it('keeps tiny residual crypto positions open', async () => {
     const crypto = (type: 'BUY' | 'SELL', quantity: number) => tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type, quantity });
-    await executeTrade(db, userId, crypto('BUY', 0.00002), 60000);
-    await executeTrade(db, userId, crypto('SELL', 0.00001), 61000);
+    await executeTrade(db, userId, crypto('BUY', 0.00002), 60000, { rate: 30, asOf: new Date() });
+    await executeTrade(db, userId, crypto('SELL', 0.00001), 61000, { rate: 31, asOf: new Date() });
     const position = await db.position.findFirstOrThrow({ where: { userId } });
     expect(position.status).toBe('OPEN');
     expect(position.quantity).toBeCloseTo(0.00001, 10);
+  });
+  it('settles multiple crypto purchases and partial sales in TRY at their individual FX rates', async () => {
+    await db.user.update({ where: { id: userId }, data: { balance: 10000, initialBalance: 10000 } });
+    const crypto = (type: 'BUY' | 'SELL', quantity: number) => tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type, quantity });
+    const asOf = new Date();
+    await executeTrade(db, userId, crypto('BUY', 0.1), 100, { rate: 30, asOf });
+    await executeTrade(db, userId, crypto('BUY', 0.1), 200, { rate: 40, asOf });
+    const bought = await db.position.findFirstOrThrow({ where: { userId } });
+    expect(bought.entryPrice).toBeCloseTo(150);
+    expect(bought.entryPriceTry).toBeCloseTo(5500);
+    expect(bought.commission).toBeCloseTo(2.2);
+    const first = await executeTrade(db, userId, crypto('SELL', 0.05), 180, { rate: 45, asOf });
+    expect(first.pnl).toBeCloseTo(128.64);
+    const remaining = await db.position.findFirstOrThrow({ where: { userId } });
+    const second = await executeTrade(db, userId, crypto('SELL', remaining.quantity), 150, { rate: 50, asOf });
+    expect(second.pnl).toBeCloseTo(296.1);
+    const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
+    const closed = await db.position.findFirstOrThrow({ where: { userId } });
+    expect(user.balance - user.initialBalance).toBeCloseTo(424.74);
+    expect(closed.pnl).toBeCloseTo(424.74);
+    expect(closed.status).toBe('CLOSED');
+    const entries = await db.transaction.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
+    expect(entries.map(t => t.fxRate)).toEqual([30, 40, 45, 50]);
+    expect(entries.every(t => t.fxAsOf?.getTime() === asOf.getTime())).toBe(true);
+    expect(entries.map(t => t.price)).toEqual([100, 200, 180, 150]);
+    expect(entries[0].total).toBe(300);
+    expect(entries[2].total).toBe(405);
+  });
+  it('blocks crypto spending affordable in USD but unaffordable in the TL account', async () => {
+    const crypto = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY', quantity: 0.01 });
+    await expect(executeTrade(db, userId, crypto, 60000, { rate: 32, asOf: new Date() })).rejects.toThrow('Yetersiz bakiye');
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBe(1000);
+    expect(await db.transaction.count({ where: { userId } })).toBe(0);
+    expect(await db.position.count({ where: { userId } })).toBe(0);
+  });
+  it('requires crypto FX metadata before starting any write', async () => {
+    const crypto = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY', quantity: 0.01 });
+    await expect(executeTrade(db, userId, crypto, 100)).rejects.toThrow('doğrulanmış USD/TL kuru');
+    expect(await db.transaction.count({ where: { userId } })).toBe(0);
+  });
+  it('serializes concurrent crypto purchases against the TRY balance', async () => {
+    const crypto = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY', quantity: 0.2 });
+    const results = await Promise.allSettled([
+      executeTrade(db, userId, crypto, 100, { rate: 30, asOf: new Date() }),
+      executeTrade(db, userId, crypto, 100, { rate: 30, asOf: new Date() }),
+    ]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBeCloseTo(398.8);
+    expect(await db.transaction.count({ where: { userId } })).toBe(1);
+  });
+  it('rolls back converted cash and position if the crypto ledger insert fails', async () => {
+    const failingDb = db.$extends({ query: { transaction: { create() { throw new Error('Injected currency ledger failure'); } } } });
+    const crypto = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY', quantity: 0.1 });
+    await expect(executeTrade(failingDb as unknown as PrismaClient, userId, crypto, 100, { rate: 30, asOf: new Date() })).rejects.toThrow('Injected currency ledger failure');
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBe(1000);
+    expect(await db.position.count({ where: { userId } })).toBe(0);
+  });
+  it('applies the additive schema idempotently without changing cash or rows', async () => {
+    const before = await db.user.findUniqueOrThrow({ where: { id: userId } });
+    await applyCurrencySchema(db);
+    await applyCurrencySchema(db);
+    expect(await db.user.findUniqueOrThrow({ where: { id: userId } })).toEqual(before);
+  });
+  it('keeps legacy crypto untouched and blocks both automatic migration and mixed-cost trading', async () => {
+    await db.position.create({ data: { userId, symbol: 'BTC-USD', name: 'Bitcoin', type: 'CRYPTO', quantity: 0.1, entryPrice: 100, currentPrice: 100 } });
+    await db.transaction.create({ data: { userId, symbol: 'BTC-USD', name: 'Bitcoin', marketType: 'CRYPTO', type: 'BUY', quantity: 0.1, price: 100, total: 10 } });
+    const before = await db.position.findFirstOrThrow({ where: { userId } });
+    const audit = await currencyAudit(db);
+    expect(audit.positions).toBe(1); expect(audit.transactions).toBe(1);
+    await expect(applyCurrencySchema(db)).rejects.toThrow('Otomatik geçiş durduruldu');
+    const crypto = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'SELL', quantity: 0.1 });
+    await expect(executeTrade(db, userId, crypto, 110, { rate: 30, asOf: new Date() })).rejects.toThrow('kur kaydı eksik');
+    expect(await db.position.findFirstOrThrow({ where: { userId } })).toEqual(before);
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBe(1000);
+    expect(await db.transaction.count({ where: { userId } })).toBe(1);
   });
 });

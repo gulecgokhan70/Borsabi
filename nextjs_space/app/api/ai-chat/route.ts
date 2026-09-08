@@ -1,3 +1,4 @@
+import { valuePositions } from '@/lib/position-valuation';
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -261,7 +262,8 @@ async function fetchPortfolioData(userId: string): Promise<string> {
 
     const balance = user.balance as number;
     const initialBalance = user.initialBalance as number;
-    const totalPnl = balance - initialBalance;
+    const valuedPositions = await valuePositions(positions);
+    const totalPnl = balance + valuedPositions.reduce((sum, p) => sum + p.totalValue, 0) - initialBalance;
     const totalPnlPercent = initialBalance > 0 ? ((totalPnl / initialBalance) * 100) : 0;
 
     const lines: string[] = [
@@ -274,26 +276,9 @@ async function fetchPortfolioData(userId: string): Promise<string> {
 
     if (positions.length > 0) {
       lines.push('--- Açık Pozisyonlar ---');
-      // Güncel fiyatları çek
-      const midasMap = await getMidasStockMap().catch(() => new Map());
-      for (const p of positions.slice(0, 10)) {
-        const sym = p.symbol;
-        const shortSym = sym.replace('.IS', '').replace('-USD', '');
-        let currentPrice = p.entryPrice as number;
-        const cleanSym = sym.replace('.IS', '').toUpperCase();
-        const midas = (midasMap as Map<string, any>).get(cleanSym);
-        if (midas) {
-          currentPrice = midas.Last || midas.Close || currentPrice;
-        } else {
-          try {
-            const q = await cachedQuote(sym);
-            if (q?.regularMarketPrice) currentPrice = q.regularMarketPrice;
-          } catch (_e) { /* keep entry price */ }
-        }
-        const isShort = p.side === 'SHORT';
-        const pnl = ((currentPrice - (p.entryPrice as number)) * (p.quantity as number)) * (isShort ? -1 : 1);
-        const pnlPct = (p.entryPrice as number) > 0 ? ((currentPrice / (p.entryPrice as number) - 1) * 100) * (isShort ? -1 : 1) : 0;
-        lines.push(`${shortSym}: ${p.side} ${(p.quantity as number)} lot @ ${(p.entryPrice as number).toFixed(2)} → ${currentPrice.toFixed(2)} (${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} TL, %${pnlPct.toFixed(2)})`);
+      for (const p of valuedPositions.slice(0, 10)) {
+        const shortSym = p.symbol.replace('.IS', '').replace('-USD', '');
+        lines.push(`${shortSym}: ${p.quantity} adet, alış ${p.entryPrice.toFixed(2)} ${p.currency}, son fiyat ${p.currentPrice.toFixed(2)} ${p.currency}; değer ${p.totalValue.toFixed(2)} TL; K/Z ${p.pnl.toFixed(2)} TL (%${p.pnlPercent.toFixed(2)})`);
       }
     }
 

@@ -27,23 +27,12 @@ export async function GET(request: NextRequest) {
       prisma.transaction.count({ where: { userId } }),
     ]);
 
-    // For BUY transactions, calculate unrealized P&L from current positions
-    const openPositions = await prisma.position.findMany({
-      where: { userId, status: 'OPEN' },
-    });
-    const positionMap = new Map(openPositions.map((p: any) => [p.symbol, p]));
-
-    const transactions = rawTransactions.map((t: any) => {
-      if (t.type === 'BUY' && t.pnl == null) {
-        const pos = positionMap.get(t.symbol);
-        if (pos && pos.currentPrice > 0) {
-          const unrealizedPnl = (pos.currentPrice - t.price) * t.quantity;
-          const unrealizedPnlPercent = t.price > 0 ? ((pos.currentPrice - t.price) / t.price) * 100 : 0;
-          return { ...t, unrealizedPnl, unrealizedPnlPercent, currentPrice: pos.currentPrice };
-        }
-      }
-      return t;
-    });
+    // An individual BUY row is not the remaining position after partial sales.
+    // Show open-position PnL on the portfolio page; never fabricate per-purchase PnL.
+    const transactions = rawTransactions.map(t => ({ ...t,
+      currency: t.marketType === 'CRYPTO' ? 'USD' : 'TRY',
+      legacyCurrency: t.marketType === 'CRYPTO' && t.fxRate == null,
+    }));
 
     const allTx = await prisma.transaction.findMany({ where: { userId } });
     const sells = allTx.filter((t: any) => t?.type === 'SELL' && t?.pnl != null);
