@@ -4,7 +4,7 @@ Bu dizin mevcut Next.js uygulamasını **TWA (Trusted Web Activity)** içinde a�
 
 ## Kimlik ve sürüm
 
-Mağaza paket adı henüz doğrulanmadı. Mevcut bir BorsaBi/Median kaydı varsa onun `applicationId` değeri, önceki en yüksek `versionCode` değeri ve mevcut yükleme anahtarı korunmalıdır. Bu araç yeni mağaza kaydı açmaz, anahtar üretmez, imzalama veya yükleme yapmaz.
+Mağaza paket adı sahibinin Play Console ekranından (`IMG_1123.png`) **`com.borsabi.twa`** olarak doğrulandı. Console'daki görünen uygulama adı **Borsabi**, üretim durumu **Etkin değil**. Hazırlık bu mevcut kimliği kullanır ve başka bir yayın kimliğini reddeder. Ekran önceki yüklemelerin sürüm kodunu veya sertifikalarını göstermediğinden, en yüksek `versionCode` ve mevcut yükleme anahtarı hâlâ doğrulanmalıdır. Üretimin etkin olmaması hiç paket yüklenmediği anlamına gelmez. Bu araç yeni mağaza kaydı açmaz, anahtar üretmez, imzalama veya yükleme yapmaz.
 
 Kaynak üretimini mağaza kimliğinden bağımsız doğrulamak için:
 
@@ -17,13 +17,13 @@ npm run prepare:preview
 
 Çıktı: `generated/com.borsabi.packagingpreview-1/`. Bu kimlik yalnızca derleme denemesi içindir; Play'e yüklenmez ve canlı `assetlinks.json` içine eklenmez. Çıktı zaten varsa araç onu koruyarak durur.
 
-Gerçek paket adı ve sürüm bilgileri doğrulandığında:
+Önceki en yüksek sürüm kodu doğrulandığında, mevcut kimlikle kaynak üretimi:
 
 ```bash
-node scripts/prepare.mjs --package-id DOGRULANMIS_PAKET_ADI --version-code YENI_POZITIF_SAYI --version-name 1.0.0
+node scripts/prepare.mjs --version-code YENI_POZITIF_SAYI --version-name 1.0.0
 ```
 
-Yukarıdaki büyük harfli alanlar açıklayıcı yer tutucudur; aynen çalıştırılmaz. Sürüm kodu önceki tüm yüklemelerden büyük olmalıdır; araç Play hesabını okumadığı için önceki sürümle karşılaştırma yapamaz.
+Yukarıdaki büyük harfli alan açıklayıcı yer tutucudur; aynen çalıştırılmaz. Paket adı otomatik olarak `com.borsabi.twa` olur. Sürüm kodu önceki tüm yüklemelerden büyük olmalıdır; araç Play hesabını okumadığı için önceki sürümle karşılaştırma yapamaz. Örnekteki sürüm adı da yayımlanacak sürüm için kesinleştirilmelidir.
 
 ## Derleme
 

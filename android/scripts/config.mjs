@@ -1,3 +1,6 @@
+// Confirmed by the owner's Play Console screenshot IMG_1123.png.
+export const PLAY_PACKAGE_ID = 'com.borsabi.twa';
+
 export function packagingConfig(args) {
   const allowed = new Set(['--preview', '--package-id', '--version-code', '--version-name']);
   const values = {};
@@ -13,14 +16,14 @@ export function packagingConfig(args) {
   }
   const preview = values['--preview'] === true;
   if (preview && Object.keys(values).length !== 1) throw new Error('Preview does not accept release identity options.');
-  const packageId = preview ? 'com.borsabi.packagingpreview' : values['--package-id'];
+  const packageId = preview ? 'com.borsabi.packagingpreview' : (values['--package-id'] ?? PLAY_PACKAGE_ID);
   const versionCode = preview ? 1 : Number(values['--version-code']);
   const versionName = preview ? '0.0.0-preview' : values['--version-name'];
   if (!packageId || !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*){2,}$/.test(packageId)) {
-    throw new Error('Provide the existing Play application ID using --package-id. No release ID is assumed.');
+    throw new Error('Invalid Android application ID.');
   }
-  if (!preview && /(?:^|\.)(?:example|test|packagingpreview)(?:\.|$)/.test(packageId)) {
-    throw new Error('A sample or preview package ID cannot be used for release preparation.');
+  if (!preview && packageId !== PLAY_PACKAGE_ID) {
+    throw new Error(`Release identity must remain ${PLAY_PACKAGE_ID}, as confirmed in Play Console.`);
   }
   if (!Number.isSafeInteger(versionCode) || versionCode < 1 || versionCode > 2100000000) {
     throw new Error('--version-code must be a positive integer, higher than every previous Play upload.');

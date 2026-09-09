@@ -6,7 +6,7 @@ Bu çalışma paket üretim altyapısı ve Console hazırlığıdır. Hesaba for
 
 | İş | Durum / kanıt |
 |---|---|
-| Mevcut uygulama kimliği | Play Console paket adı ve önceki versionCode bekleniyor; yeni kimlik varsayılmadı |
+| Mevcut uygulama kimliği | `IMG_1123.png` ile `com.borsabi.twa` doğrulandı ve kaynak üretiminde sabitlendi; görünen ad Borsabi, üretim etkin değil. Önceki en yüksek versionCode ve imza bilgileri bekleniyor |
 | Android kaynak üretimi | `android/scripts/prepare.mjs`; Bubblewrap 1.25.0, API 36, AGP 8.10.1 |
 | Alan adı doğrulaması | `/.well-known/assetlinks.json` route'u; gerçek paket adı + Play imzalama sertifikası olmadan 404 |
 | Bağlantı kaybı | Türkçe/İngilizce genel offline ekranı; kişisel sayfalar, API ve işlemler önbelleğe alınmaz |
