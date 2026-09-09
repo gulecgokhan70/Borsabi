@@ -2,18 +2,9 @@ import YahooFinance from 'yahoo-finance2';
 
 const yf: any = new (YahooFinance as any)();
 
-// === In-memory cache for Yahoo Finance API ===
-interface CacheEntry {
-  data: any;
-  expiry: number;
-}
-
-const quoteCache = new Map<string, CacheEntry>();
-const chartCache = new Map<string, CacheEntry>();
-
-// Cache TTL (ms)
-const QUOTE_TTL = 60_000;  // 1 dakika
-const CHART_TTL = 300_000;  // 5 dakika
+import { SharedFetchCache } from './shared-fetch-cache';
+const quoteCache = new SharedFetchCache<any>(1024, 60_000);
+const chartCache = new SharedFetchCache<any>(128, 300_000);
 
 // Request queue for rate limiting
 let requestQueue: Promise<void> = Promise.resolve();
@@ -32,86 +23,23 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   return result;
 }
 
-export async function cachedQuote(symbol: string): Promise<any> {
-  const now = Date.now();
-  const cached = quoteCache.get(symbol);
-  if (cached && cached.expiry > now) {
-    return cached.data;
-  }
-  
-  try {
-    const data = await enqueue(() => yf.quote(symbol));
-    quoteCache.set(symbol, { data, expiry: now + QUOTE_TTL });
-    return data;
-  } catch (e: any) {
-    // Rate limit ise eski cache'i döndür (stale)
-    if (cached) return cached.data;
-    throw e;
-  }
+export function cachedQuote(symbol: string): Promise<any> {
+  return quoteCache.get(symbol, () => enqueue(() => yf.quote(symbol)));
 }
 
-export async function cachedChart(symbol: string, opts: any): Promise<any> {
-  const cacheKey = `${symbol}:${opts.period1}:${opts.period2}:${opts.interval ?? '1d'}`;
-  const now = Date.now();
-  const cached = chartCache.get(cacheKey);
-  if (cached && cached.expiry > now) {
-    return cached.data;
-  }
-  
-  try {
-    const data = await enqueue(() => yf.chart(symbol, opts));
-    chartCache.set(cacheKey, { data, expiry: now + CHART_TTL });
-    return data;
-  } catch (e: any) {
-    // Rate limit ise eski cache'i döndür (stale)
-    if (cached) return cached.data;
-    throw e;
-  }
+export function cachedChart(symbol: string, opts: any): Promise<any> {
+  // Include every option to prevent different requested ranges from colliding.
+  const cacheKey = JSON.stringify([symbol, Object.keys(opts).sort().map(key => [key, opts[key]])]);
+  return chartCache.get(cacheKey, () => enqueue(() => yf.chart(symbol, opts)));
 }
 
-// Batch quote - paralel küçük gruplarla hızlı fetch
 export async function cachedQuoteBatch(symbols: string[]): Promise<Map<string, any>> {
-  const results = new Map<string, any>();
-  const toFetch: string[] = [];
-  const now = Date.now();
-  
-  // Önce cache'den bakalım
-  for (const sym of symbols) {
-    const cached = quoteCache.get(sym);
-    if (cached && cached.expiry > now) {
-      results.set(sym, cached.data);
-    } else {
-      toFetch.push(sym);
-    }
-  }
-  
-  if (toFetch.length === 0) return results;
-
-  // Paralel gruplar halinde fetch (6'lı gruplar)
-  const BATCH_SIZE = 6;
-  for (let i = 0; i < toFetch.length; i += BATCH_SIZE) {
-    const batch = toFetch.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.allSettled(
-      batch.map(sym =>
-        enqueue(() => yf.quote(sym))
-          .then((data: any) => {
-            quoteCache.set(sym, { data, expiry: now + QUOTE_TTL });
-            return { sym, data };
-          })
-          .catch(() => {
-            const stale = quoteCache.get(sym);
-            return { sym, data: stale?.data ?? null };
-          })
-      )
-    );
-    for (const r of batchResults) {
-      if (r.status === 'fulfilled' && r.value) {
-        results.set(r.value.sym, r.value.data);
-      }
-    }
-  }
-  
-  return results;
+  const unique = [...new Set(symbols)];
+  const values = await Promise.all(unique.map(async symbol => {
+    try { return [symbol, await cachedQuote(symbol)] as const; }
+    catch { return [symbol, null] as const; }
+  }));
+  return new Map(values);
 }
 
 export { yf };

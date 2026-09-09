@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { BorsaBiLogo } from '@/components/logo';
 import { toast } from 'sonner';
+import { signupSchema } from '@/lib/signup-validation';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,18 +18,18 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e?.preventDefault?.();
-    if (!email || !password) { toast.error('Tüm alanları doldurun'); return; }
-    if ((password?.length ?? 0) < 6) { toast.error('Şifre en az 6 karakter olmalı'); return; }
+    const parsed = signupSchema.safeParse({ email, password, name });
+    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name: name || 'Trader' }),
+        body: JSON.stringify(parsed.data),
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data?.error ?? 'Kayıt başarısız'); return; }
-      const signInRes = await signIn('credentials', { email, password, redirect: false });
+      const signInRes = await signIn('credentials', { email: parsed.data.email, password: parsed.data.password, redirect: false });
       if (signInRes?.error) { toast.error('Giriş hatası'); return; }
       router.replace('/dashboard');
     } catch (e: any) {
@@ -57,7 +58,7 @@ export default function SignupPage() {
             <label className="text-xs text-muted-foreground mb-1.5 block">İsim</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type="text" value={name} onChange={(e: any) => setName(e?.target?.value ?? '')} placeholder="Adınız"
+              <input type="text" value={name} onChange={(e: any) => setName(e?.target?.value ?? '')} placeholder="Adınız" maxLength={80}
                 className="w-full pl-10 pr-3 py-2.5 glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-foreground text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
             </div>
           </div>
@@ -66,7 +67,7 @@ export default function SignupPage() {
             <label className="text-xs text-muted-foreground mb-1.5 block">Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type="email" value={email} onChange={(e: any) => setEmail(e?.target?.value ?? '')} placeholder="email@adres.com" required
+              <input type="email" value={email} onChange={(e: any) => setEmail(e?.target?.value ?? '')} placeholder="email@adres.com" maxLength={254} required
                 className="w-full pl-10 pr-3 py-2.5 glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-foreground text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
             </div>
           </div>
@@ -75,7 +76,7 @@ export default function SignupPage() {
             <label className="text-xs text-muted-foreground mb-1.5 block">Şifre</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type={showPw ? 'text' : 'password'} value={password} onChange={(e: any) => setPassword(e?.target?.value ?? '')} placeholder="En az 6 karakter" required
+              <input type={showPw ? 'text' : 'password'} value={password} onChange={(e: any) => setPassword(e?.target?.value ?? '')} placeholder="En az 8 karakter" minLength={8} maxLength={72} required
                 className="w-full pl-10 pr-10 py-2.5 glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-foreground text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none" />
               <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

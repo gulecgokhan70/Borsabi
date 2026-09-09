@@ -9,12 +9,14 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent, isIndexSymbol } from '@/lib/constants';
+import { assetCurrency, tradableMarketType } from '@/lib/asset-display';
 import { TradeModal } from '@/components/trade-modal';
 import { useHaptic } from '@/hooks/use-haptic';
 import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
 } from 'recharts';
+import { ChartSurface } from '@/components/chart-surface';
 import { ChartDrawingToolbar, ChartDrawingOverlay, type DrawingTool } from '@/components/chart-drawing-tools';
 
 interface OHLCData {
@@ -132,19 +134,23 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
   const haptic = useHaptic();
   const lastHapticTs = useRef(0);
-  const isIndex = isIndexSymbol(symbol);
-  const fp = (v: number) => isIndex ? formatNumber(v) : formatCurrency(v);
   const [data, setData] = useState<StockData | null>(null);
+  const assetSymbol = data?.symbol ?? symbol;
+  const isIndex = isIndexSymbol(assetSymbol);
+  const currencyCode = assetCurrency(assetSymbol, data?.currency);
+  const marketType = tradableMarketType(assetSymbol);
+  const fp = (v: number) => isIndex ? formatNumber(v) : formatCurrency(v, currencyCode);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
   const [chartInterval, setChartInterval] = useState('5m');
+  const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
+  const [advancedChart, setAdvancedChart] = useState(false);
   const [chartType, setChartType] = useState<ChartType>('line');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('none');
   const [drawings, setDrawings] = useState<any[]>([]);
   const [magnetEnabled, setMagnetEnabled] = useState(false);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 380 });
   const [showFundamentals, setShowFundamentals] = useState(true);
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -178,7 +184,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const refreshMs = isIntraday ? 30000 : 60000;
     const interval = setInterval(fetchData, refreshMs);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, isIntraday]);
 
   // Fetch news for this symbol
   useEffect(() => {
@@ -200,7 +206,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: data.symbol, name: data.name, price: data.price,
+          symbol: data.symbol, name: data.name, price: data.price, currency: currencyCode,
           change: data.change, changePercent: data.changePercent,
           high: data.high, low: data.low, open: data.open, prevClose: data.prevClose,
           volume: data.volume, marketCap: data.marketCap,
@@ -241,7 +247,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [data, news, analysisLoading]);
+  }, [data, news, analysisLoading, currencyCode]);
 
   // Data yüklenince otomatik analiz başlat
   const analysisTriggered = useRef(false);
@@ -254,7 +260,6 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     }
   }, [data, analysis, analysisLoading, fetchAnalysis]);
 
-  const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
 
   const chartData = useMemo(() => {
     const ohlcData = (data?.ohlc ?? []).map((d: OHLCData) => ({
@@ -343,16 +348,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     return [mn - pad, mx + pad];
   }, [chartData]);
 
-  // Chart container dimensions for drawing overlay
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        setChartDimensions({ width: e.contentRect.width, height: e.contentRect.height });
+  // The chart moves into a dialog portal in full screen, so observe each mounted node.
+  const chartObserver = useRef<ResizeObserver | null>(null);
+  const chartContainerRef = useCallback((node: HTMLDivElement | null) => {
+    chartObserver.current?.disconnect();
+    chartObserver.current = null;
+    if (!node) return;
+    chartObserver.current = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setChartDimensions({ width: entry.contentRect.width, height: entry.contentRect.height });
       }
     });
-    ro.observe(chartContainerRef.current);
-    return () => ro.disconnect();
+    chartObserver.current.observe(node);
   }, []);
 
   // Recharts mouse/touch event handler
@@ -450,10 +457,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               </p>
               <p className={`text-sm font-medium transition-colors duration-150 ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                 {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-                {isIndex ? `${displayChangePercent >= 0 ? '+' : ''}${displayChangePercent.toFixed(2)}%` : `${displayChange >= 0 ? '+' : ''}${formatCurrency(Math.abs(displayChange))}`}
+                {isIndex ? `${displayChangePercent >= 0 ? '+' : ''}${displayChangePercent.toFixed(2)}%` : `${displayChange >= 0 ? '+' : ''}${fp(displayChange)}`}
               </p>
             </div>
-            {!isIndexSymbol(data?.symbol ?? '') && (
+            {marketType && (
               <div className="flex flex-col gap-2">
                 <button onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }}
                   className="px-5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors flex items-center gap-1.5">
@@ -474,12 +481,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       )}
 
       {/* ===== PRICE CHART ===== */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="glass-card rounded-xl p-4">
+      <ChartSurface>
+        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) setDrawingTool('none'); }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
         {/* Chart controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
+            <span className="text-xs text-muted-foreground">{isIndex ? 'Puan' : currencyCode}</span>
             <div className="flex glass-inner rounded-lg p-0.5">
               <button onClick={() => setChartType('candle')}
                 className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>🕯️ Mum</button>
@@ -498,7 +506,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Overlay toggles */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className={advancedChart ? "flex flex-wrap gap-2 mb-3" : "hidden"}>
           <button onClick={() => setOverlay(overlay === 'ema' ? 'none' : 'ema')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
               overlay === 'ema' ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
@@ -523,7 +531,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Main Price Chart */}
-        <div ref={chartContainerRef} style={{ height: '380px', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
+        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, 380px)', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
           {chartData.length > 0 ? (
             <>
             <ResponsiveContainer width="100%" height="100%">
@@ -538,7 +546,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 <Tooltip content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
 
                 {/* Bollinger Bands */}
-                {overlay === 'bb' && (
+                {advancedChart && overlay === 'bb' && (
                   <>
                     <Line type="monotone" dataKey="bbUpper" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
                     <Line type="monotone" dataKey="bbLower" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
@@ -559,7 +567,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 )}
 
                 {/* EMA overlays */}
-                {overlay === 'ema' && (
+                {advancedChart && overlay === 'ema' && (
                   <>
                     <Line type="monotone" dataKey="ema20" stroke="#3B82F6" strokeWidth={1.5} dot={false} strokeOpacity={0.8} />
                     <Line type="monotone" dataKey="ema50" stroke="#F59E0B" strokeWidth={1.5} dot={false} strokeOpacity={0.8} />
@@ -568,7 +576,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
-            {chartDimensions.width > 0 && (
+            {advancedChart && chartDimensions.width > 0 && (
               <ChartDrawingOverlay
                 chartHeight={chartDimensions.height}
                 chartWidth={chartDimensions.width}
@@ -595,14 +603,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* EMA Legend */}
-        {overlay === 'ema' && (
+        {advancedChart && overlay === 'ema' && (
           <div className="flex flex-wrap gap-4 mt-2 px-2">
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#3B82F6] inline-block rounded" /> <span className="text-muted-foreground">EMA20</span></span>
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#F59E0B] inline-block rounded" /> <span className="text-muted-foreground">EMA50</span></span>
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#EF4444] inline-block rounded" /> <span className="text-muted-foreground">EMA200</span></span>
           </div>
         )}
-        {overlay === 'bb' && (
+        {advancedChart && overlay === 'bb' && (
           <div className="flex flex-wrap gap-4 mt-2 px-2">
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#F59E0B] inline-block rounded" style={{ borderTop: '1px dashed #F59E0B' }} /> <span className="text-muted-foreground">Bollinger Bantları (20, 2)</span></span>
           </div>
@@ -648,7 +656,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             </div>
           )}
         </div>
-      </motion.div>
+      </ChartSurface>
 
       {/* ===== AI ANALİZ & HABERLER ===== */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-2xl overflow-hidden">
@@ -859,7 +867,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                         ].filter(s => s.value).map((s, i) => (
                           <div key={i} className="text-center p-1.5 rounded-lg" style={{ backgroundColor: s.color + '08', border: `1px solid ${s.color}15` }}>
                             <p className="text-[9px] text-muted-foreground">{s.label}</p>
-                            <p className="text-xs font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? s.value.toFixed(2) : s.value}</p>
+                            <p className="text-xs font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? fp(s.value) : s.value}</p>
                           </div>
                         ))}
                       </div>
@@ -1032,8 +1040,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         );
       })()}
 
-      {/* ===== MIDAS EXTRA DATA (BIST ONLY) ===== */}
-      {data && (data.vwap || data.fk || data.pddd) && (
+      {/* ===== FUNDAMENTALS (NATIVE QUOTE CURRENCY) ===== */}
+      {data && (data.vwap || data.fk || data.pddd || data.marketCap) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="glass-card rounded-xl p-4">
           <button onClick={() => setShowFundamentals(!showFundamentals)}
@@ -1077,7 +1085,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Piyasa Değeri</p>
                   <p className="text-foreground font-bold font-mono">
-                    {data.marketCap >= 1e9 ? `₺${(data.marketCap / 1e9).toFixed(1)} Milyar` : `₺${(data.marketCap / 1e6).toFixed(0)} Milyon`}
+                    {data.marketCap >= 1e9 ? `${formatCurrency(data.marketCap / 1e9, currencyCode)} Milyar` : `${formatCurrency(data.marketCap / 1e6, currencyCode)} Milyon`}
                   </p>
                 </div>
               ) : null}
@@ -1330,7 +1338,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       </p>
 
       {/* Trade Modal */}
-      {data && !isIndexSymbol(data.symbol) && (() => {
+      {data && marketType && (() => {
         // Destek/direnç seviyelerinden otomatik SL/TP hesapla
         const supports = data.supportResistance?.supports ?? [];
         const resistances = data.supportResistance?.resistances ?? [];
@@ -1347,7 +1355,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             symbol={data.symbol}
             name={data.name}
             price={data.price}
-            marketType={data.symbol.endsWith('.IS') ? 'BIST' : data.symbol.endsWith('-USD') ? 'Kripto' : 'Diğer'}
+            marketType={marketType}
             side={tradeSide}
             initialStopLoss={autoSL}
             initialTakeProfit={autoTP}

@@ -90,7 +90,7 @@ export function BrokersClient() {
           <Building2 className="w-6 h-6 text-[#3B82F6]" /> Aracı Kurumlar
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Türkiye'deki popüler aracı kurumları keşfedin ve karşılaştırın
+          Türkiye&#39;deki popüler aracı kurumları keşfedin ve karşılaştırın
         </p>
       </div>
 

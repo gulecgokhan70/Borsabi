@@ -24,7 +24,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Komisyon oranları nedir?',
-    a: 'Simülasyon işlemlerinde alış ve satış için %0.2 komisyon uygulanmaktadır. Bu oran gerçek borsa komisyonlarını simüle etmektedir.'
+    a: 'Simülasyon, strateji testi ve adım adım pratik işlemlerinde Profil bölümünde belirlediğiniz komisyon oranı kullanılır. Varsayılan oran alış ve satışta %0,2’dir.'
   },
   {
     q: 'Trailing Stop nedir?',
@@ -36,7 +36,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Hesabımı nasıl silerim?',
-    a: 'Hesap silme talebi için info@borsabi.com adresine e-posta gönderebilirsiniz. KVKK kapsamındaki haklarınız 30 gün içinde işleme alınır.'
+    a: 'Profil > Hesabımı sil yolunu veya borsabi.com/hesap-silme sayfasını kullanabilirsiniz. Hesabınıza erişemiyorsanız kayıtlı e-posta adresinizden info@borsabi.com adresine başvurabilirsiniz.'
   }
 ];
 
@@ -44,18 +44,13 @@ export default function DestekPage() {
   const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
-  const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSending(true);
-    // Simulate sending
-    setTimeout(() => {
-      setSending(false);
-      setSent(true);
-      setContactForm({ name: '', email: '', subject: '', message: '' });
-    }, 1500);
+    const body = `Ad: ${contactForm.name}\nE-posta: ${contactForm.email}\n\n${contactForm.message}`;
+    window.location.href = `mailto:info@borsabi.com?subject=${encodeURIComponent('BorsaBi: ' + contactForm.subject)}&body=${encodeURIComponent(body)}`;
+    setSent(true);
   };
 
   return (
@@ -161,14 +156,15 @@ export default function DestekPage() {
             Bize Ulaşın
           </h2>
 
+          <Link href="/hesap-silme" className="inline-flex min-h-[44px] items-center text-blue-500 underline mb-3">Hesap silme sayfası</Link>
           {sent ? (
             <div className="text-center py-8 space-y-3">
               <div className="w-14 h-14 rounded-full bg-[#10B981]/10 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-7 h-7 text-[#10B981]" />
               </div>
-              <p className="text-sm font-medium text-foreground">Mesajınız Gönderildi!</p>
-              <p className="text-xs text-muted-foreground">En kısa sürede size dönüş yapacağız.</p>
-              <button onClick={() => setSent(false)} className="text-xs text-[#3B82F6] hover:underline mt-2">Yeni mesaj gönder</button>
+              <p className="text-sm font-medium text-foreground">E-posta uygulamasına geçin</p>
+              <p className="text-xs text-muted-foreground">Gönderimi e-posta uygulamanızda tamamlayın. Bu sayfa mesajı otomatik göndermez.</p>
+              <button onClick={() => setSent(false)} className="text-xs text-[#3B82F6] hover:underline mt-2">Mesajı düzenle</button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
@@ -200,9 +196,9 @@ export default function DestekPage() {
                 value={contactForm.message} onChange={e => setContactForm(p => ({ ...p, message: e.target.value }))}
                 className="w-full px-3 py-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.06] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#3B82F6]/50 resize-none"
               />
-              <button type="submit" disabled={sending}
+              <button type="submit"
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#6366F1] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
-                {sending ? 'Gönderiliyor...' : 'Gönder'}
+                E-posta uygulamasını aç
               </button>
             </form>
           )}

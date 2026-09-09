@@ -1,5 +1,7 @@
 **/node_modules
 .next
+.next-*
+__pycache__/
 .cache
 .build
 *.nfs*
@@ -18,3 +20,7 @@ out
 .deploy
 .logs
 *.tsbuildinfo
+.env
+.env.*
+!.env.example
+coverage/

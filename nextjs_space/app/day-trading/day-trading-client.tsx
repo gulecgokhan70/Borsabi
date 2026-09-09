@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
+import type { TradeMarketType } from '@/lib/asset-display';
 import { useRouter } from 'next/navigation';
 
 interface DayTradeResult {
@@ -54,7 +55,7 @@ export function DayTradingClient() {
   const router = useRouter();
   const [data, setData] = useState<DayTradeResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string; stopLoss?: number; takeProfit?: number } | null>(null);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: TradeMarketType; stopLoss?: number; takeProfit?: number } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
   const [marketOpen, setMarketOpen] = useState(true);
   const [cachedAt, setCachedAt] = useState<string | null>(null);

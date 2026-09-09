@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/page-transition';
 import { useTheme } from 'next-themes';
 import { BreakingNewsBanner } from '@/components/breaking-news';
+import { matchesSymbol } from '@/lib/symbol-search';
 import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
 
 const AVATAR_MAP: Record<string, string> = {
@@ -66,7 +67,7 @@ function GlobalSearch() {
 
   const term = q.toLowerCase().trim();
   const results = term.length >= 1
-    ? allItems.filter(i => i.shortName.toLowerCase().includes(term) || i.name.toLowerCase().includes(term)).slice(0, 12)
+    ? allItems.filter(i => matchesSymbol(i, q)).slice(0, 12)
     : [];
 
   const go = (sym: string) => { router.push(`/stock/${sym}`); setOpen(false); setQ(''); };
@@ -383,18 +384,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
         <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
+          <BreakingNewsBanner />
           <PageTransition>{children}</PageTransition>
           {/* Global Footer */}
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-6 pb-2">
             <Link href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</Link>
+            <span>·</span>
+            <Link href="/hesap-silme" className="hover:text-[#3B82F6] transition-colors">Hesap silme</Link>
             <span>·</span>
             <Link href="/aydinlatma-metni" className="hover:text-[#3B82F6] transition-colors">Aydınlatma Metni</Link>
           </div>
         </div>
       </main>
 
-      {/* Breaking News Popup */}
-      <BreakingNewsBanner />
+
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">

@@ -21,7 +21,8 @@ export default function LoginPage() {
     try {
       const res = await signIn('credentials', { email, password, redirect: false });
       if (res?.error) { toast.error('Email veya şifre hatalı'); return; }
-      router.replace('/dashboard');
+      const callback = new URLSearchParams(window.location.search).get('callbackUrl');
+      router.replace(callback === '/hesap-silme' ? callback : '/dashboard');
     } catch (e: any) {
       toast.error('Giriş hatası');
       console.error(e);

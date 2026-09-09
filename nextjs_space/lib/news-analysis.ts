@@ -1,3 +1,5 @@
+import { AIServiceError, getAIConfig, requestAICompletion } from './ai-provider';
+
 /* Haber Analiz Motoru - AI destekli piyasa etki analizi */
 
 export interface StockWarning {
@@ -24,14 +26,28 @@ export interface NewsImpact {
 }
 
 /* ── Cache ── */
-let analysisCache: { data: NewsImpact; ts: number } | null = null;
 const CACHE_TTL = 30 * 60 * 1000; // 30 dakika
+const MAX_STALE_AGE = 6 * 60 * 60 * 1000;
+const FAILURE_COOLDOWN = 60_000;
+type AnalysisState = {
+  cache: { data: NewsImpact; ts: number } | null;
+  pending: Promise<NewsImpact | null> | null;
+  nextAttemptAt: number;
+};
+// The chat and news routes must share both completed and in-flight work.
+const shared = globalThis as typeof globalThis & { borsabiNewsAnalysis?: AnalysisState };
+const state = shared.borsabiNewsAnalysis ??= { cache: null, pending: null, nextAttemptAt: 0 };
+
+function staleAnalysis() {
+  return state.cache && Date.now() - state.cache.ts < MAX_STALE_AGE ? state.cache.data : null;
+}
 
 /* ── Haberleri çek ── */
 async function fetchNewsForAnalysis(baseUrl: string): Promise<string> {
   try {
     const res = await fetch(`${baseUrl}/api/news?limit=25`, {
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return '';
     const data = await res.json();
@@ -48,8 +64,7 @@ async function fetchNewsForAnalysis(baseUrl: string): Promise<string> {
 
 /* ── AI ile analiz ── */
 async function analyzeWithAI(newsText: string): Promise<NewsImpact> {
-  const apiKey = process.env.ABACUSAI_API_KEY;
-  if (!apiKey) throw new Error('API key bulunamadı');
+  getAIConfig();
 
   const systemPrompt = `Sen bir finansal haber analisti ve borsa uzmanısın. Türkiye piyasalarını (BIST, döviz, kripto) çok iyi biliyorsun.
 
@@ -77,29 +92,13 @@ JSON formatında cevap ver, başka bir şey yazma.`;
 
   const userPrompt = `Aşağıdaki güncel Türkiye finans haberlerini analiz et:\n\n${newsText}`;
 
-  const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-5.4-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-      max_tokens: 2000,
-      temperature: 0.3,
-    }),
+  const response = await requestAICompletion({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    response_format: { type: 'json_object' }, max_tokens: 3000, temperature: 0.3,
   });
-
-  if (!response.ok) {
-    const err = await response.text();
-    console.error('AI analysis error:', err);
-    throw new Error('AI analiz hatası');
-  }
 
   const result = await response.json();
   const content = result?.choices?.[0]?.message?.content;
@@ -120,24 +119,31 @@ JSON formatında cevap ver, başka bir şey yazma.`;
 
 /* ── Ana fonksiyon: Haber analizi al (cache'li) ── */
 export async function getNewsImpact(baseUrl: string): Promise<NewsImpact | null> {
-  // Cache kontrol
-  if (analysisCache && Date.now() - analysisCache.ts < CACHE_TTL) {
-    return analysisCache.data;
-  }
+  if (state.cache && Date.now() - state.cache.ts < CACHE_TTL) return state.cache.data;
+  if (state.pending) return state.pending;
+  if (Date.now() < state.nextAttemptAt) return staleAnalysis();
 
-  try {
-    const newsText = await fetchNewsForAnalysis(baseUrl);
-    if (!newsText) return null;
-
-    const analysis = await analyzeWithAI(newsText);
-    analysisCache = { data: analysis, ts: Date.now() };
-    return analysis;
-  } catch (e) {
-    console.error('News analysis error:', e);
-    // Cache varsa eski veriyi dön
-    if (analysisCache) return analysisCache.data;
-    return null;
-  }
+  // Defer execution until pending is set, including synchronous configuration errors.
+  state.pending = Promise.resolve().then(async () => {
+    try {
+      getAIConfig();
+      const newsText = await fetchNewsForAnalysis(baseUrl);
+      if (!newsText) {
+        state.nextAttemptAt = Date.now() + FAILURE_COOLDOWN;
+        return staleAnalysis();
+      }
+      const analysis = await analyzeWithAI(newsText);
+      state.cache = { data: analysis, ts: Date.now() };
+      state.nextAttemptAt = 0;
+      return analysis;
+    } catch (error) {
+      const retryMs = error instanceof AIServiceError && error.retryAfter
+        ? Math.min(86400, error.retryAfter) * 1000 : FAILURE_COOLDOWN;
+      state.nextAttemptAt = Date.now() + Math.max(FAILURE_COOLDOWN, retryMs);
+      return staleAnalysis();
+    }
+  }).finally(() => { state.pending = null; });
+  return state.pending;
 }
 
 /* ── Yardımcı: Hisse için haber uyarısı bul ── */

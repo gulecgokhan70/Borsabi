@@ -234,7 +234,7 @@ export function WatchlistClient() {
         <div className="text-center py-16">
           <Eye className="w-10 h-10 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Henüz izleme listeniz boş</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">"Ekle" butonuyla favori hisselerinizi ekleyin</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">&quot;Ekle&quot; butonuyla favori hisselerinizi ekleyin</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

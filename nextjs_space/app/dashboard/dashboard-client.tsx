@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -95,15 +96,20 @@ export function DashboardClient() {
     localStorage.setItem('pwa-banner-dismissed', 'true');
   };
 
-  const fetchData = useCallback(async () => {
+  const requestVersion = useRef(0);
+  const [refreshError, setRefreshError] = useState('');
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
+    const version = ++requestVersion.current;
+    const get = async (url: string) => { const response = await fetch(url, { signal }); if (!response.ok) throw new Error('Veri alınamadı.'); return response.json(); };
     setLoading(true);
     try {
       const [indRes, stockRes, cryptoRes, portRes] = await Promise.allSettled([
-        fetch(`/api/market?symbols=${BIST_INDICES.map((i: any) => i?.symbol).join(',')}`).then((r: any) => r?.json?.()),
-        fetch(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 20).map((s: any) => s?.symbol).join(',')}`).then((r: any) => r?.json?.()),
-        fetch(`/api/market?symbols=${CRYPTO_ASSETS.map((c: any) => c?.symbol).join(',')}`).then((r: any) => r?.json?.()),
-        fetch('/api/portfolio').then((r: any) => r?.json?.()),
+        get(`/api/market?symbols=${BIST_INDICES.map((i: any) => i?.symbol).join(',')}`),
+        get(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 20).map((s: any) => s?.symbol).join(',')}`),
+        get(`/api/market?symbols=${CRYPTO_ASSETS.map((c: any) => c?.symbol).join(',')}`),
+        get('/api/portfolio'),
       ]);
+      if (signal?.aborted || version !== requestVersion.current) return;
       if (indRes?.status === 'fulfilled') {
         setIndices(indRes?.value?.data ?? []);
         if (indRes?.value?.marketOpen !== undefined) setBistOpen(indRes.value.marketOpen);
@@ -111,47 +117,28 @@ export function DashboardClient() {
       if (stockRes?.status === 'fulfilled') setStocks(stockRes?.value?.data ?? []);
       if (cryptoRes?.status === 'fulfilled') setCryptos(cryptoRes?.value?.data ?? []);
       if (portRes?.status === 'fulfilled') setPortfolio(portRes?.value ?? null);
-      setLastUpdate(Date.now());
+      const complete = [indRes, stockRes, cryptoRes, portRes].every(result => result.status === 'fulfilled');
+      if (complete) { setLastUpdate(Date.now()); setRefreshError(''); }
+      else setRefreshError('Bazı veriler yenilenemedi. Önceki değerler gösteriliyor; bağlantınızı kontrol edin.');
     } catch (e: any) {
       console.error('Dashboard fetch error:', e);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useVisiblePoll(fetchData, 30_000);
 
-  // Fetch market alerts + AI news analysis
-  useEffect(() => {
-    let cancelled = false;
-    async function loadAlerts() {
-      try {
-        setAlertsLoading(true);
-        setNewsLoading(true);
-        const [alertRes, newsRes] = await Promise.allSettled([
-          fetch('/api/market-alerts').then(r => r.json()),
-          fetch('/api/news-analysis').then(r => r.json()),
-        ]);
-        if (!cancelled) {
-          if (alertRes.status === 'fulfilled') setMarketAlerts(alertRes.value?.alerts || []);
-          if (newsRes.status === 'fulfilled' && newsRes.value?.impact) setNewsImpact(newsRes.value.impact);
-        }
-      } catch (e) {
-        console.error('Market alerts error:', e);
-      } finally {
-        if (!cancelled) { setAlertsLoading(false); setNewsLoading(false); }
-      }
-    }
-    loadAlerts();
-    const interval = setInterval(loadAlerts, 15 * 60 * 1000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
-
-  // Otomatik yenileme - 60 saniye
-  useEffect(() => {
-    const interval = setInterval(() => { fetchData(); }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  useVisiblePoll(async signal => {
+    setAlertsLoading(true); setNewsLoading(true);
+    try {
+      const get = async (url: string) => { const response = await fetch(url, { signal }); if (!response.ok) throw new Error(); return response.json(); };
+      const [alertRes, newsRes] = await Promise.allSettled([get('/api/market-alerts'), get('/api/news-analysis')]);
+      if (signal.aborted) return;
+      if (alertRes.status === 'fulfilled') setMarketAlerts(alertRes.value?.alerts || []);
+      if (newsRes.status === 'fulfilled' && newsRes.value?.impact) setNewsImpact(newsRes.value.impact);
+    } finally { if (!signal.aborted) { setAlertsLoading(false); setNewsLoading(false); } }
+  }, 15 * 60_000);
 
   // Tick every 30s to update relative time display
   useEffect(() => {
@@ -214,7 +201,7 @@ export function DashboardClient() {
             <span className={`w-2 h-2 rounded-full ${lastUpdate && (Date.now() - lastUpdate) > 120000 ? 'bg-[#F59E0B]' : 'bg-[#22C55E] animate-pulse'}`} />
             <span>{lastUpdate ? `${formatTimeAgo(lastUpdate)} güncellendi` : 'Yükleniyor...'}</span>
           </div>
-          <button onClick={fetchData} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
+          <button onClick={() => fetchData()} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -227,6 +214,8 @@ export function DashboardClient() {
         </div>
       )}
 
+      {refreshError && <p role="status" className="text-sm text-amber-500">{refreshError}</p>}
+      {portfolio?.error ? <div role="alert" className="glass-card p-4 text-sm text-[#F59E0B]">{portfolio.error}</div> : <>
       {/* Portfolio summary cards */}
       <motion.div {...fadeIn} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
@@ -266,6 +255,7 @@ export function DashboardClient() {
         </div>
       </motion.div>
 
+      </>}
       {/* Piyasa Uyarıları + AI Analiz */}
       <motion.div {...fadeIn} transition={{ delay: 0.05 }}>
         <div className="glass-card rounded-xl border border-black/[0.08] dark:border-white/[0.08] overflow-hidden">

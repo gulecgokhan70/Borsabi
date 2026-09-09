@@ -1,7 +1,7 @@
 generator client {
     provider = "prisma-client-js"
     binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
-    output = "/home/ubuntu/master_trader/nextjs_space/node_modules/.prisma/client"
+    output = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -28,10 +28,31 @@ model User {
   chatMessages   ChatMessage[]
   priceAlerts    PriceAlert[]
   achievements   Achievement[]
+  tradeRequests  TradeRequest[]
+  notifications  AppNotification[]
+  pushSubscriptions PushSubscription[]
+  replaySessions ReplaySession[]
+  aiContentReports AiContentReport[]
   followers      SocialFollow[] @relation("following")
   following      SocialFollow[] @relation("followers")
 
   @@index([email])
+}
+
+model AiContentReport {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  source String
+  content String
+  reason String
+  comment String?
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  @@unique([userId, fingerprint])
+  @@index([status, createdAt])
 }
 
 model Position {
@@ -44,11 +65,13 @@ model Position {
   side          String   @default("LONG") // LONG or SHORT
   quantity       Float
   entryPrice    Float
+  entryPriceTry Float?   // Weighted cost per unit in TRY; null legacy crypto requires review
   currentPrice  Float    @default(0)
   stopLoss      Float?   
   takeProfit    Float?   
   trailingStopPercent Float?
   trailingStopHighest Float?
+  autoExit      Boolean  @default(false)
   commission    Float    @default(0)
   status        String   @default("OPEN") // OPEN, CLOSED
   pnl           Float    @default(0)
@@ -71,6 +94,8 @@ model Transaction {
   marketType  String   @default("BIST") // BIST, CRYPTO
   quantity    Float
   price       Float
+  fxRate      Float?    // TRY per quote currency unit at execution; null on legacy records
+  fxAsOf      DateTime? // Source timestamp for the USD/TRY quote
   total       Float
   commission  Float    @default(0)
   stopLoss    Float?
@@ -78,6 +103,10 @@ model Transaction {
   pnl         Float?   
   pnlPercent  Float?   
   note        String?
+  pricePnlTry Float?
+  fxPnlTry Float?
+  buyCommissionTry Float?
+  executionReason String?
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -157,4 +186,52 @@ model ScanCache {
   createdAt DateTime @default(now())
 
   @@index([id])
+}
+
+model TradeRequest {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String
+  fingerprint String
+  result Json
+  createdAt DateTime @default(now())
+  @@unique([userId, requestId])
+}
+
+model AppNotification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey String @unique
+  title String
+  body String
+  url String @default("/portfolio")
+  readAt DateTime?
+  pushedAt DateTime?
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+  @@index([pushedAt, createdAt])
+}
+
+model PushSubscription {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  p256dh String
+  auth String
+  createdAt DateTime @default(now())
+}
+
+model ReplaySession {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state Json
+  version Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, createdAt])
 }

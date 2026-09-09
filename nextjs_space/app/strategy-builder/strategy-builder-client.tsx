@@ -379,7 +379,7 @@ export default function StrategyBuilderClient() {
                 </div>
               )}
               {rules.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Henüz kural eklenmedi. "Kural Ekle" veya bir şablon seçin.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Henüz kural eklenmedi. &quot;Kural Ekle&quot; veya bir şablon seçin.</p>
               )}
             </motion.div>
           )}
@@ -406,7 +406,7 @@ export default function StrategyBuilderClient() {
             <div className="glass-card rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Award className="w-4 h-4 text-[#F59E0B]" /> "{result.name}" Sonuçları
+                  <Award className="w-4 h-4 text-[#F59E0B]" /> &quot;{result.name}&quot; Sonuçları
                 </h3>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black ${getGrade(result.summary.totalReturn).bg}`}
                   style={{ color: getGrade(result.summary.totalReturn).color }}>
