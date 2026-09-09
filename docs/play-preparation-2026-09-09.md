@@ -34,7 +34,7 @@ Bunlar istek/veri hacmi ölçümleridir. Gerçek Android cihazında açılış s
 
 - Yerel: 164 birim, API ve bileşen testi geçti; TypeScript ve ESLint geçti; üretim derlemesi tamamlandı.
 - Yeni PostgreSQL senaryoları: ilişkili veri silme ve diğer hesabı koruma, yanlış şifre, son silmede hata olursa tüm kayıtları geri alma, eşzamanlı alış/satış, dönem/hesap bazlı özet ve şema tekrar uygulamasında verileri koruma.
-- Yerel ortamda PostgreSQL sunucusu yoktur. Bu veritabanı senaryoları ve mevcut işlem testleri, GitHub Actions'taki yalnızca `localhost/borsabi_test` veritabanında çalıştırılmalıdır. Gerçek sonuç ilgili commit'in CI kaydından izlenmelidir; yerel birim testleri bunların yerine geçmez.
+- GitHub Actions: PostgreSQL 16 üzerindeki 25 entegrasyon testi, 164 uygulama testi, TypeScript, ESLint ve üretim derlemesi başarılı. Testler yalnızca geçici `localhost/borsabi_test` veritabanında çalıştı; canlı kullanıcı verisine dokunulmadı. [Doğrulanmış kontrol kaydı](https://github.com/gulecgokhan70/Borsabi/actions/runs/34341748082).
 
 ## Yayınlama ve kalan işler
 
@@ -46,6 +46,8 @@ Hesap silme aktif veritabanını temizler; geçmiş yedekleri, önceden cihaza u
 
 Play Console veri güvenliği açıklamaları, gizlilik metninin işletmeci bilgileri/saklama süreleri, uygulama sınıflandırması, kapalı test, Android paket/cihaz denemeleri ve gerekiyorsa ödeme entegrasyonu ayrıca tamamlanmalıdır. Bu kod değişiklikleri mağaza uygunluğunun tamamını doğrulamaz.
 
-## Bu çalışma oturumunun teslim durumu
+## Teslim durumu
 
-Kod yerel `codex/fix-trading-and-alerts` dalında commit olarak kaydedildi. GitHub bağlantısı yazma işlemine `403 Resource not accessible by integration` döndürdü. Standart Git gönderimi de otomatik onay denetiminde, bu kaynak kodlarını `gulecgokhan70/Borsabi` deposuna gönderme yetkisinin açıkça teyit edilmesi gerektiği gerekçesiyle reddedildi. Bu nedenle yeni commit uzaktaki dala aktarılmadı, PostgreSQL CI çalıştırılmadı ve canlı sunucu güncellenmedi.
+Kod, `e84030404f02ec91993b0eabf687494fe7568875` commit'iyle `gulecgokhan70/Borsabi` deposundaki `codex/fix-trading-and-alerts` dalına gönderildi. Uzak dalın aynı commit'i gösterdiği doğrulandı. [GitHub Actions çalışması](https://github.com/gulecgokhan70/Borsabi/actions/runs/34341748082) tüm adımlarda başarılı tamamlandı. Bu notu güncelleyen sonraki commit yalnızca dokümantasyonu değiştirir.
+
+Canlı VPS bu çalışma sırasında güncellenmedi. Hosting terminalinde mevcut `deploy-platform.sh` akışıyla yayın yapılmalıdır. Yeni tablo için bu script'in şema adımı gereklidir. Yayın sonunda `SURUM YAYINDA` çıktısı, hesap silme sayfasının açılması, öğrenme özetinin yüklenmesi ve bir test AI bildiriminin yönetici ekranına ulaşması kontrol edilmelidir. Gerçek kullanıcı hesabı silerek deneme yapılmamalı; hesap silme cihaz kontrolü için ayrı bir test hesabı kullanılmalıdır.
