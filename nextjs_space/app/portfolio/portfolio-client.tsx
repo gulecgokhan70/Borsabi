@@ -273,6 +273,7 @@ export function PortfolioClient() {
               const pnl = p?.pnl ?? (((p?.currentPrice ?? 0) - (p?.entryPrice ?? 0)) * (p?.quantity ?? 0) - (p?.commission ?? 0));
               const pnlPct = p?.pnlPercent ?? ((p?.entryPrice ?? 0) > 0 ? ((pnl / ((p?.entryPrice ?? 0) * (p?.quantity ?? 0))) * 100) : 0);
               const totalValue = p?.totalValue ?? ((p?.currentPrice ?? 0) * (p?.quantity ?? 0));
+              const hasFx = (p?.currency ?? (p?.type === 'CRYPTO' ? 'USD' : 'TRY')) !== 'TRY';
               return (
                 <div key={p?.id} className="px-4 py-3 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors">
                   <div className="flex items-center justify-between mb-2">
@@ -322,11 +323,16 @@ export function PortfolioClient() {
                     <summary className="cursor-pointer min-h-[36px]">Kâr/zarar nasıl oluştu?</summary>
                     <dl className="grid grid-cols-2 gap-2">
                       <dt>Fiyat etkisi</dt><dd>{formatCurrency(p.breakdown.pricePnlTry)}</dd>
-                      <dt>Kur etkisi</dt><dd>{formatCurrency(p.breakdown.fxPnlTry)}</dd>
-                      <dt>Alış komisyonu</dt><dd>−{formatCurrency(p.breakdown.commissionTry)}</dd>
+                      {hasFx && <><dt>Kur etkisi</dt><dd>{formatCurrency(p.breakdown.fxPnlTry)}</dd></>}
+                      <dt>Alış komisyonu</dt><dd>{p.breakdown.commissionTry > 0 ? '−' : ''}{formatCurrency(p.breakdown.commissionTry)}</dd>
                       <dt>Açık net sonuç</dt><dd>{formatCurrency(pnl)}</dd>
                     </dl>
-                    <p className="mt-2 text-muted-foreground">Fiyat etkisi ortalama giriş kuruyla, kur etkisi güncel fiyatla hesaplanır. Olası satış komisyonu henüz dahil değildir.</p>
+                    <p className="mt-2 text-muted-foreground">
+                      {hasFx
+                        ? 'Fiyat etkisi ortalama giriş kuruyla, kur etkisi güncel fiyatla hesaplanır. '
+                        : 'Fiyat etkisi, güncel fiyat ile ortalama alış fiyatı arasındaki farkın adetle çarpımıdır. '}
+                      Olası satış komisyonu henüz dahil değildir.
+                    </p>
                   </details>}
                   <AutoExitControl position={p} onChange={fetchPortfolio} />
                   {/* Stop Loss / Take Profit / Trailing */}
