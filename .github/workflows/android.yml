@@ -1,0 +1,52 @@
+name: Android package preparation
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'nextjs_space/public/icon-*.png'
+      - 'nextjs_space/public/manifest.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unsigned-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: android/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install pinned generator
+        working-directory: android
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Validate preparation inputs
+        working-directory: android
+        run: npm test
+      - name: Generate isolated preview identity
+        working-directory: android
+        run: npm run prepare:preview
+      - name: Install Android API 36
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0"'
+      - name: Build unsigned preview and run Android lint
+        working-directory: android/generated/com.borsabi.packagingpreview-1
+        run: bash gradlew --no-daemon :app:bundleRelease :app:lintRelease
+      - name: Verify built package identity and target
+        run: python3 android/scripts/verify-bundle.py android/generated/com.borsabi.packagingpreview-1
+      - name: Save unsigned build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-preview-unsigned-not-for-play
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            android/generated/com.borsabi.packagingpreview-1/app/build/outputs/bundle/release/app-release.aab
+            android/generated/com.borsabi.packagingpreview-1/app/build/reports/lint-results-release.html
+            android/generated/com.borsabi.packagingpreview-1/PREPARATION.json
