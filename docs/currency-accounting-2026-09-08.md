@@ -30,6 +30,13 @@ yeniden yazılmaz. Başarısız açılışta systemd ayarı eski uygulamaya dön
 güncel işlemler üzerine otomatik yüklenmez. Sunucudaki gerçek geçiş ayrıca
 doğrulanmalıdır; kaynak kod testleri canlı dağıtım kanıtı değildir.
 
+`bash /opt/borsabi/nextjs_space/scripts/deploy-currency.sh --check` yalnızca
+başlangıç kontrollerini yapar: root, ortam dosyasının varlığı, aktif servis ve
+takip edilen dosyalardaki yerel değişiklikler. Paket kurulumu, derleme, servis
+değişikliği veya veritabanı işlemi yapmaz; geçiş denetiminin yerine geçmez.
+Betik durursa nedeni ve ilgili aşama yazılır. Yerel değişikliklerde yalnızca
+dosya adları gösterilir; dosyalar otomatik sıfırlanmaz, ortam dosyası okunmaz.
+
 ## Doğrulama senaryoları
 
 - Kur değişip dolar fiyatı aynı kaldığında TL K/Z değişir.
