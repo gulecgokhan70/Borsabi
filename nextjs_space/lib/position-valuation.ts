@@ -1,4 +1,5 @@
 import type { Position } from '@prisma/client';
+import { pnlBreakdown } from './pnl-breakdown';
 import { getMarketQuotes, normalizeMarketSymbol } from './market-quotes';
 import { getUsdTryRate } from './fx';
 import { CurrencyError, entryCostTry, quoteCurrency, toTry } from './currency';
@@ -23,8 +24,9 @@ export async function valuePositions(positions: Position[]) {
     const totalValue = currentPriceTry * position.quantity;
     const totalCost = entryPriceTry * position.quantity + position.commission;
     const pnl = totalValue - totalCost;
+    const breakdown = pnlBreakdown(position.quantity, position.entryPrice, entryPriceTry, currentPrice, fxRate, position.commission);
     return { ...position, currency, currentPrice, currentPriceTry, entryPriceTry, fxRate,
       fxAsOf: position.type === 'CRYPTO' ? fx!.asOf : null, priceStale: !validQuote,
-      totalValue, totalCost, pnl, pnlPercent: totalCost > 0 ? pnl / totalCost * 100 : 0 };
+      totalValue, totalCost, pnl, breakdown, pnlPercent: totalCost > 0 ? pnl / totalCost * 100 : 0 };
   });
 }

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, Shield, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,6 +50,10 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [fxError, setFxError] = useState('');
   const [accountReady, setAccountReady] = useState(false);
   const [accountError, setAccountError] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [pending, setPending] = useState<string | null>(null);
+  const [autoExit, setAutoExit] = useState(false);
+  const busy = useRef(false);
 
   useEffect(() => { setType(side); }, [side]);
 
@@ -87,6 +91,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
       if (cancelled) return;
       if (data.error) throw new Error(data.error);
       setUserBalance(data.balance); setUserCommRate(data.commissionRate);
+      setAccountId(data.accountId ?? '');
+      if (data.accountId) setPending(sessionStorage.getItem(`borsabi-order:${data.accountId}`));
       const pos = (data.positions ?? []).find((p: any) => p.symbol === symbol);
       setUserPositionQty(pos?.quantity ?? 0); setAccountReady(true);
     }).catch(error => { if (!cancelled) setAccountError(error.message || 'Bakiye alınamadı.'); });
@@ -130,8 +136,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   }, [inputMode, cashAmount, unitPriceTry, type, userCommRate, marketType]);
 
   const handleTrade = async () => {
-    if (loading || !accountReady || fxRate <= 0) return;
-    if (qty <= 0) { toast.error('Geçerli bir miktar girin'); return; }
+    if (busy.current || loading || !accountReady || (!pending && fxRate <= 0)) return;
+    if (!pending && qty <= 0) { toast.error('Geçerli bir miktar girin'); return; }
     if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) {
       toast.error('Limit fiyatı girin'); return;
     }
@@ -139,25 +145,29 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
       if (!stopPrice || parseFloat(stopPrice) <= 0) { toast.error('Stop fiyatı girin'); return; }
       if (!limitPrice || parseFloat(limitPrice) <= 0) { toast.error('Limit fiyatı girin'); return; }
     }
-    setLoading(true);
+    busy.current = true; setLoading(true);
     try {
+      const payload = pending ?? JSON.stringify({
+        symbol, name, type, marketType, quantity: qty, price: execPrice, orderType,
+        requestId: crypto.randomUUID(),
+        maxSpendTry: type === 'BUY' ? (inputMode === 'cash' ? parseFloat(cashAmount) : totalWithCommission) : undefined,
+        autoExit: type === 'BUY' ? autoExit : undefined,
+        stopLoss: sl > 0 ? sl : null, takeProfit: tp > 0 ? tp : null,
+        trailingStopPercent: trailingStop ? (parseFloat(trailingPercent) || 3) : null, note: note || null,
+      });
+      if (accountId) sessionStorage.setItem(`borsabi-order:${accountId}`, payload);
+      setPending(payload);
       const res = await fetch('/api/trade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol, name, type, marketType, quantity: qty,
-          price: execPrice,
-          orderType,
-          limitPrice: orderType !== 'market' ? parseFloat(limitPrice) : null,
-          stopPrice: orderType === 'stop-limit' ? parseFloat(stopPrice) : null,
-          stopLoss: sl > 0 ? sl : null,
-          takeProfit: tp > 0 ? tp : null,
-          trailingStopPercent: trailingStop ? (parseFloat(trailingPercent) || 3) : null,
-          note: note || null,
-        }),
+        body: payload,
       });
       const data = await res.json();
-      if (!res.ok) { haptic.warning(); toast.error(data?.error ?? 'İşlem başarısız'); return; }
+      if (res.ok || (res.status >= 400 && res.status < 500 && ![401, 403, 408, 429].includes(res.status))) {
+        if (accountId) sessionStorage.removeItem(`borsabi-order:${accountId}`);
+        setPending(null);
+      }
+      if (!res.ok) { haptic.warning(); toast.error(data?.error ?? 'İşlem başarısız'); if (res.status === 409) onSuccess?.(); return; }
       const orderLabel = orderType === 'market' ? '' : orderType === 'limit' ? ' (Limit Emir)' : ' (Stop-Limit Emir)';
       haptic.success();
       toast.success((data?.message ?? 'İşlem başarılı') + orderLabel);
@@ -172,10 +182,10 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
       onSuccess?.();
       onClose();
     } catch (e: any) {
-      toast.error('İşlem hatası');
+      toast.error('İşlem sonucu doğrulanamadı. Aynı isteğin sonucunu kontrol ederek tekrar deneyin.');
       console.error(e);
     } finally {
-      setLoading(false);
+      busy.current = false; setLoading(false);
     }
   };
 
@@ -218,6 +228,11 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           </div>
 
           <div className="p-4 pt-3 space-y-3 sm:space-y-4">
+            {pending && <div role="alert" className="p-3 glass-inner rounded-lg text-sm">
+              Son emrin sonucu henüz doğrulanmadı. Yeni emir vermeden önce aynı isteği güvenle kontrol edin.
+              <button disabled={loading} onClick={handleTrade} className="block min-h-[44px] text-[#3B82F6]">Son emrin sonucunu kontrol et</button>
+            </div>}
+            <fieldset disabled={loading || !!pending} className="space-y-3 min-w-0">
             {/* Buy/Sell toggle */}
             <div className="grid grid-cols-2 gap-2 p-1 glass-inner rounded-lg">
               <button
@@ -494,6 +509,10 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
             )}
 
             {accountError && <p role="alert" className="text-sm text-[#F59E0B]">{accountError}</p>}
+            {type === 'BUY' && <label className="flex gap-3 items-start text-sm p-3 glass-inner rounded-lg">
+              <input type="checkbox" checked={autoExit} onChange={e => setAutoExit(e.target.checked)} className="mt-1 h-5 w-5" />
+              <span>Otomatik simülasyon satışı<span className="block text-xs text-muted-foreground">Zarar kes / kâr al sunucuda kontrol edilir. Eşik fiyatı garanti edilmez; ilk geçerli gözlenen fiyatla satılır. Kapalıysa seviyeler yalnızca plan olarak saklanır.</span></span>
+            </label>}
             {marketType === 'CRYPTO' && <p role={fxError ? 'alert' : undefined} className="text-xs text-muted-foreground">
               {fx ? `1 USD = ${formatCurrency(fx.rate)} • Kur zamanı: ${new Date(fx.asOf).toLocaleString('tr-TR')}. Tutarlar tahminidir; işlemde sunucunun son kuru kullanılır.` : fxError || 'USD/TL kuru yükleniyor…'}
             </p>}
@@ -538,6 +557,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                 </>
               )}
             </button>
+            </fieldset>
           </div>
         </motion.div>
       </div>

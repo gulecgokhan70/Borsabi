@@ -1,4 +1,4 @@
-const CACHE_NAME = 'borsabi-v2';
+const CACHE_NAME = 'borsabi-v3';
 const STATIC_ASSETS = [
   '/favicon.svg',
   '/favicon.ico',
@@ -16,6 +16,20 @@ self.addEventListener('install', (event) => {
     })
   );
   self.skipWaiting();
+});
+
+self.addEventListener('push', event => {
+  let data;
+  try { data = event.data?.json(); } catch { return; }
+  if (!data || typeof data.title !== 'string') return;
+  const url = typeof data.url === 'string' && /^\/(portfolio|trade-log|alerts)(?:[/?#]|$)/.test(data.url) ? data.url : '/portfolio';
+  event.waitUntil(self.registration.showNotification(data.title, { body: data.body, icon: '/icon-192x192.png', tag: data.id, data: { url } }));
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || '/portfolio', self.location.origin);
+  if (url.origin !== self.location.origin) return;
+  event.waitUntil(self.clients.openWindow(url.href));
 });
 
 // Activate - clean ALL old caches

@@ -171,7 +171,7 @@ export function BreakingNewsBanner() {
 
   return (
     <div
-      className="fixed bottom-20 left-4 right-4 lg:bottom-4 lg:left-auto lg:right-4 lg:max-w-[420px] z-[60]"
+      className="relative mb-4 w-full"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -210,7 +210,8 @@ export function BreakingNewsBanner() {
               </div>
               <button
                 onClick={handleDismiss}
-                className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors flex-shrink-0"
+                aria-label="Haberi kapat"
+                className="min-h-[44px] min-w-[44px] p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>

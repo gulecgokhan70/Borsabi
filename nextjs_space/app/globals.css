@@ -281,3 +281,5 @@
     background: linear-gradient(135deg, #0A0A0A 0%, #141414 50%, #0A0A0A 100%);
   }
 }
+/* Comfortable touch targets for the stock chart, including full screen. */
+.chart-touch button { min-height: 44px; min-width: 44px; }

@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { executeTrade, tradeSchema } from '../../lib/trading';
 import { applyCurrencySchema, currencyAudit } from '../../lib/currency-migration';
+import { applyPlatformSchema } from '../../lib/platform-migration';
+import { pnlBreakdown } from '../../lib/pnl-breakdown';
 
 const connection = process.env.TEST_DATABASE_URL;
 if (!connection) throw new Error('TEST_DATABASE_URL is required; use a disposable localhost borsabi_test database.');
@@ -31,6 +33,68 @@ afterAll(async () => {
   await db.$disconnect();
 });
 describe('PostgreSQL trading ledger', () => {
+  it('applies the platform schema twice without changing balances or opting old positions into automation', async () => {
+    await executeTrade(db, userId, input('BUY', 1), 100);
+    const before = await db.user.findUniqueOrThrow({ where: { id: userId } });
+    await applyPlatformSchema(db); await applyPlatformSchema(db);
+    expect(await db.user.findUniqueOrThrow({ where: { id: userId } })).toEqual(before);
+    expect((await db.position.findFirstOrThrow({ where: { userId } })).autoExit).toBe(false);
+  });
+  it('blocks a price or FX move beyond the budget before any cash or ledger write', async () => {
+    const order = tradeSchema.parse({ ...input('BUY', 9), maxSpendTry: 910, requestId: randomUUID() });
+    await expect(executeTrade(db, userId, order, 102)).rejects.toThrow('bütçe sınırı');
+    expect(await db.transaction.count({ where: { userId } })).toBe(0);
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBe(1000);
+    const crypto = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY', quantity: .1, maxSpendTry: 305, requestId: randomUUID() });
+    await expect(executeTrade(db, userId, crypto, 100, { rate: 31, asOf: new Date() })).rejects.toThrow('bütçe sınırı');
+    expect(await db.tradeRequest.count({ where: { userId } })).toBe(0);
+  });
+  it('returns the saved result for concurrent and later retries without double debits', async () => {
+    const order = tradeSchema.parse({ ...input('BUY', 2), requestId: randomUUID(), maxSpendTry: 201 });
+    const results = await Promise.all([executeTrade(db, userId, order, 100), executeTrade(db, userId, order, 100)]);
+    expect(results[0]).toEqual(results[1]);
+    expect(await executeTrade(db, userId, order, 200)).toEqual(results[0]);
+    expect(await db.transaction.count({ where: { userId } })).toBe(1);
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBeCloseTo(799.6);
+    await expect(executeTrade(db, userId, { ...order, quantity: 3 }, 100)).rejects.toThrow('farklı bir emir');
+  });
+  it('rolls back a receipt together with the failed ledger write and allows a retry', async () => {
+    const order = tradeSchema.parse({ ...input('BUY', 2), requestId: randomUUID() });
+    const failed = db.$extends({ query: { tradeRequest: { create() { throw new Error('receipt unavailable'); } } } });
+    await expect(executeTrade(failed as unknown as PrismaClient, userId, order, 100)).rejects.toThrow('receipt unavailable');
+    expect(await db.transaction.count({ where: { userId } })).toBe(0);
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBe(1000);
+    await executeTrade(db, userId, order, 100);
+    expect(await db.transaction.count({ where: { userId } })).toBe(1);
+  });
+  it('reconciles saved price, FX and commission attribution with realized cash', async () => {
+    const buy = tradeSchema.parse({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY', quantity: .1 });
+    await executeTrade(db, userId, buy, 100, { rate: 30, asOf: new Date() });
+    await executeTrade(db, userId, { ...buy, type: 'SELL' }, 110, { rate: 32, asOf: new Date() });
+    const t = await db.transaction.findFirstOrThrow({ where: { userId, type: 'SELL' } });
+    const parts = pnlBreakdown(.1, 100, 3000, 110, 32, .6, .704);
+    expect(t.pricePnlTry).toBeCloseTo(parts.pricePnlTry); expect(t.fxPnlTry).toBeCloseTo(parts.fxPnlTry);
+    expect(t.pnl).toBeCloseTo(t.pricePnlTry! + t.fxPnlTry! - t.buyCommissionTry! - t.commission);
+    expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance - 1000).toBeCloseTo(t.pnl!);
+  });
+  it('sells an opted-in position at most once and persists its notification atomically', async () => {
+    await executeTrade(db, userId, { ...input('BUY', 2), autoExit: true, stopLoss: 90 }, 100);
+    const p = await db.position.findFirstOrThrow({ where: { userId } });
+    const sell = tradeSchema.parse({ ...input('SELL', 2), requestId: `auto:${p.id}:${p.updatedAt.getTime()}` });
+    const options = { positionId: p.id, updatedAt: p.updatedAt, reason: 'Zarar kes' };
+    await Promise.all([executeTrade(db, userId, sell, 89, undefined, options), executeTrade(db, userId, sell, 89, undefined, options)]);
+    expect(await db.transaction.count({ where: { userId, type: 'SELL' } })).toBe(1);
+    expect(await db.appNotification.count({ where: { userId } })).toBe(1);
+    expect((await db.position.findUniqueOrThrow({ where: { id: p.id } })).status).toBe('CLOSED');
+  });
+  it('does not sell from an old automation snapshot after a manual position change or opt-out', async () => {
+    await executeTrade(db, userId, { ...input('BUY', 2), autoExit: true, stopLoss: 90 }, 100);
+    const p = await db.position.findFirstOrThrow({ where: { userId } });
+    await executeTrade(db, userId, { ...input('BUY', 1), autoExit: false }, 101);
+    await expect(executeTrade(db, userId, input('SELL', 2), 89, undefined, { positionId: p.id, updatedAt: p.updatedAt, reason: 'Zarar kes' })).rejects.toThrow('Pozisyon değişti');
+    expect(await db.transaction.count({ where: { userId, type: 'SELL' } })).toBe(0);
+    expect((await db.position.findUniqueOrThrow({ where: { id: p.id } })).quantity).toBe(3);
+  });
   it('permits only the affordable concurrent buy', async () => {
     const results = await Promise.allSettled([
       executeTrade(db, userId, input('BUY', 6), 100),

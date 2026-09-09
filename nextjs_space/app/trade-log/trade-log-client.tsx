@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ScrollText, Loader2, TrendingUp, TrendingDown, Target, Award, BarChart3, DollarSign, ArrowRight, Clock } from 'lucide-react';
+import { TransactionCoach } from '@/components/transaction-coach';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import Link from 'next/link';
 
@@ -60,8 +61,8 @@ export function TradeLogClient() {
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
-            <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Toplam İşlem</span></div>
-            <p className="text-lg font-bold font-mono text-foreground">{stats?.totalTrades ?? 0}</p>
+            <div className="flex items-center gap-2 mb-2"><BarChart3 className="w-4 h-4 text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Alım / Satış</span></div>
+            <p className="text-lg font-bold font-mono text-foreground">{stats?.buyCount ?? 0} / {stats?.sellCount ?? 0}</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
             <div className="flex items-center gap-2 mb-2"><Award className="w-4 h-4 text-[#22C55E]" /><span className="text-xs text-muted-foreground">Kazanç Oranı</span></div>
@@ -165,6 +166,7 @@ export function TradeLogClient() {
                       )}
                     </div>
 
+                    <TransactionCoach transactionId={t.id} />
                     {/* Right: PnL */}
                     <div className="sm:w-[180px] sm:text-right">
                       {pnlInfo ? (

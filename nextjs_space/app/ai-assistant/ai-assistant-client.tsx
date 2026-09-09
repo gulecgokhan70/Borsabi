@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import type { EvidenceSource } from '@/lib/evidence';
 import { CHAT_HISTORY_LIMIT } from '@/lib/chat-context';
 import { motion } from 'framer-motion';
 import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-react';
@@ -26,6 +27,7 @@ const SUGGESTIONS = [
 interface ChatMsg {
   role: string;
   content: string;
+  sources?: EvidenceSource[];
 }
 
 export function AiAssistantClient() {
@@ -60,13 +62,15 @@ export function AiAssistantClient() {
         return;
       }
 
+      let sources: EvidenceSource[] = [];
+      try { sources = JSON.parse(decodeURIComponent(res.headers.get('X-BorsaBi-Sources') || '%5B%5D')); } catch { /* Older servers do not send metadata. */ }
       const reader = res?.body?.getReader?.();
       if (!reader) return;
       const decoder = new TextDecoder();
       let assistantContent = '';
       let partialRead = '';
 
-      setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: '' }]);
+      setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: '', sources }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -87,7 +91,7 @@ export function AiAssistantClient() {
                 setMessages((prev: ChatMsg[]) => {
                   const updated = [...prev];
                   if ((updated?.length ?? 0) > 0) {
-                    updated[(updated?.length ?? 1) - 1] = { role: 'assistant', content: assistantContent };
+                    updated[(updated?.length ?? 1) - 1] = { role: 'assistant', content: assistantContent, sources };
                   }
                   return updated;
                 });
@@ -157,6 +161,7 @@ export function AiAssistantClient() {
                   </div>
                 )}
                 <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>
+                {!!msg.sources?.length && <details className="mt-3 text-xs border-t border-white/10 pt-2"><summary className="min-h-[44px] cursor-pointer">Kullanılan veri kaynakları</summary>{msg.sources.map((source, index) => <div key={index} className="py-2"><a href={source.url} target="_blank" rel="noopener noreferrer" className="text-[#3B82F6] underline">{source.label}</a><p>{source.asOf ? new Date(source.asOf).toLocaleString('tr-TR') : 'Kaynak zamanı bilinmiyor'}</p><p>{source.status}</p></div>)}</details>}
               </div>
             </motion.div>
           ))

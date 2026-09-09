@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
       total,
       page,
       stats: {
+        buyCount: allTx.filter(t => t.type === 'BUY').length,
+        sellCount: allTx.filter(t => t.type === 'SELL').length,
         totalTrades: sells?.length ?? 0,
         winCount,
         lossCount,

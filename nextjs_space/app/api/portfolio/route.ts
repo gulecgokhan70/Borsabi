@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
+      accountId: userId,
       balance: user?.balance ?? 100000,
       initialBalance: user?.initialBalance ?? 100000,
       commissionRate: user?.commissionRate ?? 0.002,
@@ -66,6 +67,8 @@ export async function GET(request: NextRequest) {
       realizedPnl,
       winRate,
       totalTrades,
+      buyCount: allTransactions.filter(t => t.type === 'BUY').length,
+      sellCount: allTransactions.filter(t => t.type === 'SELL').length,
       equityCurve,
       distribution,
     });

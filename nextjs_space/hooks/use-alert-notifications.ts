@@ -54,38 +54,24 @@ export function useAlertNotifications() {
     }
   }, [playSound]);
 
-  // Alarm kontrolü
+  // Server owns alarm evaluation; this poll only displays durable events.
+  const seen = useRef(new Set<string>());
   const checkAlerts = useCallback(async () => {
     try {
-      const res = await fetch('/api/alerts/check');
+      const res = await fetch('/api/notifications');
       if (!res.ok) return;
       const data = await res.json();
-      const triggered = data.triggered || [];
-      triggered.forEach((alert: any) => {
-        const direction = alert.condition === 'above' ? '⬆️ Üstüne çıktı' : '⬇️ Altına düştü';
-        sendNotification(
-          `🔔 ${alert.name} Alarmı!`,
-          `${alert.symbol.replace('.IS', '')} ${direction}: ${alert.currentPrice?.toFixed(2)} ${alert.symbol.endsWith('-USD') ? 'USD' : 'TL'} (Hedef: ${alert.targetPrice?.toFixed(2)} ${alert.symbol.endsWith('-USD') ? 'USD' : 'TL'})`
-        );
-      });
-      // İz süren stop bildirimleri
-      const trailingAlerts = data.trailingAlerts || [];
-      trailingAlerts.forEach((ta: any) => {
-        sendNotification(
-          `🚨 ${ta.symbol} İz Süren Stop!`,
-          ta.message ?? `${ta.symbol} trailing stop tetiklendi: ${ta.currentPrice?.toFixed(2)} ${ta.symbol.endsWith('-USD') ? 'USD' : 'TL'}`
-        );
-      });
-    } catch (e) {}
-  }, [sendNotification]);
-
+      for (const event of data.events ?? []) {
+        if (seen.current.has(event.id)) continue;
+        seen.current.add(event.id);
+        if (Date.now() - new Date(event.createdAt).getTime() < 60_000) toast(event.title, { description: event.body });
+      }
+    } catch { /* Persistent events remain available on the portfolio page. */ }
+  }, []);
   useEffect(() => {
-    requestPermission();
     const interval = setInterval(checkAlerts, ALERT_CHECK_INTERVAL);
-    // İlk kontrol 5 sn sonra
-    const timeout = setTimeout(checkAlerts, 5000);
-    return () => { clearInterval(interval); clearTimeout(timeout); };
-  }, [requestPermission, checkAlerts]);
-
+    checkAlerts();
+    return () => clearInterval(interval);
+  }, [checkAlerts]);
   return { requestPermission, sendNotification, checkAlerts };
 }

@@ -111,5 +111,6 @@ export function formatNumber(value: number | null | undefined, decimals = 2): st
 export function formatPercent(value: number | null | undefined): string {
   const v = value ?? 0;
   const sign = v >= 0 ? '+' : '';
-  return `${sign}${v.toFixed(2)}%`;
+  if (v !== 0 && Math.abs(v) < 0.01) return `${sign}${v < 0 ? '−' : ''}<0,01%`;
+  return `${sign}${v.toFixed(2).replace('.', ',')}%`;
 }

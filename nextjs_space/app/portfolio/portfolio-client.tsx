@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend, Line, ComposedChart } from 'recharts';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import { AutoExitControl } from '@/components/auto-exit-control';
+import { NotificationSettings } from '@/components/notification-settings';
 import { TradeModal } from '@/components/trade-modal';
 
 const DIST_COLORS = ['#3B82F6', '#22C55E', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#EC4899', '#14B8A6', '#F97316', '#6366F1'];
@@ -236,6 +238,7 @@ export function PortfolioClient() {
         </motion.div>
       )}
 
+      <NotificationSettings />
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
         <div className="glass-card rounded-xl p-3 border border-black/[0.08] dark:border-white/[0.08] text-center">
@@ -243,11 +246,11 @@ export function PortfolioClient() {
           <p className="text-xl font-bold font-mono text-foreground">{positions?.length ?? 0}</p>
         </div>
         <div className="glass-card rounded-xl p-3 border border-black/[0.08] dark:border-white/[0.08] text-center">
-          <p className="text-xs text-muted-foreground mb-1">Toplam İşlem</p>
-          <p className="text-xl font-bold font-mono text-foreground">{portfolio?.totalTrades ?? 0}</p>
+          <p className="text-xs text-muted-foreground mb-1">Alım / Satış</p>
+          <p className="text-xl font-bold font-mono text-foreground">{portfolio?.buyCount ?? 0} / {portfolio?.sellCount ?? 0}</p>
         </div>
         <div className="glass-card rounded-xl p-3 border border-black/[0.08] dark:border-white/[0.08] text-center">
-          <p className="text-xs text-muted-foreground mb-1">Kazanç Oranı</p>
+          <p className="text-xs text-muted-foreground mb-1">Kârlı Satış Oranı</p>
           <p className="text-xl font-bold font-mono text-foreground">{formatNumber(portfolio?.winRate ?? 0, 1)}%</p>
         </div>
       </div>
@@ -314,11 +317,22 @@ export function PortfolioClient() {
                     </div>
                   </div>
 
+                  {p.breakdown && <details className="text-xs mt-3 glass-inner rounded-lg p-3">
+                    <summary className="cursor-pointer min-h-[36px]">Kâr/zarar nasıl oluştu?</summary>
+                    <dl className="grid grid-cols-2 gap-2">
+                      <dt>Fiyat etkisi</dt><dd>{formatCurrency(p.breakdown.pricePnlTry)}</dd>
+                      <dt>Kur etkisi</dt><dd>{formatCurrency(p.breakdown.fxPnlTry)}</dd>
+                      <dt>Alış komisyonu</dt><dd>−{formatCurrency(p.breakdown.commissionTry)}</dd>
+                      <dt>Açık net sonuç</dt><dd>{formatCurrency(pnl)}</dd>
+                    </dl>
+                    <p className="mt-2 text-muted-foreground">Fiyat etkisi ortalama giriş kuruyla, kur etkisi güncel fiyatla hesaplanır. Olası satış komisyonu henüz dahil değildir.</p>
+                  </details>}
+                  <AutoExitControl position={p} onChange={fetchPortfolio} />
                   {/* Stop Loss / Take Profit / Trailing */}
                   {(p?.stopLoss || p?.takeProfit || p?.trailingStopPercent) && (
                     <div className="flex gap-2 mt-2 text-[10px] flex-wrap">
-                      {p?.stopLoss && <span className="px-2 py-0.5 rounded bg-[#EF4444]/10 text-[#F87171]">SL: {formatNumber(p.stopLoss)}</span>}
-                      {p?.takeProfit && <span className="px-2 py-0.5 rounded bg-[#22C55E]/10 text-[#22C55E]">TP: {formatNumber(p.takeProfit)}</span>}
+                      {p?.stopLoss && <span className="px-2 py-0.5 rounded bg-[#EF4444]/10 text-[#F87171]">SL: {formatCurrency(p.stopLoss, p.type === 'CRYPTO' ? 'USD' : 'TRY')}</span>}
+                      {p?.takeProfit && <span className="px-2 py-0.5 rounded bg-[#22C55E]/10 text-[#22C55E]">TP: {formatCurrency(p.takeProfit, p.type === 'CRYPTO' ? 'USD' : 'TRY')}</span>}
                       {p?.trailingStopPercent && <span className="px-2 py-0.5 rounded bg-[#F59E0B]/10 text-[#F59E0B]">📈 İz: %{p.trailingStopPercent}{p?.trailingStopHighest ? ` (↑${formatNumber(p.trailingStopHighest)})` : ''}</span>}
                     </div>
                   )}

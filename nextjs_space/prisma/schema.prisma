@@ -28,6 +28,10 @@ model User {
   chatMessages   ChatMessage[]
   priceAlerts    PriceAlert[]
   achievements   Achievement[]
+  tradeRequests  TradeRequest[]
+  notifications  AppNotification[]
+  pushSubscriptions PushSubscription[]
+  replaySessions ReplaySession[]
   followers      SocialFollow[] @relation("following")
   following      SocialFollow[] @relation("followers")
 
@@ -50,6 +54,7 @@ model Position {
   takeProfit    Float?   
   trailingStopPercent Float?
   trailingStopHighest Float?
+  autoExit      Boolean  @default(false)
   commission    Float    @default(0)
   status        String   @default("OPEN") // OPEN, CLOSED
   pnl           Float    @default(0)
@@ -81,6 +86,10 @@ model Transaction {
   pnl         Float?   
   pnlPercent  Float?   
   note        String?
+  pricePnlTry Float?
+  fxPnlTry Float?
+  buyCommissionTry Float?
+  executionReason String?
   createdAt   DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -160,4 +169,52 @@ model ScanCache {
   createdAt DateTime @default(now())
 
   @@index([id])
+}
+
+model TradeRequest {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String
+  fingerprint String
+  result Json
+  createdAt DateTime @default(now())
+  @@unique([userId, requestId])
+}
+
+model AppNotification {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventKey String @unique
+  title String
+  body String
+  url String @default("/portfolio")
+  readAt DateTime?
+  pushedAt DateTime?
+  attempts Int @default(0)
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+  @@index([pushedAt, createdAt])
+}
+
+model PushSubscription {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  p256dh String
+  auth String
+  createdAt DateTime @default(now())
+}
+
+model ReplaySession {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state Json
+  version Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, createdAt])
 }

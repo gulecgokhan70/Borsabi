@@ -216,6 +216,7 @@ const NAV_ITEMS = [
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
   { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
   { href: '/academy', label: 'Akademi', icon: GraduationCap },
+  { href: '/replay', label: 'Geçmişte Pratik', icon: FlaskConical },
   { href: '/backtest', label: 'Backtest', icon: FlaskConical },
   { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
   { href: '/strategy-builder', label: 'Strateji', icon: Wrench },
@@ -383,6 +384,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
         <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
+          <BreakingNewsBanner />
           <PageTransition>{children}</PageTransition>
           {/* Global Footer */}
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-6 pb-2">
@@ -393,8 +395,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
 
-      {/* Breaking News Popup */}
-      <BreakingNewsBanner />
+
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">

@@ -27,6 +27,8 @@ import { tradeSchema } from '../lib/trading';
 let renderer: ReactTestRenderer | undefined;
 let fxUnavailable = false;
 let orderBody: any;
+let loseReply = false;
+const sessionValues = new Map<string, string>();
 const fetchMock = vi.fn();
 const fixture = (symbol: string) => ({
   symbol, shortName: symbol.split(/[.-]/)[0], name: 'Test varlığı',
@@ -48,16 +50,18 @@ const mount = async (symbol = 'BTC-USD') => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  fxUnavailable = false; orderBody = undefined;
+  fxUnavailable = false; orderBody = undefined; loseReply = false; sessionValues.clear();
+  vi.stubGlobal('sessionStorage', { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => sessionValues.set(key, value), removeItem: (key: string) => sessionValues.delete(key) });
   fetchMock.mockReset().mockImplementation(async (input: string, options?: RequestInit) => {
     if (input.startsWith('/api/stock/')) return Response.json(fixture(decodeURIComponent(input.split('/')[3].split('?')[0])));
     if (input.startsWith('/api/news')) return Response.json({ news: [] });
-    if (input === '/api/portfolio') return Response.json({ balance: 100000, commissionRate: 0.002, positions: [] });
+    if (input === '/api/portfolio') return Response.json({ accountId: 'test-user', balance: 100000, commissionRate: 0.002, positions: [] });
     if (input === '/api/fx') return fxUnavailable
       ? Response.json({ error: 'Kur alınamadı' }, { status: 503 })
       : Response.json({ rate: 32, asOf: new Date().toISOString() });
     if (input === '/api/trade') {
       orderBody = JSON.parse(String(options?.body));
+      if (loseReply) throw new TypeError('Connection dropped after server accepted order');
       return Response.json({ error: 'Test isteği; kayıt yapılmadı' }, { status: 400 });
     }
     throw new Error(`Unexpected test request: ${input}`);
@@ -94,11 +98,32 @@ it('renders BTC detail quotes and chart-selected changes in USD, then budgets 10
   expect(submit.props.disabled).toBe(false);
   await act(async () => submit.props.onClick());
   expect(orderBody).toMatchObject({ symbol: 'BTC-USD', marketType: 'CRYPTO', type: 'BUY' });
+  expect(orderBody.maxSpendTry).toBe(1000);
+  expect(orderBody.requestId).toBeTypeOf('string');
   expect(tradeSchema.safeParse(orderBody).success).toBe(true);
   expect(orderBody.quantity).toBeGreaterThan(0);
   expect(orderBody.quantity).toBeLessThan(0.001);
   expect(orderBody.quantity * 79315.5 * 32 * 1.002).toBeLessThanOrEqual(1000);
   expect((orderBody.quantity + 1e-8) * 79315.5 * 32 * 1.002).toBeGreaterThan(1000);
+});
+
+it('keeps the exact pending request across modal remounts and guards double taps', async () => {
+  await mount();
+  await act(async () => button('Al').props.onClick());
+  const modal = renderer!.root.findByType(TradeModal);
+  await act(async () => modal.findByProps({ placeholder: 'Adet girin' }).props.onChange({ target: { value: '0.0001' } }));
+  const submit = modal.findAllByType('button').find(node => textOf(node).endsWith(' Adet Al'))!;
+  loseReply = true;
+  await act(async () => { await Promise.all([submit.props.onClick(), submit.props.onClick()]); });
+  const original = { ...orderBody };
+  expect(fetchMock.mock.calls.filter(([url]) => url === '/api/trade')).toHaveLength(1);
+  expect(sessionValues.size).toBe(1);
+  await act(async () => renderer!.unmount());
+  await mount(); await act(async () => button('Al').props.onClick());
+  loseReply = false;
+  await act(async () => button('Son emrin sonucunu kontrol et').props.onClick());
+  expect(orderBody).toEqual(original);
+  expect(sessionValues.size).toBe(0);
 });
 
 it('blocks BTC order submission when the FX request fails', async () => {

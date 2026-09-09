@@ -16,6 +16,7 @@ import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
 } from 'recharts';
+import { ChartSurface } from '@/components/chart-surface';
 import { ChartDrawingToolbar, ChartDrawingOverlay, type DrawingTool } from '@/components/chart-drawing-tools';
 
 interface OHLCData {
@@ -144,12 +145,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [chartInterval, setChartInterval] = useState('5m');
   const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
+  const [advancedChart, setAdvancedChart] = useState(false);
   const [chartType, setChartType] = useState<ChartType>('line');
   const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('none');
   const [drawings, setDrawings] = useState<any[]>([]);
   const [magnetEnabled, setMagnetEnabled] = useState(false);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 380 });
   const [showFundamentals, setShowFundamentals] = useState(true);
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -347,16 +348,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     return [mn - pad, mx + pad];
   }, [chartData]);
 
-  // Chart container dimensions for drawing overlay
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        setChartDimensions({ width: e.contentRect.width, height: e.contentRect.height });
+  // The chart moves into a dialog portal in full screen, so observe each mounted node.
+  const chartObserver = useRef<ResizeObserver | null>(null);
+  const chartContainerRef = useCallback((node: HTMLDivElement | null) => {
+    chartObserver.current?.disconnect();
+    chartObserver.current = null;
+    if (!node) return;
+    chartObserver.current = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setChartDimensions({ width: entry.contentRect.width, height: entry.contentRect.height });
       }
     });
-    ro.observe(chartContainerRef.current);
-    return () => ro.disconnect();
+    chartObserver.current.observe(node);
   }, []);
 
   // Recharts mouse/touch event handler
@@ -478,8 +481,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       )}
 
       {/* ===== PRICE CHART ===== */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="glass-card rounded-xl p-4">
+      <ChartSurface>
+        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) setDrawingTool('none'); }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
         {/* Chart controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
@@ -503,7 +506,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Overlay toggles */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className={advancedChart ? "flex flex-wrap gap-2 mb-3" : "hidden"}>
           <button onClick={() => setOverlay(overlay === 'ema' ? 'none' : 'ema')}
             className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
               overlay === 'ema' ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
@@ -528,7 +531,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Main Price Chart */}
-        <div ref={chartContainerRef} style={{ height: '380px', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
+        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, 380px)', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
           {chartData.length > 0 ? (
             <>
             <ResponsiveContainer width="100%" height="100%">
@@ -543,7 +546,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 <Tooltip content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
 
                 {/* Bollinger Bands */}
-                {overlay === 'bb' && (
+                {advancedChart && overlay === 'bb' && (
                   <>
                     <Line type="monotone" dataKey="bbUpper" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
                     <Line type="monotone" dataKey="bbLower" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
@@ -564,7 +567,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 )}
 
                 {/* EMA overlays */}
-                {overlay === 'ema' && (
+                {advancedChart && overlay === 'ema' && (
                   <>
                     <Line type="monotone" dataKey="ema20" stroke="#3B82F6" strokeWidth={1.5} dot={false} strokeOpacity={0.8} />
                     <Line type="monotone" dataKey="ema50" stroke="#F59E0B" strokeWidth={1.5} dot={false} strokeOpacity={0.8} />
@@ -573,7 +576,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 )}
               </ComposedChart>
             </ResponsiveContainer>
-            {chartDimensions.width > 0 && (
+            {advancedChart && chartDimensions.width > 0 && (
               <ChartDrawingOverlay
                 chartHeight={chartDimensions.height}
                 chartWidth={chartDimensions.width}
@@ -600,14 +603,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* EMA Legend */}
-        {overlay === 'ema' && (
+        {advancedChart && overlay === 'ema' && (
           <div className="flex flex-wrap gap-4 mt-2 px-2">
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#3B82F6] inline-block rounded" /> <span className="text-muted-foreground">EMA20</span></span>
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#F59E0B] inline-block rounded" /> <span className="text-muted-foreground">EMA50</span></span>
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#EF4444] inline-block rounded" /> <span className="text-muted-foreground">EMA200</span></span>
           </div>
         )}
-        {overlay === 'bb' && (
+        {advancedChart && overlay === 'bb' && (
           <div className="flex flex-wrap gap-4 mt-2 px-2">
             <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#F59E0B] inline-block rounded" style={{ borderTop: '1px dashed #F59E0B' }} /> <span className="text-muted-foreground">Bollinger Bantları (20, 2)</span></span>
           </div>
@@ -653,7 +656,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             </div>
           )}
         </div>
-      </motion.div>
+      </ChartSurface>
 
       {/* ===== AI ANALİZ & HABERLER ===== */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-2xl overflow-hidden">
