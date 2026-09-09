@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { formatCurrency } from '@/lib/constants';
+import { ReportAIResponse } from '@/components/report-ai-response';
 export function TransactionCoach({ transactionId }: { transactionId: string }) {
   const [data, setData] = useState<any>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
   async function load() {
@@ -16,6 +17,7 @@ export function TransactionCoach({ transactionId }: { transactionId: string }) {
         {[['Nakit değişimi', data.facts.cashChangeTry], ['Bu işlem komisyonu', data.facts.commissionTry], ['Fiyat etkisi', data.facts.pricePnlTry], ['Kur etkisi', data.facts.fxPnlTry], ['Satılan payın alış komisyonu', data.facts.buyCommissionTry], ['Gerçekleşen net K/Z', data.facts.pnlTry], ['Planlanan stop riski (komisyonsuz)', data.facts.plannedRiskTry]].map(([label, value]) => <div key={String(label)} className="contents"><dt>{label}</dt><dd>{value == null ? 'Kayıt yok / uygulanmaz' : formatCurrency(Number(value))}</dd></div>)}
       </dl>
       <p className="whitespace-pre-wrap">{data.commentary}</p>
+      <ReportAIResponse content={data.commentary || ''} source="trade-coach" />
       <p className="text-muted-foreground">Kaynak: {data.source.label} · {new Date(data.source.asOf).toLocaleString('tr-TR')}</p>
       <p className="text-muted-foreground">Tutarlar işlem kaydına dayanır; AI açıklaması hata içerebilir.</p>
     </details>}

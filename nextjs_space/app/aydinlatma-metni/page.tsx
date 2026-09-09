@@ -16,7 +16,7 @@ export default function AydinlatmaMetniPage() {
     {
       icon: Database,
       title: '2. İşlenen Kişisel Veriler',
-      content: `Platform kapsamında aşağıdaki kişisel verileriniz işlenmektedir:\n\n• Kimlik Bilgileri: Ad, soyad, kullanıcı adı\n• İletişim Bilgileri: E-posta adresi\n• Hesap Bilgileri: Şifrelenmiş parola, profil tercihleri\n• İşlem Verileri: Simülasyon alım-satım işlemleri, sanal portföy bilgileri, izleme listesi\n• Kullanım Verileri: Oturum bilgileri, platform kullanım istatistikleri\n• Teknik Veriler: IP adresi, tarayıcı türü, cihaz bilgisi`
+      content: `Platform kapsamında aşağıdaki kişisel verileriniz işlenmektedir:\n\n• Kimlik Bilgileri: Ad, soyad, kullanıcı adı\n• İletişim Bilgileri: E-posta adresi\n• Hesap Bilgileri: Şifrelenmiş parola, profil tercihleri\n• İşlem Verileri: Simülasyon alım-satım işlemleri, sanal portföy bilgileri, izleme listesi, işlem gerekçeleri ve geçmiş piyasa pratikleri\n• Yapay Zekâ Bildirimleri: Bildirdiğiniz yanıtın içeriği, bildirim nedeni, isteğe bağlı açıklamanız ve hesabınızla ilişkisi\n• Kullanım Verileri: Oturum bilgileri, platform kullanım istatistikleri\n• Teknik Veriler: IP adresi, tarayıcı türü, cihaz bilgisi`
     },
     {
       icon: UserCheck,
@@ -31,7 +31,7 @@ export default function AydinlatmaMetniPage() {
     {
       icon: Globe,
       title: '5. Kişisel Verilerin Aktarılması',
-      content: `Kişisel verileriniz, hizmet sunumu kapsamında aşağıdaki taraflarla paylaşılabilir:\n\n• Sunucu ve altyapı hizmeti sağlayıcıları (barındırma hizmetleri)\n• Yasal zorunluluk halinde yetkili kamu kurum ve kuruluşları\n\nKişisel verileriniz, yukarıda belirtilen amaçlar dışında üçüncü kişi veya kuruluşlarla paylaşılmamakta, ticari amaçla satılmamakta veya pazarlama amacıyla kullanılmamaktadır.`
+      content: `Kişisel verileriniz, hizmet sunumu kapsamında aşağıdaki taraflarla paylaşılabilir:\n\n• Sunucu ve altyapı hizmeti sağlayıcıları (barındırma hizmetleri)\n• Yapay zekâ hizmeti sağlayıcıları: Yapay zekâ özelliklerinde mesajlarınız ve ilgili analiz bağlamı, sunucuda etkin olan Groq veya Abacus.AI hizmetine gönderilir. Yanıt bildirimleri ayrıca inceleme amacıyla Platform veritabanına kaydedilir.\n• Yasal zorunluluk halinde yetkili kamu kurum ve kuruluşları\n\nKişisel verileriniz, yukarıda belirtilen amaçlar dışında üçüncü kişi veya kuruluşlarla paylaşılmamakta, ticari amaçla satılmamakta veya pazarlama amacıyla kullanılmamaktadır.`
     },
     {
       icon: UserCheck,
@@ -51,7 +51,7 @@ export default function AydinlatmaMetniPage() {
     {
       icon: Shield,
       title: '9. Değişiklikler',
-      content: `Bu aydınlatma metni, yasal düzenlemelerdeki değişiklikler veya platformdaki güncellemeler doğrultusunda zaman zaman güncellenebilir. Güncellemeler platform üzerinden yayınlanacaktır.\n\nSon güncelleme tarihi: Haziran 2026`
+      content: `Bu aydınlatma metni, yasal düzenlemelerdeki değişiklikler veya platformdaki güncellemeler doğrultusunda zaman zaman güncellenebilir. Güncellemeler platform üzerinden yayınlanacaktır.\n\nSon güncelleme tarihi: 9 Eylül 2026`
     }
   ];
 
@@ -74,6 +74,11 @@ export default function AydinlatmaMetniPage() {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <div className="glass-card rounded-2xl p-5 space-y-2 text-sm">
+          <h2 className="font-semibold">Hesap ve veri silme</h2>
+          <p>Hesabınızı ve hesabınıza bağlı aktif uygulama verilerini şifrenizle doğrulayarak silebilirsiniz. Geçmiş yedekler ve sunucu günlükleri bu işlemle otomatik olarak temizlenmez; bunlarla ilgili talep ve sorularınızı info@borsabi.com adresine iletebilirsiniz.</p>
+          <Link href="/hesap-silme" className="inline-flex min-h-[44px] items-center text-blue-500">Hesap silme sayfasını aç</Link>
+        </div>
         {/* Intro Banner */}
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
           className="glass-card rounded-2xl p-5 border border-[#8B5CF6]/10">

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut, Percent, Save } from 'lucide-react';
+import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { toast } from 'sonner';
 import { formatCurrency, formatPercent } from '@/lib/constants';
@@ -64,7 +65,6 @@ export default function ProfileClient() {
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState('');
-  const [upgrading, setUpgrading] = useState(false);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [commissionInput, setCommissionInput] = useState('');
@@ -103,19 +103,6 @@ export default function ProfileClient() {
     }
     setSavingAvatar(false);
     setAvatarPickerOpen(false);
-  };
-
-  const handleUpgrade = async (tier: string) => {
-    setUpgrading(true);
-    const res = await fetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tier }),
-    });
-    if (res.ok) {
-      setProfile((p: any) => ({ ...p, tier }));
-    }
-    setUpgrading(false);
   };
 
   if (loading) return (
@@ -212,7 +199,7 @@ export default function ProfileClient() {
       {/* Tier Selection */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Crown className="w-4 h-4 text-[#F59E0B]" /> Paket Seçimi
+          <Crown className="w-4 h-4 text-[#F59E0B]" /> Paket Bilgisi
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TIERS.map((tier) => {
@@ -236,18 +223,12 @@ export default function ProfileClient() {
                     </li>
                   ))}
                 </ul>
-                {!isActive && (
-                  <button onClick={() => handleUpgrade(tier.id)} disabled={upgrading}
-                    className="w-full py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-                    style={{ background: tier.color }}>
-                    {upgrading ? 'Yükleniyor...' : tier.id === 'free' ? 'Geç' : 'Seç'}
-                  </button>
-                )}
+                {!isActive && <p className="text-xs text-muted-foreground min-h-[44px] flex items-center">Paket değişikliği şu an kullanıma açık değil.</p>}
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">* Bu bir simülasyon platformudur. Paket değişikliği özellik erişimini değiştirir.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">Mevcut paketiniz korunur. Yeni üyelik satın alma işlemleri henüz kullanıma açık değildir.</p>
       </motion.div>
 
       {/* Achievements Summary */}
@@ -325,6 +306,12 @@ export default function ProfileClient() {
           {savingCommission ? 'Kaydediliyor...' : 'Kaydet'}
         </button>
       </motion.div>
+
+      <section className="glass-card rounded-xl p-5 space-y-3">
+        <h3 className="font-semibold">Hesap yönetimi</h3>
+        <Link href="/hesap-silme" className="inline-flex min-h-[44px] items-center text-red-500 underline">Hesabımı sil</Link>
+        {profile.role === 'admin' && <Link href="/admin/ai-reports" className="flex min-h-[44px] items-center text-blue-500 underline">AI içerik bildirimlerini incele</Link>}
+      </section>
 
       {/* Logout */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>

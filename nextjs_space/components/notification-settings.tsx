@@ -1,14 +1,21 @@
 'use client';
+import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { useEffect, useState } from 'react';
 export function NotificationSettings() {
   const [data, setData] = useState<any>(null), [message, setMessage] = useState(''), [busy, setBusy] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  useVisiblePoll(async signal => {
+    try {
+      const response = await fetch('/api/notifications', { signal });
+      if (!response.ok) throw new Error();
+      const body = await response.json();
+      if (!signal.aborted) setData(body);
+    } catch { if (!signal.aborted) setMessage('Bildirim durumu alınamadı.'); }
+  }, 30_000);
   useEffect(() => {
     let cancelled = false;
-    async function load() { try { const r = await fetch('/api/notifications'); if (r.ok && !cancelled) setData(await r.json()); } catch { if (!cancelled) setMessage('Bildirim durumu alınamadı.'); } }
-    load(); const t = setInterval(load, 30_000);
     if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r => r?.pushManager?.getSubscription()).then(s => { if (!cancelled) setSubscribed(!!s); });
-    return () => { cancelled = true; clearInterval(t); };
+    return () => { cancelled = true; };
   }, []);
   async function toggle() {
     setBusy(true); setMessage('');

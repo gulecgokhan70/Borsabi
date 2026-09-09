@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ScrollText, Loader2, TrendingUp, TrendingDown, Target, Award, BarChart3, DollarSign, ArrowRight, Clock } from 'lucide-react';
+import { LearningSummary } from '@/components/learning-summary';
 import { TransactionCoach } from '@/components/transaction-coach';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import Link from 'next/link';
@@ -12,21 +13,19 @@ export function TradeLogClient() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'buy' | 'sell'>('all');
 
+  const [page, setPage] = useState(1), [total, setTotal] = useState(0), [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState(''), [retry, setRetry] = useState(0);
   useEffect(() => {
-    fetch('/api/transactions')
-      .then((r: any) => r?.json?.())
-      .then((data: any) => {
-        setTransactions(data?.transactions ?? []);
-        setStats(data?.stats ?? null);
-      })
-      .catch((e: any) => console.error(e))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filteredTx = transactions.filter((t: any) => {
-    if (filter === 'all') return true;
-    return t?.type === filter.toUpperCase();
-  });
+    const controller = new AbortController();
+    setLoading(true); setError('');
+    fetch(`/api/transactions?page=${page}&limit=25&type=${filter === 'all' ? 'all' : filter.toUpperCase()}`, { signal: controller.signal, cache: 'no-store' })
+      .then(async response => { const data = await response.json(); if (!response.ok) throw new Error(data.error); return data; })
+      .then(data => { if (!controller.signal.aborted) { setTransactions(data.transactions); setStats(data.stats); setTotal(data.total); setHasMore(data.hasMore); } })
+      .catch(cause => { if (!controller.signal.aborted) setError(cause.message || 'İşlemler yüklenemedi.'); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [filter, page, retry]);
+  const filteredTx = transactions;
 
   const getPnlDisplay = (t: any) => {
     // SELL transactions have realized pnl
@@ -56,6 +55,8 @@ export function TradeLogClient() {
         <h1 className="text-2xl font-bold text-foreground tracking-tight">İşlem Günlüğü</h1>
         <p className="text-sm text-muted-foreground">Tüm alış/satış işlemlerinizin kaydı ve performans istatistikleri</p>
       </div>
+
+      <LearningSummary />
 
       {/* Stats */}
       {stats && (
@@ -87,14 +88,14 @@ export function TradeLogClient() {
       {/* Filter tabs */}
       <div className="flex items-center gap-2">
         {[
-          { key: 'all', label: 'Tümü', count: transactions.length },
-          { key: 'buy', label: 'Alış', count: transactions.filter((t: any) => t?.type === 'BUY').length },
-          { key: 'sell', label: 'Satış', count: transactions.filter((t: any) => t?.type === 'SELL').length },
+          { key: 'all', label: 'Tümü', count: (stats?.buyCount ?? 0) + (stats?.sellCount ?? 0) },
+          { key: 'buy', label: 'Alış', count: stats?.buyCount ?? 0 },
+          { key: 'sell', label: 'Satış', count: stats?.sellCount ?? 0 },
         ].map((f: any) => (
           <button
             key={f.key}
-            onClick={() => setFilter(f.key as any)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            onClick={() => { setFilter(f.key as any); setPage(1); }}
+            className={`min-h-[44px] px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               filter === f.key
                 ? 'bg-[#3B82F6] text-white'
                 : 'glass-card text-muted-foreground hover:text-foreground border border-black/[0.08] dark:border-white/[0.08]'
@@ -113,7 +114,7 @@ export function TradeLogClient() {
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
-        ) : (filteredTx?.length ?? 0) === 0 ? (
+        ) : error ? (<div className="p-4" role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)} className="min-h-[44px] text-blue-500">Tekrar dene</button></div>) : (filteredTx?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
             <ScrollText className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Henüz işlem yapılmamış</p>
@@ -206,6 +207,11 @@ export function TradeLogClient() {
         )}
       </motion.div>
 
+      <div className="flex items-center justify-between gap-3">
+        <button disabled={loading || page === 1} onClick={() => setPage(value => value - 1)} className="min-h-[44px] px-3 glass-inner rounded-lg disabled:opacity-40">Önceki</button>
+        <span className="text-xs text-muted-foreground">{page}. sayfa · {total} işlem</span>
+        <button disabled={loading || !hasMore} onClick={() => setPage(value => value + 1)} className="min-h-[44px] px-3 glass-inner rounded-lg disabled:opacity-40">Sonraki</button>
+      </div>
       <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center pb-4">⚠️ Bu platform simülasyon amaçlıdır. Yatırım tavsiyesi içermez.</p>
     </div>
   );

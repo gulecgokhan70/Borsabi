@@ -390,6 +390,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-6 pb-2">
             <Link href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</Link>
             <span>·</span>
+            <Link href="/hesap-silme" className="hover:text-[#3B82F6] transition-colors">Hesap silme</Link>
+            <span>·</span>
             <Link href="/aydinlatma-metni" className="hover:text-[#3B82F6] transition-colors">Aydınlatma Metni</Link>
           </div>
         </div>

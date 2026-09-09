@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, Shield, AlertTriangle, ChevronLeft, ChevronRight, Volume2 } from 'lucide-react';
 
@@ -47,15 +48,19 @@ export function BreakingNewsBanner() {
   const [dismissed, setDismissed] = useState(false);
   const [swipeDir, setSwipeDir] = useState<'left' | 'right'>('left');
 
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
+
   // Touch / swipe
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
   /* Arka planda önemli haber tara */
-  const scanForBreaking = useCallback(async () => {
+  const scanForBreaking = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/news?breaking=true&limit=10');
+      const res = await fetch('/api/news?breaking=true&limit=10', { signal });
       const json = await res.json();
+      if (!res.ok || signal?.aborted) return;
       const items: NewsItem[] = json?.news ?? [];
 
       if (items.length === 0) return;
@@ -81,7 +86,8 @@ export function BreakingNewsBanner() {
       setVisible(true);
 
       // 30 saniye sonra otomatik gizle
-      setTimeout(() => {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(() => {
         setVisible(false);
       }, 30000);
     } catch {
@@ -89,17 +95,7 @@ export function BreakingNewsBanner() {
     }
   }, []);
 
-  // İlk tarama: 5 saniye sonra
-  useEffect(() => {
-    const t = setTimeout(scanForBreaking, 5000);
-    return () => clearTimeout(t);
-  }, [scanForBreaking]);
-
-  // Periyodik tarama: her 5 dakikada
-  useEffect(() => {
-    const iv = setInterval(scanForBreaking, 5 * 60 * 1000);
-    return () => clearInterval(iv);
-  }, [scanForBreaking]);
+  useVisiblePoll(scanForBreaking, 5 * 60_000, 5000);
 
   // Swipe / navigasyon
   const goNext = useCallback(() => {

@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote, Activity } from 'lucide-react';
@@ -19,16 +20,18 @@ export function PortfolioClient() {
   const [bistComparison, setBistComparison] = useState<any[]>([]);
   const [tradeModal, setTradeModal] = useState<any>(null);
 
-  const fetchPortfolio = useCallback(async () => {
+  const requestVersion = useRef(0);
+  const fetchPortfolio = useCallback(async (signal?: AbortSignal) => {
+    const version = ++requestVersion.current;
     setLoading(true);
     try {
-      const res = await fetch('/api/portfolio');
+      const res = await fetch('/api/portfolio', { signal, cache: 'no-store' });
       const data = await res.json();
-      setPortfolio(data);
-    } catch (e: any) { setPortfolio({ error: 'Portföy verileri alınamadı.' }); } finally { setLoading(false); }
+      if (!signal?.aborted && version === requestVersion.current) setPortfolio(data);
+    } catch (e: any) { if (!signal?.aborted && version === requestVersion.current) setPortfolio({ error: 'Portföy verileri alınamadı.' }); } finally { if (version === requestVersion.current) setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchPortfolio(); }, [fetchPortfolio]);
+  useVisiblePoll(fetchPortfolio, 60_000);
 
   // BIST 100 vs Portföy karşılaştırma verisi
   useEffect(() => {
@@ -62,17 +65,14 @@ export function PortfolioClient() {
     fetchBist();
   }, [portfolio?.equityCurve]);
 
-  useEffect(() => {
-    const interval = setInterval(() => { fetchPortfolio(); }, 60000);
-    return () => clearInterval(interval);
-  }, [fetchPortfolio]);
+
 
   if (loading && !portfolio) return (
     <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
   );
 
   if (portfolio?.error) return <div className="glass-card p-6 space-y-3" role="alert">
-    <p>{portfolio.error}</p><button onClick={fetchPortfolio} className="text-[#3B82F6]">Tekrar dene</button>
+    <p>{portfolio.error}</p><button onClick={() => fetchPortfolio()} className="text-[#3B82F6]">Tekrar dene</button>
   </div>;
   const positions = portfolio?.positions ?? [];
   const closedPositions = portfolio?.closedPositions ?? [];
@@ -92,7 +92,7 @@ export function PortfolioClient() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Portföy Yönetimi</h1>
           <p className="text-sm text-muted-foreground">Pozisyonlarınızı yönetin ve performansınızı takip edin</p>
         </div>
-        <button onClick={fetchPortfolio} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => fetchPortfolio()} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>

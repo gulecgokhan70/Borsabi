@@ -76,3 +76,18 @@ CREATE INDEX IF NOT EXISTS "ReplaySession_userId_createdAt_idx" ON "ReplaySessio
 
 
 CREATE INDEX IF NOT EXISTS "AppNotification_pushedAt_createdAt_idx" ON "AppNotification"("pushedAt", "createdAt");
+
+CREATE TABLE IF NOT EXISTS "AiContentReport" (
+  "id" TEXT PRIMARY KEY,
+  "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  "fingerprint" TEXT NOT NULL,
+  "source" TEXT NOT NULL,
+  "content" TEXT NOT NULL,
+  "reason" TEXT NOT NULL,
+  "comment" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'OPEN',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "reviewedAt" TIMESTAMP(3)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "AiContentReport_userId_fingerprint_key" ON "AiContentReport"("userId", "fingerprint");
+CREATE INDEX IF NOT EXISTS "AiContentReport_status_createdAt_idx" ON "AiContentReport"("status", "createdAt");

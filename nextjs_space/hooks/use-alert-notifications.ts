@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useCallback } from 'react';
+import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { toast } from 'sonner';
 
 const ALERT_CHECK_INTERVAL = 30000; // 30 saniye
@@ -56,22 +57,20 @@ export function useAlertNotifications() {
 
   // Server owns alarm evaluation; this poll only displays durable events.
   const seen = useRef(new Set<string>());
-  const checkAlerts = useCallback(async () => {
+  const checkAlerts = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/notifications');
+      const res = await fetch('/api/notifications', { signal });
       if (!res.ok) return;
       const data = await res.json();
+      if (signal?.aborted) return;
       for (const event of data.events ?? []) {
         if (seen.current.has(event.id)) continue;
         seen.current.add(event.id);
+        if (seen.current.size > 200) seen.current.delete(seen.current.values().next().value!);
         if (Date.now() - new Date(event.createdAt).getTime() < 60_000) toast(event.title, { description: event.body });
       }
     } catch { /* Persistent events remain available on the portfolio page. */ }
   }, []);
-  useEffect(() => {
-    const interval = setInterval(checkAlerts, ALERT_CHECK_INTERVAL);
-    checkAlerts();
-    return () => clearInterval(interval);
-  }, [checkAlerts]);
+  useVisiblePoll(checkAlerts, ALERT_CHECK_INTERVAL);
   return { requestPermission, sendNotification, checkAlerts };
 }

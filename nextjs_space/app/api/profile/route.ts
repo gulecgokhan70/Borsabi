@@ -5,14 +5,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { profileUpdateSchema } from '@/lib/profile-validation';
+import { readMutationJson, RequestError } from '@/lib/request-json';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    if (!userId) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
       include: {
         positions: true,
         transactions: { where: { type: 'SELL' }, orderBy: { createdAt: 'desc' } },
@@ -79,29 +82,21 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const body = await req.json();
-    const { name, tier, avatar, commissionRate } = body;
-
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (tier && ['free', 'pro'].includes(tier)) updateData.tier = tier;
-    if (avatar !== undefined) updateData.avatar = avatar;
-    if (commissionRate !== undefined) {
-      const rate = typeof commissionRate === 'number' ? commissionRate : typeof commissionRate === 'string' && commissionRate.trim() ? Number(commissionRate.replace(',', '.')) : NaN;
-      if (!Number.isFinite(rate) || rate < 0 || rate > 0.01) return NextResponse.json({ error: 'Komisyon oranı %0 ile %1 arasında olmalı.' }, { status: 400 });
-      updateData.commissionRate = rate;
-    }
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    if (!userId) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
+    const parsed = profileUpdateSchema.safeParse(await readMutationJson(req));
+    if (!parsed.success) return NextResponse.json({ error: 'Ad, avatar veya komisyon bilgisi geçersiz. Komisyon %0–%1 aralığında olmalı; paket ve yetkiler profilden değiştirilemez.' }, { status: 400 });
 
     const user = await prisma.user.update({
-      where: { email: session.user.email },
-      data: updateData,
+      where: { id: userId },
+      data: parsed.data,
+      select: { tier: true, name: true, avatar: true, commissionRate: true },
     });
 
-    return NextResponse.json({ success: true, tier: user.tier, name: user.name, avatar: user.avatar });
+    return NextResponse.json({ success: true, ...user });
   } catch (err: any) {
-    console.error('Profile update error:', err);
+    if (err instanceof RequestError) return NextResponse.json({ error: err.message }, { status: err.status });
+    if (err?.code === 'P2025') return NextResponse.json({ error: 'Hesap bulunamadı.' }, { status: 401 });
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

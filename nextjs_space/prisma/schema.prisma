@@ -32,10 +32,27 @@ model User {
   notifications  AppNotification[]
   pushSubscriptions PushSubscription[]
   replaySessions ReplaySession[]
+  aiContentReports AiContentReport[]
   followers      SocialFollow[] @relation("following")
   following      SocialFollow[] @relation("followers")
 
   @@index([email])
+}
+
+model AiContentReport {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  source String
+  content String
+  reason String
+  comment String?
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+  @@unique([userId, fingerprint])
+  @@index([status, createdAt])
 }
 
 model Position {

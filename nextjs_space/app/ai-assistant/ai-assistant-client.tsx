@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import type { EvidenceSource } from '@/lib/evidence';
+import { ReportAIResponse } from '@/components/report-ai-response';
 import { CHAT_HISTORY_LIMIT } from '@/lib/chat-context';
 import { motion } from 'framer-motion';
 import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-react';
@@ -122,7 +123,7 @@ export function AiAssistantClient() {
           </div>
         </div>
         {(messages?.length ?? 0) > 0 && (
-          <button onClick={() => setMessages([])} className="p-2 rounded-lg text-muted-foreground hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sohbeti temizle">
+          <button disabled={loading} onClick={() => setMessages([])} className="p-2 rounded-lg text-muted-foreground hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sohbeti temizle">
             <Trash2 className="w-4 h-4" />
           </button>
         )}
@@ -161,6 +162,7 @@ export function AiAssistantClient() {
                   </div>
                 )}
                 <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>
+                {msg.role === 'assistant' && !(loading && i === messages.length - 1) && <ReportAIResponse content={msg.content} source="ai-assistant" />}
                 {!!msg.sources?.length && <details className="mt-3 text-xs border-t border-white/10 pt-2"><summary className="min-h-[44px] cursor-pointer">Kullanılan veri kaynakları</summary>{msg.sources.map((source, index) => <div key={index} className="py-2"><a href={source.url} target="_blank" rel="noopener noreferrer" className="text-[#3B82F6] underline">{source.label}</a><p>{source.asOf ? new Date(source.asOf).toLocaleString('tr-TR') : 'Kaynak zamanı bilinmiyor'}</p><p>{source.status}</p></div>)}</details>}
               </div>
             </motion.div>

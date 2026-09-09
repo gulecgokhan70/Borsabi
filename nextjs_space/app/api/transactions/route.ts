@@ -3,63 +3,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { transactionSummary } from '@/lib/transaction-summary';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
-    const userId = (session.user as any).id;
-
-    const { searchParams } = new URL(request.url);
-    const page = Number(searchParams.get('page') ?? '1');
-    const limit = Number(searchParams.get('limit') ?? '50');
-    if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !Number.isSafeInteger((page - 1) * limit)) {
-      return NextResponse.json({ error: 'Geçersiz sayfa veya limit (1–100)' }, { status: 400 });
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    if (!userId) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
+    const params = request.nextUrl.searchParams;
+    const page = Number(params.get('page') ?? '1'), limit = Number(params.get('limit') ?? '25');
+    const filter = params.get('type') || 'all';
+    if (!Number.isSafeInteger(page) || page < 1 || page > 100_000 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100 || !['all', 'BUY', 'SELL'].includes(filter)) {
+      return NextResponse.json({ error: 'Geçersiz sayfa, işlem türü veya limit (1–100).' }, { status: 400 });
     }
-
-    const [rawTransactions, total] = await Promise.all([
-      prisma.transaction.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.transaction.count({ where: { userId } }),
-    ]);
-
-    // An individual BUY row is not the remaining position after partial sales.
-    // Show open-position PnL on the portfolio page; never fabricate per-purchase PnL.
-    const transactions = rawTransactions.map(t => ({ ...t,
-      currency: t.marketType === 'CRYPTO' ? 'USD' : 'TRY',
-      legacyCurrency: t.marketType === 'CRYPTO' && t.fxRate == null,
-    }));
-
-    const allTx = await prisma.transaction.findMany({ where: { userId } });
-    const sells = allTx.filter((t: any) => t?.type === 'SELL' && t?.pnl != null);
-    const totalPnl = sells.reduce((s: number, t: any) => s + (t?.pnl ?? 0), 0);
-    const winCount = sells.filter((t: any) => (t?.pnl ?? 0) > 0).length;
-    const lossCount = sells.filter((t: any) => (t?.pnl ?? 0) < 0).length;
-    const avgWin = winCount > 0 ? sells.filter((t: any) => (t?.pnl ?? 0) > 0).reduce((s: number, t: any) => s + (t?.pnl ?? 0), 0) / winCount : 0;
-    const avgLoss = lossCount > 0 ? sells.filter((t: any) => (t?.pnl ?? 0) < 0).reduce((s: number, t: any) => s + (t?.pnl ?? 0), 0) / lossCount : 0;
-
-    return NextResponse.json({
-      transactions,
-      total,
-      page,
-      stats: {
-        buyCount: allTx.filter(t => t.type === 'BUY').length,
-        sellCount: allTx.filter(t => t.type === 'SELL').length,
-        totalTrades: sells?.length ?? 0,
-        winCount,
-        lossCount,
-        winRate: (sells?.length ?? 0) > 0 ? (winCount / (sells?.length ?? 1)) * 100 : 0,
-        totalPnl,
-        avgWin,
-        avgLoss,
-      },
-    });
-  } catch (error: any) {
-    console.error('Transactions error:', error);
+    const where = { userId, ...(filter === 'all' ? {} : { type: filter }) };
+    const result = await prisma.$transaction(async tx => {
+      const [rows, total, stats] = await Promise.all([
+        tx.transaction.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * limit, take: limit }),
+        tx.transaction.count({ where }),
+        transactionSummary(tx, userId),
+      ]);
+      return { transactions: rows.map(t => ({ ...t, currency: t.marketType === 'CRYPTO' ? 'USD' : 'TRY', legacyCurrency: t.marketType === 'CRYPTO' && t.fxRate == null })), total, stats };
+    }, { isolationLevel: 'RepeatableRead' });
+    return NextResponse.json({ ...result, page, limit, hasMore: page * limit < result.total }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch {
     return NextResponse.json({ error: 'İşlem geçmişi alınamadı' }, { status: 500 });
   }
 }
