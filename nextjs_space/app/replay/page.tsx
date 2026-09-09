@@ -1,2 +1,2 @@
-import { ReplayClient } from './replay-client';
-export default function ReplayPage() { return <ReplayClient />; }
+import { redirect } from 'next/navigation';
+export default function ReplayPage() { redirect('/backtest?mode=practice'); }

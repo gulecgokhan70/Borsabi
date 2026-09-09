@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarChart3, PieChart, Target, ShieldAlert, Banknote, Activity } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend, Line, ComposedChart } from 'recharts';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+import { commissionLabel } from '@/lib/commission';
 import { AutoExitControl } from '@/components/auto-exit-control';
 import { NotificationSettings } from '@/components/notification-settings';
 import { TradeModal } from '@/components/trade-modal';
@@ -378,7 +379,7 @@ export function PortfolioClient() {
       )}
 
       <div className="text-center py-2">
-        <p className="text-[10px] text-slate-400 dark:text-slate-500">⚠️ Komisyon oranı: Alış %0.2, Satış %0.2 | Bu platform simülasyon amaçlıdır, yatırım tavsiyesi değildir</p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-500">⚠️ Komisyon oranı: Alış {commissionLabel(portfolio.commissionRate)}, Satış {commissionLabel(portfolio.commissionRate)} | Bu platform simülasyon amaçlıdır, yatırım tavsiyesi değildir</p>
       </div>
 
       {tradeModal && (

@@ -24,7 +24,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Komisyon oranları nedir?',
-    a: 'Simülasyon işlemlerinde alış ve satış için %0.2 komisyon uygulanmaktadır. Bu oran gerçek borsa komisyonlarını simüle etmektedir.'
+    a: 'Simülasyon, strateji testi ve adım adım pratik işlemlerinde Profil bölümünde belirlediğiniz komisyon oranı kullanılır. Varsayılan oran alış ve satışta %0,2’dir.'
   },
   {
     q: 'Trailing Stop nedir?',

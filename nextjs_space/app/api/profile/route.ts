@@ -89,10 +89,9 @@ export async function PUT(req: NextRequest) {
     if (tier && ['free', 'pro'].includes(tier)) updateData.tier = tier;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (commissionRate !== undefined) {
-      const rate = parseFloat(commissionRate);
-      if (!isNaN(rate) && rate >= 0 && rate <= 0.01) {
-        updateData.commissionRate = rate;
-      }
+      const rate = typeof commissionRate === 'number' ? commissionRate : typeof commissionRate === 'string' && commissionRate.trim() ? Number(commissionRate.replace(',', '.')) : NaN;
+      if (!Number.isFinite(rate) || rate < 0 || rate > 0.01) return NextResponse.json({ error: 'Komisyon oranı %0 ile %1 arasında olmalı.' }, { status: 400 });
+      updateData.commissionRate = rate;
     }
 
     const user = await prisma.user.update({

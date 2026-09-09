@@ -55,3 +55,13 @@ On a failed transition the script restores the previous application override and
 - iPhone full-screen chart interaction and actual device Web Push delivery require an on-device check after deployment. They have not been established by component tests or the build.
 
 After deployment, check the automation status in Portfolio, perform a small simulated buy and sell, verify the commission/PnL receipt, enable a test price alert, and complete a practice replay. Confirm that the practice session leaves the main portfolio balance unchanged.
+
+
+## Follow-up: search, profile commission and one backtest entry
+
+- Backtest now contains **Strateji testi** and **Adım adım pratik**. The original strategy engine is retained. `/replay` redirects to `/backtest?mode=practice`; saved sessions and their balances remain intact. Practice now inherits the existing app navigation/layout.
+- Symbol fields filter the BIST/crypto catalogue on every keystroke, matching full symbols and Turkish names with or without accents. Touch selection and keyboard selection both work. Editing clears the previous symbol selection so an old symbol cannot silently submit.
+- Both practice and strategy backtests obtain commission from the authenticated user's profile on the server, including a zero rate. Practice reads the current profile for each subsequent action and stores the execution rate alongside that trade. Existing trade commissions are not recalculated. Strategy results include the rate used for that run. Normal portfolio trading already used the saved profile rate; its explanatory footer now shows that rate too.
+- Loaded practice dates/symbols are restored visibly. A changed selection is labelled as a new, not-yet-started practice, and actions on the previous practice are disabled until the selection is restored or started. Date selection is bounded to completed days in the recent intraday window; returned bars are checked against the selected day.
+- Profile saving accepts a decimal comma, validates the same 0–1% range as execution and reports failed saves.
+- No database schema change is needed for this follow-up. Use the same `deploy-platform.sh` deployment command.

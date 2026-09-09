@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/page-transition';
 import { useTheme } from 'next-themes';
 import { BreakingNewsBanner } from '@/components/breaking-news';
+import { matchesSymbol } from '@/lib/symbol-search';
 import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
 
 const AVATAR_MAP: Record<string, string> = {
@@ -66,7 +67,7 @@ function GlobalSearch() {
 
   const term = q.toLowerCase().trim();
   const results = term.length >= 1
-    ? allItems.filter(i => i.shortName.toLowerCase().includes(term) || i.name.toLowerCase().includes(term)).slice(0, 12)
+    ? allItems.filter(i => matchesSymbol(i, q)).slice(0, 12)
     : [];
 
   const go = (sym: string) => { router.push(`/stock/${sym}`); setOpen(false); setQ(''); };
@@ -216,7 +217,6 @@ const NAV_ITEMS = [
   { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
   { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
   { href: '/academy', label: 'Akademi', icon: GraduationCap },
-  { href: '/replay', label: 'Geçmişte Pratik', icon: FlaskConical },
   { href: '/backtest', label: 'Backtest', icon: FlaskConical },
   { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
   { href: '/strategy-builder', label: 'Strateji', icon: Wrench },

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import {
@@ -7,6 +7,7 @@ import {
   BarChart3, Clock, Shield, AlertTriangle, Activity
 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
+import { commissionLabel } from '@/lib/commission';
 import { SymbolSearch } from '@/components/symbol-search';
 
 const EquityChart = dynamic(() => import('./equity-chart'), { ssr: false });
@@ -37,8 +38,10 @@ const PERIODS = [
 ];
 
 interface BacktestResult {
+  commissionRate: number;
   summary: {
     totalTrades: number;
+    totalCommission: number;
     winningTrades: number;
     losingTrades: number;
     winRate: number;
@@ -79,6 +82,8 @@ export function BacktestClient() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState('');
+  const [profileRate, setProfileRate] = useState<number | null>(null);
+  useEffect(() => { fetch('/api/profile', { cache: 'no-store' }).then(async r => { if (r.ok) setProfileRate((await r.json()).commissionRate); }).catch(() => {}); }, []);
 
   const runBacktest = async () => {
     setLoading(true);
@@ -107,12 +112,12 @@ export function BacktestClient() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
             <FlaskConical className="w-5 h-5 text-[#8B5CF6]" />
           </div>
-          Backtest Motoru
-        </h1>
+          Strateji testi
+        </h2>
         <p className="text-muted-foreground text-sm mt-1">Stratejilerinizi geçmiş verilerle test edin</p>
       </div>
 
@@ -183,7 +188,7 @@ export function BacktestClient() {
           <div className="flex items-end">
             <button
               onClick={runBacktest}
-              disabled={loading || !selectedStrategy}
+              disabled={loading || !selectedStrategy || !symbol}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
               <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />
@@ -192,6 +197,7 @@ export function BacktestClient() {
           </div>
         </div>
 
+        <p className="mt-3 text-xs text-muted-foreground">{profileRate != null ? `Profil komisyonunuz: alış ve satışta ${commissionLabel(profileRate)}. Test başlatıldığında güncel profil oranı kullanılır.` : 'Testte profilinizde kayıtlı komisyon oranı kullanılır.'}</p>
         {selectedStrategy && (
           <div className="mt-3 p-3 glass-inner rounded-lg">
             <p className="text-xs text-muted-foreground">
@@ -212,6 +218,7 @@ export function BacktestClient() {
       {/* Results */}
       {result && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <p className="text-sm text-muted-foreground">Bu testte kullanılan profil komisyonu: {commissionLabel(result.commissionRate)} (alış ve satış). Önceki test sonuçları geriye dönük değiştirilmez.</p>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[

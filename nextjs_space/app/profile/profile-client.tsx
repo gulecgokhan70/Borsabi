@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut, Percent, Save } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { toast } from 'sonner';
 import { formatCurrency, formatPercent } from '@/lib/constants';
 
 const AVATARS = [
@@ -269,16 +270,14 @@ export default function ProfileClient() {
           <Percent className="w-4 h-4 text-[#8B5CF6]" /> Komisyon Oranı
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
-          İşlemlerinizde uygulanacak komisyon oranını belirleyin. Varsayılan: %0.20
+          İşlemlerinizde uygulanacak komisyon oranını belirleyin. Simülasyon, strateji testi ve adım adım pratikte kullanılır. Varsayılan: %0,20
         </p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 flex-1">
             <span className="text-sm text-muted-foreground">%</span>
             <input
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
+              type="text"
+              inputMode="decimal"
               value={commissionInput}
               onChange={e => setCommissionInput(e.target.value)}
               className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-[#8B5CF6] w-full"
@@ -303,21 +302,21 @@ export default function ProfileClient() {
         </div>
         <button
           onClick={async () => {
+            const rate = Number(commissionInput.trim().replace(',', '.')) / 100;
+            if (!commissionInput.trim() || !Number.isFinite(rate) || rate < 0 || rate > 0.01) {
+              toast.error('Komisyon %0 ile %1 arasında olmalı.'); return;
+            }
             setSavingCommission(true);
-            const rate = parseFloat(commissionInput) / 100;
-            if (isNaN(rate) || rate < 0 || rate > 1) {
-              setSavingCommission(false);
-              return;
-            }
-            const res = await fetch('/api/profile', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ commissionRate: rate }),
-            });
-            if (res.ok) {
+            try {
+              const res = await fetch('/api/profile', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commissionRate: rate }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Komisyon kaydedilemedi.');
               setProfile((p: any) => ({ ...p, commissionRate: rate }));
-            }
-            setSavingCommission(false);
+              toast.success('Komisyon kaydedildi. Sonraki işlemlerinizde kullanılacak.');
+            } catch (error) { toast.error(error instanceof Error ? error.message : 'Komisyon kaydedilemedi.'); }
+            finally { setSavingCommission(false); }
           }}
           disabled={savingCommission}
           className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-white bg-[#8B5CF6] hover:bg-[#7C3AED] transition-all disabled:opacity-50"

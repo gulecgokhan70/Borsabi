@@ -30,3 +30,13 @@ it('rejects unordered and malformed historical data instead of inventing candles
   expect(() => createReplay('BTC-USD', bars.map(b => ({ ...b, high: 1 })))).toThrow('doğrulanamadı');
   expect(() => createReplay('BTC-USD', [])).toThrow('yeterli');
 });
+
+it('supports custom and zero commission without altering previous trade fees', () => {
+  const state = createReplay('THYAO.IS', bars);
+  const buy = applyReplay(state, { action: 'BUY', quantity: 100, note: '' }, .001);
+  expect(buy.trades[0].commission).toBeCloseTo(13);
+  const sell = applyReplay(buy, { action: 'SELL', quantity: 100, note: '' }, 0);
+  expect(sell.trades.map(t => t.commissionRate)).toEqual([.001, 0]);
+  expect(sell.cash).toBeCloseTo(99987); expect(buy.trades).toHaveLength(1);
+  expect(() => applyReplay(state, { action: 'BUY', quantity: 1, note: '' }, .02)).toThrow('komisyon');
+});
