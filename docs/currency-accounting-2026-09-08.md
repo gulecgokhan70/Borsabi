@@ -37,6 +37,26 @@ değişikliği veya veritabanı işlemi yapmaz; geçiş denetiminin yerine geçm
 Betik durursa nedeni ve ilgili aşama yazılır. Yerel değişikliklerde yalnızca
 dosya adları gösterilir; dosyalar otomatik sıfırlanmaz, ortam dosyası okunmaz.
 
+## BTC detay ekranı düzeltmesi — 9 Eylül 2026
+
+Detay sayfasında USD fiyatlar varsayılan TL biçimleyiciyle gösteriliyordu. Ayrıca
+alım penceresine API'nin beklediği `CRYPTO` yerine `Kripto` gönderiliyor, bu yüzden
+kur sorgusu devreye girmiyordu. Detay, grafik fiyatları, fiyat farkları, teknik
+seviyeler ve piyasa değeri artık varlığın kotasyon birimini kullanır. USD tutarlar
+da Türkçe sayı biçimiyle gösterilir. Modalın piyasa türü iki geçerli değerle
+sınırlandırılmıştır; endeks ve desteklenmeyen varlıklarda işlem düğmeleri yoktur.
+
+Kısmi piyasa verisinde BTC'nin birimi USD kalır. Detaydan istenen AI analizi de
+aynı birimi korur; BTC geçmişi yanlışlıkla `BTC-USD.IS` olarak sorgulanmaz.
+Bu düzeltme işlem muhasebesini veya veritabanı şemasını değiştirmez.
+
+React bileşen testi gerçek detay sayfasını ve TradeModal durum/hesap akışını
+çalıştırır: USD gösterimi, grafik seçimi, 1.000 TL bütçe ve komisyon, başarısız kur
+sorgusunda işlem engeli, BIST ve endeks ayrımı. Grafik çizimi ve animasyon testte
+taklit edilir; bu test görsel tarayıcı doğrulaması değildir. Eski detay bileşeni
+ile testin başarısız olduğu da doğrulanmıştır. Bulut tarayıcısının yerel test
+adresine erişimi engellendiğinden canlı ekran ayrıca kontrol edilmelidir.
+
 ## Doğrulama senaryoları
 
 - Kur değişip dolar fiyatı aynı kaldığında TL K/Z değişir.

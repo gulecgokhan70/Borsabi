@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 import { getMidasStock } from '@/lib/midas-api';
+import { assetCurrency } from '@/lib/asset-display';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -357,7 +358,7 @@ export async function GET(
       marketCap: m ? (m.MarketValue ?? 0) : (quote?.marketCap ?? 0),
       fiftyTwoWeekHigh: quote?.fiftyTwoWeekHigh ?? 0,
       fiftyTwoWeekLow: quote?.fiftyTwoWeekLow ?? 0,
-      currency: quote?.currency ?? 'TRY',
+      currency: assetCurrency(symbol, quote?.currency),
       indicators: {
         rsi,
         ema20: lastEma20,
@@ -405,7 +406,7 @@ export async function GET(
       marketCap: 0,
       fiftyTwoWeekHigh: 0,
       fiftyTwoWeekLow: 0,
-      currency: 'TRY',
+      currency: assetCurrency(symbol),
       indicators: { rsi: null, ema20: null, ema50: null, ema200: null, avgVolume: 0, macd: null, macdSignal: null, macdHistogram: null, bbUpper: null, bbMiddle: null, bbLower: null },
       ohlc: [],
       _partialError: 'Hisse verisi kısmen alınamadı',

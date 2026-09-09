@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent, isIndexSymbol } from '@/lib/constants';
+import { assetCurrency, tradableMarketType } from '@/lib/asset-display';
 import { TradeModal } from '@/components/trade-modal';
 import { useHaptic } from '@/hooks/use-haptic';
 import {
@@ -132,9 +133,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const router = useRouter();
   const haptic = useHaptic();
   const lastHapticTs = useRef(0);
-  const isIndex = isIndexSymbol(symbol);
-  const fp = (v: number) => isIndex ? formatNumber(v) : formatCurrency(v);
   const [data, setData] = useState<StockData | null>(null);
+  const assetSymbol = data?.symbol ?? symbol;
+  const isIndex = isIndexSymbol(assetSymbol);
+  const currencyCode = assetCurrency(assetSymbol, data?.currency);
+  const marketType = tradableMarketType(assetSymbol);
+  const fp = (v: number) => isIndex ? formatNumber(v) : formatCurrency(v, currencyCode);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
   const [chartInterval, setChartInterval] = useState('5m');
@@ -201,7 +205,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: data.symbol, name: data.name, price: data.price,
+          symbol: data.symbol, name: data.name, price: data.price, currency: currencyCode,
           change: data.change, changePercent: data.changePercent,
           high: data.high, low: data.low, open: data.open, prevClose: data.prevClose,
           volume: data.volume, marketCap: data.marketCap,
@@ -242,7 +246,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } finally {
       setAnalysisLoading(false);
     }
-  }, [data, news, analysisLoading]);
+  }, [data, news, analysisLoading, currencyCode]);
 
   // Data yüklenince otomatik analiz başlat
   const analysisTriggered = useRef(false);
@@ -450,10 +454,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               </p>
               <p className={`text-sm font-medium transition-colors duration-150 ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                 {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-                {isIndex ? `${displayChangePercent >= 0 ? '+' : ''}${displayChangePercent.toFixed(2)}%` : `${displayChange >= 0 ? '+' : ''}${formatCurrency(Math.abs(displayChange))}`}
+                {isIndex ? `${displayChangePercent >= 0 ? '+' : ''}${displayChangePercent.toFixed(2)}%` : `${displayChange >= 0 ? '+' : ''}${fp(displayChange)}`}
               </p>
             </div>
-            {!isIndexSymbol(data?.symbol ?? '') && (
+            {marketType && (
               <div className="flex flex-col gap-2">
                 <button onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }}
                   className="px-5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors flex items-center gap-1.5">
@@ -480,6 +484,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
+            <span className="text-xs text-muted-foreground">{isIndex ? 'Puan' : currencyCode}</span>
             <div className="flex glass-inner rounded-lg p-0.5">
               <button onClick={() => setChartType('candle')}
                 className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>🕯️ Mum</button>
@@ -859,7 +864,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                         ].filter(s => s.value).map((s, i) => (
                           <div key={i} className="text-center p-1.5 rounded-lg" style={{ backgroundColor: s.color + '08', border: `1px solid ${s.color}15` }}>
                             <p className="text-[9px] text-muted-foreground">{s.label}</p>
-                            <p className="text-xs font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? s.value.toFixed(2) : s.value}</p>
+                            <p className="text-xs font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? fp(s.value) : s.value}</p>
                           </div>
                         ))}
                       </div>
@@ -1032,8 +1037,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         );
       })()}
 
-      {/* ===== MIDAS EXTRA DATA (BIST ONLY) ===== */}
-      {data && (data.vwap || data.fk || data.pddd) && (
+      {/* ===== FUNDAMENTALS (NATIVE QUOTE CURRENCY) ===== */}
+      {data && (data.vwap || data.fk || data.pddd || data.marketCap) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
           className="glass-card rounded-xl p-4">
           <button onClick={() => setShowFundamentals(!showFundamentals)}
@@ -1077,7 +1082,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Piyasa Değeri</p>
                   <p className="text-foreground font-bold font-mono">
-                    {data.marketCap >= 1e9 ? `₺${(data.marketCap / 1e9).toFixed(1)} Milyar` : `₺${(data.marketCap / 1e6).toFixed(0)} Milyon`}
+                    {data.marketCap >= 1e9 ? `${formatCurrency(data.marketCap / 1e9, currencyCode)} Milyar` : `${formatCurrency(data.marketCap / 1e6, currencyCode)} Milyon`}
                   </p>
                 </div>
               ) : null}
@@ -1330,7 +1335,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       </p>
 
       {/* Trade Modal */}
-      {data && !isIndexSymbol(data.symbol) && (() => {
+      {data && marketType && (() => {
         // Destek/direnç seviyelerinden otomatik SL/TP hesapla
         const supports = data.supportResistance?.supports ?? [];
         const resistances = data.supportResistance?.resistances ?? [];
@@ -1347,7 +1352,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             symbol={data.symbol}
             name={data.name}
             price={data.price}
-            marketType={data.symbol.endsWith('.IS') ? 'BIST' : data.symbol.endsWith('-USD') ? 'Kripto' : 'Diğer'}
+            marketType={marketType}
             side={tradeSide}
             initialStopLoss={autoSL}
             initialTakeProfit={autoTP}

@@ -101,10 +101,7 @@ export function getScoreCategory(score: number) {
 
 export function formatCurrency(value: number | null | undefined, currency = 'TRY'): string {
   const v = value ?? 0;
-  if (currency === 'USD') {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
-  }
-  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(v);
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(v);
 }
 
 export function formatNumber(value: number | null | undefined, decimals = 2): string {

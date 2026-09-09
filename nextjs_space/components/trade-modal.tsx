@@ -5,6 +5,7 @@ import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, Shiel
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '@/lib/constants';
 import { quantityForCash } from '@/lib/currency';
+import type { TradeMarketType } from '@/lib/asset-display';
 import { toast } from 'sonner';
 import { useHaptic } from '@/hooks/use-haptic';
 import { useConfetti } from '@/hooks/use-confetti';
@@ -15,7 +16,7 @@ interface TradeModalProps {
   symbol: string;
   name: string;
   price: number;
-  marketType: string;
+  marketType: TradeMarketType;
   side?: 'BUY' | 'SELL';
   maxQuantity?: number;
   onSuccess?: () => void;
