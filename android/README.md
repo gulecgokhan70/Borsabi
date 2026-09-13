@@ -65,3 +65,16 @@ Varsayılan güvenilen alan adı yalnızca `https://borsabi.com`. `www` veya ba�
 - [Android 16 / API 36 hedef şartı](https://support.google.com/googleplay/android-developer/answer/11926878?hl=en-GB)
 - [AGP 8.10, Gradle ve Java uyumluluğu](https://developer.android.com/build/releases/agp-8-10-0-release-notes)
 - [Play imzalama ve yükleme anahtarının farkı](https://developer.android.com/studio/publish/app-signing)
+
+## Release candidate 2 (1.0.1)
+
+The Android workflow also builds the existing `com.borsabi.twa` identity with
+versionCode 2, versionName 1.0.1 and target API 36. Play Console currently shows
+versionCode 1 (1.0.0.0). The preview job retains its separate identity.
+
+The release candidate artifact is **unsigned**. CI never receives the upload
+keystore or password. It includes Android lint, bundletool validation, the
+manifest extracted from the AAB, and the source commit. Sign locally using the
+registered replacement upload key before uploading to the existing Play track.
+Confirm Digital Asset Links using Google's **app signing** certificate and test
+a Play-installed build on Android; the upload certificate is a separate key.

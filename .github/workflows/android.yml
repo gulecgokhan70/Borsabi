@@ -50,3 +50,53 @@ jobs:
             android/generated/com.borsabi.packagingpreview-1/app/build/outputs/bundle/release/app-release.aab
             android/generated/com.borsabi.packagingpreview-1/app/build/reports/lint-results-release.html
             android/generated/com.borsabi.packagingpreview-1/PREPARATION.json
+  unsigned-release-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: android/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install pinned generator
+        working-directory: android
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Validate preparation inputs
+        working-directory: android
+        run: npm test
+      - name: Generate existing Play application identity
+        working-directory: android
+        run: node scripts/prepare.mjs --version-code 2 --version-name 1.0.1
+      - name: Install Android API 36
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0"'
+      - name: Build unsigned release candidate and run Android lint
+        working-directory: android/generated/com.borsabi.twa-2
+        run: bash gradlew --no-daemon :app:bundleRelease :app:lintRelease
+      - name: Verify built package identity and target
+        run: python3 android/scripts/verify-bundle.py android/generated/com.borsabi.twa-2
+      - name: Validate bundle and export manifest
+        working-directory: android/generated/com.borsabi.twa-2
+        run: |
+          curl --fail --location --retry 3 --output bundletool.jar https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          java -jar bundletool.jar validate --bundle=app/build/outputs/bundle/release/app-release.aab
+          java -jar bundletool.jar dump manifest --bundle=app/build/outputs/bundle/release/app-release.aab > bundle-manifest.xml
+          git rev-parse HEAD > SOURCE_COMMIT.txt
+      - name: Save unsigned build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-com.borsabi.twa-2-unsigned
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            android/generated/com.borsabi.twa-2/app/build/outputs/bundle/release/app-release.aab
+            android/generated/com.borsabi.twa-2/app/build/reports/lint-results-release.html
+            android/generated/com.borsabi.twa-2/PREPARATION.json
+            android/generated/com.borsabi.twa-2/bundle-manifest.xml
+            android/generated/com.borsabi.twa-2/bundletool.jar
+            android/generated/com.borsabi.twa-2/SOURCE_COMMIT.txt

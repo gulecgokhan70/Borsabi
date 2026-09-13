@@ -15,6 +15,8 @@ android = "{http://schemas.android.com/apk/res/android}"
 sdk = manifest.find("uses-sdk")
 if manifest.get("package") != config["packageId"] or manifest.get(android + "versionCode") != str(config["versionCode"]):
     raise SystemExit("Built identity/version does not match the preparation inputs.")
+if manifest.get(android + "versionName") != config["versionName"]:
+    raise SystemExit("Built version name does not match preparation inputs.")
 if sdk is None or sdk.get(android + "targetSdkVersion") != "36" or sdk.get(android + "minSdkVersion") != "23":
     raise SystemExit("Unexpected Android API target/minimum in merged release manifest.")
 with zipfile.ZipFile(root / "app/build/outputs/bundle/release/app-release.aab") as bundle:
