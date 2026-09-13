@@ -1,5 +1,4 @@
 'use client';
-import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, Eye, Database, Lock, UserCheck, Globe, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -67,7 +66,7 @@ export default function AydinlatmaMetniPage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
             </div>
-            <h1 className="font-bold text-foreground text-lg">Aydınlatma Metni</h1>
+            <h1 className="font-bold text-foreground text-lg">Gizlilik Politikası ve Aydınlatma Metni</h1>
           </div>
         </div>
       </div>
@@ -80,7 +79,7 @@ export default function AydinlatmaMetniPage() {
           <Link href="/hesap-silme" className="inline-flex min-h-[44px] items-center text-blue-500">Hesap silme sayfasını aç</Link>
         </div>
         {/* Intro Banner */}
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+        <div
           className="glass-card rounded-2xl p-5 border border-[#8B5CF6]/10">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8B5CF6]/10 to-[#6366F1]/10 flex items-center justify-center flex-shrink-0">
@@ -95,11 +94,11 @@ export default function AydinlatmaMetniPage() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Sections */}
         {sections.map((section, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * (i + 1) }}
+          <div key={i}
             className="glass-card rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B5CF6]/10 to-[#6366F1]/10 flex items-center justify-center flex-shrink-0">
@@ -116,11 +115,11 @@ export default function AydinlatmaMetniPage() {
                 </p>
               ))}
             </div>
-          </motion.div>
+          </div>
         ))}
 
         {/* Footer Note */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+        <div
           className="text-center py-6 space-y-2">
           <p className="text-[10px] text-muted-foreground">
             ⚠️ BorsaBi Trader tamamen eğitim ve simülasyon amaçlıdır. Gerçek para ile işlem yapılmaz.
@@ -128,7 +127,7 @@ export default function AydinlatmaMetniPage() {
           <p className="text-[10px] text-muted-foreground">
             © 2024-2026 BorsaBi Trader. Tüm hakları saklıdır.
           </p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

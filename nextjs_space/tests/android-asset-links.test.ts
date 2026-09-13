@@ -10,12 +10,25 @@ describe('Android website association', () => {
       expect(androidAssetLinks('com.borsabi.trader', fingerprint)).toBeNull();
     }
     expect(androidAssetLinks('../unknown', certificate)).toBeNull();
-    vi.stubEnv('ANDROID_APPLICATION_ID', '');
+    vi.stubEnv('ANDROID_APPLICATION_ID', 'com.borsabi.twa');
     vi.stubEnv('ANDROID_SHA256_CERT_FINGERPRINTS', '');
     const response = await GET();
     expect(response.status).toBe(404);
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(await response.json()).toEqual([]);
+  });
+  it('serves the confirmed Play signing identity when no overrides are set', async () => {
+    vi.stubEnv('ANDROID_APPLICATION_ID', '');
+    vi.stubEnv('ANDROID_SHA256_CERT_FINGERPRINTS', '');
+    const response = await GET();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([{
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: {
+        namespace: 'android_app', package_name: 'com.borsabi.twa',
+        sha256_cert_fingerprints: ['DE:CC:C4:7A:95:E1:A7:F3:35:02:0E:54:C5:10:41:88:F6:62:8C:59:B4:FB:21:C7:A8:23:E6:F1:B3:90:E6:CA'],
+      },
+    }]);
   });
   it('publishes only configured public identity and normalized signing certificates', async () => {
     vi.stubEnv('ANDROID_APPLICATION_ID', 'com.borsabi.trader');

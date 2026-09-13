@@ -78,3 +78,17 @@ manifest extracted from the AAB, and the source commit. Sign locally using the
 registered replacement upload key before uploading to the existing Play track.
 Confirm Digital Asset Links using Google's **app signing** certificate and test
 a Play-installed build on Android; the upload certificate is a separate key.
+
+## Confirmed website association (13 September 2026)
+
+The owner supplied Play Console's complete Digital Asset Links JSON. The web
+endpoint now defaults to `com.borsabi.twa` and the Play app-signing certificate
+`DE:CC:C4:7A:95:E1:A7:F3:35:02:0E:54:C5:10:41:88:F6:62:8C:59:B4:FB:21:C7:A8:23:E6:F1:B3:90:E6:CA`
+when both Android environment settings are empty. Explicit complete overrides
+still take precedence; incomplete or invalid overrides return 404. This is public
+certificate information, not a private key or the upload certificate.
+
+Deploy the web changes before checking the live association. The Play Console
+privacy URL `/gizlilik-politikasi` also now serves the existing policy directly,
+without requiring login or redirecting; `/aydinlatma-metni` remains available.
+Check both URLs on the live domain before marking the Console issue resolved.
