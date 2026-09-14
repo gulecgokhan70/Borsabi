@@ -124,7 +124,7 @@ export default function AlertsClient() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Hedef Fiyat</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Hedef Fiyat ({symbol.endsWith('-USD') ? 'USD' : 'TL'})</label>
               <input type="number" value={targetPrice} onChange={e => setTargetPrice(e.target.value)} placeholder="0.00"
                 className="w-full glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3B82F6]" />
             </div>
@@ -156,7 +156,7 @@ export default function AlertsClient() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {alert.condition === 'above' ? 'Fiyat üstüne çıktığında' : 'Fiyat altına düştüğünde'}: {formatCurrency(alert.targetPrice)}
+                    {alert.condition === 'above' ? 'Fiyat üstüne çıktığında' : 'Fiyat altına düştüğünde'}: {formatCurrency(alert.targetPrice, alert.symbol.endsWith('-USD') ? 'USD' : 'TRY')}
                   </p>
                 </div>
                 <button onClick={() => deleteAlert(alert.id)} className="p-2 text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg">
@@ -183,7 +183,7 @@ export default function AlertsClient() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground cursor-pointer hover:text-[#3B82F6] transition-colors" onClick={() => router.push(`/stock/${encodeURIComponent(alert.symbol)}`)}>{alert.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatCurrency(alert.targetPrice)} - Tetiklendi</p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(alert.targetPrice, alert.symbol.endsWith('-USD') ? 'USD' : 'TRY')} - Tetiklendi</p>
                 </div>
                 <button onClick={() => deleteAlert(alert.id)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-[#EF4444] rounded-lg">
                   <Trash2 className="w-4 h-4" />

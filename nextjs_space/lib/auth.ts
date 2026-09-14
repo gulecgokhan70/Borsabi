@@ -1,11 +1,9 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -31,17 +29,26 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.name = user.name;
       }
-      // Her token yenilemede DB'den güncel adı ve avatarı çek
+      // Bind sessions to the immutable account ID. A deleted account's JWT must
+      // never authenticate a new account that registers the same email address.
       if (token.id) {
         try {
-          const dbUser = await prisma.user.findUnique({ where: { id: token.id as string }, select: { name: true, avatar: true } });
-          if (dbUser?.name) token.name = dbUser.name;
-          token.avatar = dbUser?.avatar ?? null;
-        } catch (_) {}
+          const dbUser = await prisma.user.findUnique({ where: { id: token.id as string }, select: { name: true, email: true, avatar: true, role: true } });
+          token.accountValid = !!dbUser;
+          if (dbUser) {
+            token.name = dbUser.name;
+            token.email = dbUser.email;
+            token.avatar = dbUser.avatar;
+            token.role = dbUser.role;
+          }
+        } catch { token.accountValid = false; }
+      } else {
+        token.accountValid = false;
       }
       return token;
     },
     async session({ session, token }: any) {
+      if (!token.id || token.accountValid !== true) return null;
       if (session?.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;

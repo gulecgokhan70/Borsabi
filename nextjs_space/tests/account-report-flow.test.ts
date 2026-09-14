@@ -1,0 +1,35 @@
+import { createElement } from 'react';
+import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'react-test-renderer';
+import { afterEach, expect, it, vi } from 'vitest';
+vi.mock('next-auth/react', () => ({ signOut: vi.fn() }));
+vi.mock('next/link', () => ({ default: ({ children, ...props }: any) => createElement('a', props, children) }));
+import { signOut } from 'next-auth/react';
+import { AccountDeletionForm } from '../app/hesap-silme/account-deletion-form';
+import { ReportAIResponse } from '../components/report-ai-response';
+let renderer: ReactTestRenderer;
+const textOf = (node: ReactTestInstance | string): string => typeof node === 'string' ? node : node.children.map(textOf).join('');
+afterEach(async () => { await act(async () => renderer?.unmount()); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+it('requires explicit deletion confirmation and preserves success if local sign-out fails', async () => {
+  const fetcher = vi.fn(async () => Response.json({ success: true })); vi.stubGlobal('fetch', fetcher);
+  vi.mocked(signOut).mockRejectedValue(new Error('offline'));
+  await act(async () => { renderer = create(createElement(AccountDeletionForm, { userId: 'owner' })); });
+  await act(async () => renderer.root.findByProps({ type: 'password' }).props.onChange({ target: { value: 'password' } }));
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  expect(fetcher).not.toHaveBeenCalled();
+  await act(async () => renderer.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } }));
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  expect(fetcher.mock.calls[0]).toBeDefined(); expect(renderer.root.findByProps({ role: 'status' })).toBeDefined();
+  expect(textOf(renderer.root)).toContain('Hesabınız silindi.'); expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+});
+it('shows a rejected report as an error, allows retry and resets the receipt for a new response', async () => {
+  const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ error: 'Tekrar deneyin.' }, { status: 503 })).mockResolvedValueOnce(Response.json({ received: true })); vi.stubGlobal('fetch', fetcher);
+  await act(async () => { renderer = create(createElement(ReportAIResponse, { source: 'ai-assistant', content: 'original answer' })); });
+  await act(async () => renderer.root.findByType('button').props.onClick());
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  expect(textOf(renderer.root.findByProps({ role: 'alert' }))).toContain('Tekrar deneyin.');
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  expect(textOf(renderer.root)).toContain('inceleme için kaydedildi');
+  expect(JSON.parse(fetcher.mock.calls[1][1].body)).toMatchObject({ source: 'ai-assistant', content: 'original answer' });
+  await act(async () => renderer.update(createElement(ReportAIResponse, { source: 'ai-assistant', content: 'different answer' })));
+  expect(textOf(renderer.root)).toContain('Yanıtı bildir'); expect(textOf(renderer.root)).not.toContain('inceleme için kaydedildi');
+});

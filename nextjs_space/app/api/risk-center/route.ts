@@ -1,11 +1,11 @@
+import { valuePositions } from '@/lib/position-valuation';
+import { CurrencyError } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT, BIST_ALL_ASSETS } from '@/lib/constants';
-import { cachedQuoteBatch } from '@/lib/yahoo-finance';
-import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
+import { MAX_RISK_PER_TRADE, DAILY_LOSS_LIMIT } from '@/lib/constants';
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,50 +34,10 @@ export async function GET(request: NextRequest) {
     const rawPositions = user.positions ?? [];
     const transactions = user.transactions ?? [];
 
-    // Açık pozisyonlar için canlı fiyat çek
-    let openPositions = rawPositions.map((p: any) => ({ ...p }));
-    if (rawPositions.length > 0) {
-      const normalizeSymbol = (sym: string): string => {
-        if (sym.endsWith('.IS') || sym.endsWith('-USD')) return sym;
-        const bistMatch = BIST_ALL_ASSETS.find((a: any) => a.symbol === `${sym}.IS`);
-        return bistMatch ? bistMatch.symbol : sym;
-      };
-      const symbolMap = new Map<string, string>();
-      rawPositions.forEach((p: any) => { symbolMap.set(p.symbol, normalizeSymbol(p.symbol)); });
-      const normalizedSymbols = [...new Set(Array.from(symbolMap.values()))];
-      const bistSymbols = normalizedSymbols.filter((s: string) => s.endsWith('.IS'));
-      const otherSymbols = normalizedSymbols.filter((s: string) => !s.endsWith('.IS'));
-
-      let midasMap = new Map<string, MidasStock>();
-      if (bistSymbols.length > 0) {
-        try { midasMap = await getMidasStockMap(); } catch (e) { console.warn('[RiskCenter] Midas hatası'); }
-      }
-      let yahooMap = new Map<string, any>();
-      const yahooNeeded = otherSymbols.concat(
-        bistSymbols.filter((s: string) => !midasMap.has(s.replace('.IS', '').toUpperCase()))
-      );
-      if (yahooNeeded.length > 0) {
-        try { yahooMap = await cachedQuoteBatch(yahooNeeded); } catch (e) { console.warn('[RiskCenter] Yahoo hatası'); }
-      }
-
-      openPositions = rawPositions.map((p: any) => {
-        let livePrice = p.currentPrice;
-        const normalized = symbolMap.get(p.symbol) ?? p.symbol;
-        const cleanSym = normalized.replace('.IS', '').toUpperCase();
-        const midas = normalized.endsWith('.IS') ? midasMap.get(cleanSym) : null;
-        if (midas) {
-          const mp = midas.Last || midas.Close || midas.PreviousClose || 0;
-          if (mp > 0) livePrice = mp;
-        } else {
-          const yq: any = yahooMap.get(normalized) ?? yahooMap.get(p.symbol);
-          if (yq) { const yp = yq?.regularMarketPrice ?? 0; if (yp > 0) livePrice = yp; }
-        }
-        return { ...p, currentPrice: livePrice };
-      });
-    }
+    const openPositions = await valuePositions(rawPositions);
 
     // Toplam portföy değeri
-    const totalPositionValue = openPositions.reduce((sum: number, p: any) => sum + (p.quantity * p.currentPrice), 0);
+    const totalPositionValue = openPositions.reduce((sum: number, p: any) => sum + p.totalValue, 0);
     const portfolioValue = balance + totalPositionValue;
 
     // Toplam kâr/zarar
@@ -86,8 +46,8 @@ export async function GET(request: NextRequest) {
 
     // Açık pozisyon riski
     const positionRisks = openPositions.map((p: any) => {
-      const positionValue = p.quantity * p.currentPrice;
-      const entryValue = p.quantity * p.entryPrice;
+      const positionValue = p.totalValue;
+      const entryValue = p.totalCost;
       const unrealizedPnL = positionValue - entryValue;
       const unrealizedPnLPercent = entryValue > 0 ? (unrealizedPnL / entryValue) * 100 : 0;
       const portfolioWeight = portfolioValue > 0 ? (positionValue / portfolioValue) * 100 : 0;
@@ -108,6 +68,7 @@ export async function GET(request: NextRequest) {
 
       return {
         id: p.id,
+        currency: p.currency,
         symbol: p.symbol,
         name: p.name,
         quantity: p.quantity,
@@ -146,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     // Gerçekleşmemiş K/Z (açık pozisyonlardan)
     const totalUnrealizedPnL = openPositions.reduce((sum: number, p: any) => {
-      return sum + ((p.currentPrice - p.entryPrice) * p.quantity);
+      return sum + p.pnl;
     }, 0);
 
     // Günlük/Haftalık K/Z = gerçekleşmiş + gerçekleşmemiş
@@ -254,6 +215,7 @@ export async function GET(request: NextRequest) {
       warnings,
     });
   } catch (error: any) {
+    if (error instanceof CurrencyError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error('Risk center error:', error);
     return NextResponse.json({ error: 'Risk merkezi yüklenemedi' }, { status: 500 });
   }

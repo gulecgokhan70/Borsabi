@@ -23,7 +23,6 @@ export function ScreeningClient() {
   const [isFresh, setIsFresh] = useState(true);
 
   const fetchScreening = useCallback(async () => {
-    if (!cachedAt) setLoading(true); // Only show loader on first load
     try {
       const res = await fetch('/api/screening');
       const data = await res.json();
@@ -33,13 +32,13 @@ export function ScreeningClient() {
       if (data?.fresh !== undefined) setIsFresh(data.fresh);
 
     } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  }, [cachedAt]);
+  }, []);
 
   useEffect(() => {
     fetchScreening();
     const interval = setInterval(() => { fetchScreening(); }, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchScreening]);
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return '#22C55E';

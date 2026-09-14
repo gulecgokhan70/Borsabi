@@ -347,7 +347,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                       className="flex items-center gap-2 px-4 py-2.5 bg-[#F59E0B] hover:bg-[#D97706] text-black rounded-lg text-sm font-medium transition-colors"
                     >
                       <HelpCircle className="w-4 h-4" />
-                      Quiz'e Başla
+                      Quiz&#39;e Başla
                     </button>
                   ) : (
                     <button

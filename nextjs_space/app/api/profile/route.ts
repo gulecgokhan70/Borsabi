@@ -1,82 +1,38 @@
+import { valuePositions } from '@/lib/position-valuation';
+import { CurrencyError } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { cachedQuoteBatch } from '@/lib/yahoo-finance';
-import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
-import { BIST_ALL_ASSETS } from '@/lib/constants';
+import { profileUpdateSchema } from '@/lib/profile-validation';
+import { readMutationJson, RequestError } from '@/lib/request-json';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    if (!userId) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: userId },
       include: {
         positions: true,
-        transactions: { orderBy: { createdAt: 'desc' }, take: 100 },
+        transactions: { where: { type: 'SELL' }, orderBy: { createdAt: 'desc' } },
         achievements: true,
         priceAlerts: { where: { active: true } },
       },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const closedPositions = user.positions.filter((p: any) => p.status === 'CLOSED');
     const openPositions = user.positions.filter((p: any) => p.status === 'OPEN');
-    const totalTrades = closedPositions.length;
-    const wins = closedPositions.filter((p: any) => (p.pnl ?? 0) > 0).length;
-    const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
-    const totalPnl = closedPositions.reduce((s: number, p: any) => s + (p.pnl || 0), 0);
+    const totalTrades = user.transactions.length;
+    const wins = user.transactions.filter(t => (t.pnl ?? 0) > 0).length;
+    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+    const totalPnl = user.transactions.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
 
-    // Açık pozisyonlar için canlı fiyatları çek (portföy API'si ile aynı mantık)
-    let openPositionValue = 0;
-    if (openPositions.length > 0) {
-      const normalizeSymbol = (sym: string): string => {
-        if (sym.endsWith('.IS') || sym.endsWith('-USD')) return sym;
-        const bistMatch = BIST_ALL_ASSETS.find((a: any) => a.symbol === `${sym}.IS`);
-        return bistMatch ? bistMatch.symbol : sym;
-      };
-
-      const symbolMap = new Map<string, string>();
-      openPositions.forEach((p: any) => { symbolMap.set(p.symbol, normalizeSymbol(p.symbol)); });
-
-      const normalizedSymbols = [...new Set(Array.from(symbolMap.values()))];
-      const bistSymbols = normalizedSymbols.filter((s: string) => s.endsWith('.IS'));
-      const otherSymbols = normalizedSymbols.filter((s: string) => !s.endsWith('.IS'));
-
-      let midasMap = new Map<string, MidasStock>();
-      if (bistSymbols.length > 0) {
-        try { midasMap = await getMidasStockMap(); } catch (e) { /* ignore */ }
-      }
-
-      let yahooMap = new Map<string, any>();
-      const yahooNeeded = otherSymbols.concat(
-        bistSymbols.filter((s: string) => !midasMap.has(s.replace('.IS', '').toUpperCase()))
-      );
-      if (yahooNeeded.length > 0) {
-        try { yahooMap = await cachedQuoteBatch(yahooNeeded); } catch (e) { /* ignore */ }
-      }
-
-      openPositionValue = openPositions.reduce((sum: number, p: any) => {
-        let livePrice = p.currentPrice ?? p.entryPrice;
-        const normalized = symbolMap.get(p.symbol) ?? p.symbol;
-        const cleanSym = normalized.replace('.IS', '').toUpperCase();
-        const midas = normalized.endsWith('.IS') ? midasMap.get(cleanSym) : null;
-        if (midas) {
-          const mp = midas.Last || midas.Close || midas.PreviousClose || 0;
-          if (mp > 0) livePrice = mp;
-        } else {
-          const yq: any = yahooMap.get(normalized) ?? yahooMap.get(p.symbol);
-          if (yq) {
-            const yp = yq?.regularMarketPrice ?? 0;
-            if (yp > 0) livePrice = yp;
-          }
-        }
-        return sum + (livePrice * p.quantity);
-      }, 0);
-    }
+    const valuedPositions = await valuePositions(openPositions);
+    const openPositionValue = valuedPositions.reduce((sum, p) => sum + p.totalValue, 0);
 
     const totalPortfolioValue = user.balance + openPositionValue;
     const totalReturn = user.initialBalance > 0 ? ((totalPortfolioValue - user.initialBalance) / user.initialBalance) * 100 : 0;
@@ -86,10 +42,10 @@ export async function GET() {
     const monthlyPerf: { month: string; pnl: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
       const monthTxns = user.transactions.filter((t: any) => {
         const td = new Date(t.createdAt);
-        return td >= d && td <= end && t.pnl != null;
+        return td >= d && td < end && t.pnl != null;
       });
       const pnl = monthTxns.reduce((s: number, t: any) => s + (t.pnl || 0), 0);
       monthlyPerf.push({ month: d.toLocaleString('tr-TR', { month: 'short' }), pnl });
@@ -117,6 +73,7 @@ export async function GET() {
       memberSince: user.createdAt,
     });
   } catch (err: any) {
+    if (err instanceof CurrencyError) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error('Profile API error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
@@ -125,30 +82,21 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const body = await req.json();
-    const { name, tier, avatar, commissionRate } = body;
-
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (tier && ['free', 'pro'].includes(tier)) updateData.tier = tier;
-    if (avatar !== undefined) updateData.avatar = avatar;
-    if (commissionRate !== undefined) {
-      const rate = parseFloat(commissionRate);
-      if (!isNaN(rate) && rate >= 0 && rate <= 0.01) {
-        updateData.commissionRate = rate;
-      }
-    }
+    const userId = (session?.user as { id?: string } | undefined)?.id;
+    if (!userId) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
+    const parsed = profileUpdateSchema.safeParse(await readMutationJson(req));
+    if (!parsed.success) return NextResponse.json({ error: 'Ad, avatar veya komisyon bilgisi geçersiz. Komisyon %0–%1 aralığında olmalı; paket ve yetkiler profilden değiştirilemez.' }, { status: 400 });
 
     const user = await prisma.user.update({
-      where: { email: session.user.email },
-      data: updateData,
+      where: { id: userId },
+      data: parsed.data,
+      select: { tier: true, name: true, avatar: true, commissionRate: true },
     });
 
-    return NextResponse.json({ success: true, tier: user.tier, name: user.name, avatar: user.avatar });
+    return NextResponse.json({ success: true, ...user });
   } catch (err: any) {
-    console.error('Profile update error:', err);
+    if (err instanceof RequestError) return NextResponse.json({ error: err.message }, { status: err.status });
+    if (err?.code === 'P2025') return NextResponse.json({ error: 'Hesap bulunamadı.' }, { status: 401 });
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

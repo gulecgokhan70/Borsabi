@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 import { getMidasStock } from '@/lib/midas-api';
+import { quoteTimestamp, quoteMarketOpen } from '@/lib/quote-metadata';
+import { assetCurrency } from '@/lib/asset-display';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -150,10 +152,10 @@ function calculateSupportResistance(ohlc: { high: number; low: number; close: nu
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    let symbol = decodeURIComponent(params.symbol);
+    let symbol = decodeURIComponent((await params).symbol);
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') ?? '1mo';
     const interval = searchParams.get('interval') ?? '1d';
@@ -168,7 +170,7 @@ export async function GET(
       if (bistMatch) {
         symbol = bistMatch.symbol; // AGESA -> AGESA.IS
         assetInfo = bistMatch;
-        console.log(`[StockDetail] Sembol normalize edildi: ${params.symbol} -> ${symbol}`);
+        console.log(`[StockDetail] Sembol normalize edildi: ${(await params).symbol} -> ${symbol}`);
       }
     }
 
@@ -347,6 +349,11 @@ export async function GET(
       name: assetInfo?.name ?? quote?.shortName ?? symbol,
       shortName: assetInfo?.shortName ?? symbol.replace('.IS', '').replace('-USD', ''),
       price: finalPrice,
+      priceSource: midasPrice ? 'Midas' : yahooPrice ? 'Yahoo Finance' : ohlcPrice ? 'Geçmiş grafik verisi' : null,
+      priceAsOf: midasPrice ? (m?.Last === midasPrice ? quoteTimestamp(m.DateTime) : null) : yahooPrice ? quoteTimestamp(quote?.regularMarketTime) : ohlcPrice ? quoteTimestamp(ohlc[ohlc.length - 1]?.time) : null,
+      priceTimeKind: !midasPrice && !yahooPrice && ohlcPrice ? 'candle' : 'quote',
+      checkedAt: new Date().toISOString(),
+      marketOpen: midasPrice ? null : quoteMarketOpen(quote?.marketState),
       change: Number(m ? (m.DailyChange ?? 0) : (quote?.regularMarketChange ?? 0)) || 0,
       changePercent: Number(m ? (m.DailyChangePercent ?? 0) : (quote?.regularMarketChangePercent ?? 0)) || 0,
       high: m ? (m.High || m.PreviousClose || 0) : (quote?.regularMarketDayHigh ?? 0),
@@ -357,7 +364,7 @@ export async function GET(
       marketCap: m ? (m.MarketValue ?? 0) : (quote?.marketCap ?? 0),
       fiftyTwoWeekHigh: quote?.fiftyTwoWeekHigh ?? 0,
       fiftyTwoWeekLow: quote?.fiftyTwoWeekLow ?? 0,
-      currency: quote?.currency ?? 'TRY',
+      currency: assetCurrency(symbol, quote?.currency),
       indicators: {
         rsi,
         ema20: lastEma20,
@@ -387,7 +394,7 @@ export async function GET(
   } catch (error: any) {
     console.error('Stock detail API error:', error);
     // Son çare: en azından sembol bilgisiyle dön, 500 yerine kısmi veri ver
-    const symbol = decodeURIComponent(params.symbol);
+    const symbol = decodeURIComponent((await params).symbol);
     const allAssets = [...BIST_ALL_ASSETS, ...CRYPTO_ASSETS];
     const assetInfo = allAssets.find((a: any) => a.symbol === symbol);
     return NextResponse.json({
@@ -405,7 +412,7 @@ export async function GET(
       marketCap: 0,
       fiftyTwoWeekHigh: 0,
       fiftyTwoWeekLow: 0,
-      currency: 'TRY',
+      currency: assetCurrency(symbol),
       indicators: { rsi: null, ema20: null, ema50: null, ema200: null, avgVolume: 0, macd: null, macdSignal: null, macdHistogram: null, bbUpper: null, bbMiddle: null, bbLower: null },
       ohlc: [],
       _partialError: 'Hisse verisi kısmen alınamadı',
