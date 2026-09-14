@@ -194,3 +194,20 @@ it('shows post-trade cash including the profile commission for both directions',
   await act(async () => quantity.props.onChange({ target: { value: '1' } }));
   expect(textOf(modal)).toContain('İşlem sonrası tahmini nakit bakiye₺100.314,87');
 });
+it('shows a fee-inclusive scenario only for valid buys and sends the original decision note', async () => {
+  await mount('THYAO.IS');
+  await act(async () => button('Al').props.onClick());
+  const modal = renderer!.root.findByType(TradeModal);
+  const quantity = modal.findByProps({ placeholder: 'Adet girin' });
+  await act(async () => quantity.props.onChange({ target: { value: '-1' } }));
+  expect(textOf(modal)).not.toContain('İşlem öncesi senaryoyu incele');
+  await act(async () => quantity.props.onChange({ target: { value: '1' } }));
+  expect(textOf(modal)).toContain('İşlem öncesi senaryoyu incele');
+  const select = modal.findByType('select');
+  await act(async () => select.props.onChange({ target: { value: '0' } }));
+  expect(textOf(modal)).toContain('Senaryo fiyatında tamamını satarsan net sonuç-₺1,26');
+  await act(async () => modal.findByProps({ id: 'trade-decision' }).props.onChange({ target: { value: 'Destek seviyesini izleyeceğim.' } }));
+  const submit = modal.findAllByType('button').find(node => textOf(node).endsWith(' Adet Al'))!;
+  await act(async () => submit.props.onClick());
+  expect(orderBody.note).toBe('Destek seviyesini izleyeceğim.');
+});

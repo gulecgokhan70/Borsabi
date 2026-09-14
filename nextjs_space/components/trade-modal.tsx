@@ -1,4 +1,5 @@
 'use client';
+import { tradeScenario } from '@/lib/trade-scenario';
 import { tradeQuantityError } from '@/lib/ux-metrics';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -40,6 +41,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const [trailingStop, setTrailingStop] = useState(false);
   const [trailingPercent, setTrailingPercent] = useState('3');
   const [note, setNote] = useState('');
+  const [scenarioMove, setScenarioMove] = useState(-5);
+  const [portfolioEquity, setPortfolioEquity] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
@@ -87,11 +90,12 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    setAccountReady(false); setAccountError('');
+    setAccountReady(false); setAccountError(''); setPortfolioEquity(null);
     fetch('/api/portfolio').then(r => r.json()).then(data => {
       if (cancelled) return;
       if (data.error) throw new Error(data.error);
       setUserBalance(data.balance); setUserCommRate(data.commissionRate);
+      setPortfolioEquity(Number.isFinite(data.balance) && Number.isFinite(data.totalPositionValue) ? data.balance + data.totalPositionValue : null);
       setAccountId(data.accountId ?? '');
       if (data.accountId) setPending(sessionStorage.getItem(`borsabi-order:${data.accountId}`));
       const pos = (data.positions ?? []).find((p: any) => p.symbol === symbol);
@@ -126,6 +130,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const totalWithCommission = type === 'BUY' ? total + commission : total - commission;
   const estimatedBalance = type === 'BUY' ? userBalance - totalWithCommission : userBalance + totalWithCommission;
   const quantityError = tradeQuantityError(qty, type, userPositionQty, totalWithCommission, userBalance, marketType === 'CRYPTO');
+  const scenario = type === 'BUY' && accountReady && !quantityError && fxRate > 0 ? tradeScenario(qty, unitPriceTry, userCommRate, portfolioEquity, scenarioMove) : null;
   const sl = parseFloat(stopLoss) || 0;
   const tp = parseFloat(takeProfit) || 0;
   const potentialLoss = sl > 0 ? Math.abs(execPrice - sl) * fxRate * qty : 0;
@@ -498,20 +503,28 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
                   </div>
                 )}
 
-                {/* Note */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Not (isteğe bağlı)</label>
-                  <input
-                    type="text"
-                    value={note}
-                    onChange={(e: any) => setNote(e?.target?.value ?? '')}
-                    placeholder="İşlem notu..."
-                    className="w-full px-3 py-2 glass-inner border border-black/[0.06] dark:border-white/[0.08] rounded-lg text-foreground text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
-                  />
-                </div>
               </motion.div>
             )}
 
+            <div className="space-y-2">
+              <label htmlFor="trade-decision" className="block text-sm">{type === 'BUY' ? 'Neden alıyorum, planım ne?' : 'Neden satıyorum?'} (isteğe bağlı)</label>
+              <textarea id="trade-decision" value={note} onChange={e => setNote(e.target.value)} maxLength={2000} rows={2} placeholder="İşlem notu..." className="w-full px-3 py-2 glass-inner rounded-lg text-sm" />
+              <p className="text-xs text-muted-foreground">Gerekçeni ve hangi koşulda çıkacağını yaz. İşlem anındaki notun günlükte saklanır; not yazmadan da işlem yapabilirsin.</p>
+            </div>
+            {scenario && <details className="glass-inner rounded-xl p-3 text-sm">
+              <summary className="min-h-[44px] cursor-pointer">İşlem öncesi senaryoyu incele</summary>
+              <label className="block">Varsayımsal fiyat değişimi
+                <select value={scenarioMove} onChange={e => setScenarioMove(Number(e.target.value))} className="ml-2 min-h-[44px] glass-inner rounded-lg px-2">
+                  {[-10, -5, 0, 5, 10].map(value => <option key={value} value={value}>%{value}</option>)}
+                </select>
+              </label>
+              <dl className="space-y-2 mt-2">
+                <div><dt>Bu alımın işlem sonrası portföydeki payı</dt><dd>{scenario.allocationPercent == null ? 'Portföy değeri alınamadı' : `%${scenario.allocationPercent.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}`}</dd></div>
+                <div><dt>Senaryo fiyatında tamamını satarsan net sonuç</dt><dd className="font-mono">{formatCurrency(scenario.netResult)}</dd></div>
+                <div><dt>Alış + varsayımsal satış komisyonu</dt><dd>{formatCurrency(scenario.buyFee + scenario.sellFee)}</dd></div>
+              </dl>
+              <p className="text-xs text-muted-foreground mt-2">Tahmin değildir. Referans birim fiyatı: {formatCurrency(unitPriceTry)}. {marketType === 'CRYPTO' ? 'USD/TL kurunun değişmediği varsayılır. ' : ''}İki yönde de profilindeki %{(userCommRate * 100).toLocaleString('tr-TR')} komisyon kullanılır. Portföy payı yalnızca bu alımın tutarıdır; aynı varlıktaki önceki alımlar dahil değildir. Zarar kes/kâr al tetiklenmesi bu senaryoda modellenmez.</p>
+            </details>}
             {accountError && <p role="alert" className="text-sm text-[#F59E0B]">{accountError}</p>}
             {type === 'BUY' && <label className="flex gap-3 items-start text-sm p-3 glass-inner rounded-lg">
               <input type="checkbox" checked={autoExit} onChange={e => setAutoExit(e.target.checked)} className="mt-1 h-5 w-5" />

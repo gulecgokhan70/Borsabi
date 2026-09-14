@@ -33,6 +33,20 @@ afterAll(async () => {
   await db.$disconnect();
 });
 describe('PostgreSQL trading ledger', () => {
+  it('preserves decision notes across partial sales and separates a reopened position', async () => {
+    await executeTrade(db, userId, { ...input('BUY', 2), note: 'İlk planım' }, 100);
+    const original = await db.position.findFirstOrThrow({ where: { userId, status: 'OPEN' } });
+    await executeTrade(db, userId, input('SELL', 1), 100);
+    await executeTrade(db, userId, { ...input('BUY', 1), note: 'Ek alım planım' }, 100);
+    await executeTrade(db, userId, input('SELL', 2), 100);
+    const cycle = await db.transaction.findMany({ where: { userId, positionId: original.id } });
+    expect(cycle).toHaveLength(4);
+    expect(cycle.filter(t => t.type === 'BUY').map(t => t.note).sort()).toEqual(['Ek alım planım', 'İlk planım'].sort());
+    await executeTrade(db, userId, { ...input('BUY', 1), note: 'Yeni pozisyon' }, 100);
+    const reopened = await db.position.findFirstOrThrow({ where: { userId, status: 'OPEN' } });
+    expect(reopened.id).not.toBe(original.id);
+    expect(await db.transaction.count({ where: { userId, positionId: reopened.id } })).toBe(1);
+  });
   it('applies the platform schema twice without changing balances or opting old positions into automation', async () => {
     await executeTrade(db, userId, input('BUY', 1), 100);
     const before = await db.user.findUniqueOrThrow({ where: { id: userId } });

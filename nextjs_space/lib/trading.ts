@@ -126,6 +126,7 @@ export async function executeTrade(db: PrismaClient, userId: string, input: Trad
         const common = { userId, symbol, name: name ?? symbol, marketType, quantity, price, total, commission,
           fxRate, fxAsOf: marketType === 'CRYPTO' ? fx!.asOf : null, note: note ?? null };
         if (type === 'BUY') {
+          let positionId = position?.id;
           const required = total + commission;
           if (required > user.balance) throw new TradeError(`Yetersiz bakiye. Gerekli: ${required.toFixed(2)}, Mevcut: ${user.balance.toFixed(2)}`);
           const balanceUpdate = await tx.user.updateMany({ where: { id: userId, balance: { gte: required } }, data: { balance: { decrement: required } } });
@@ -142,13 +143,14 @@ export async function executeTrade(db: PrismaClient, userId: string, input: Trad
               autoExit: trade.autoExit ?? position.autoExit,
             } });
           } else {
-            await tx.position.create({ data: {
+            const opened = await tx.position.create({ data: {
               userId, symbol, name: name ?? symbol, type: marketType, quantity, entryPrice: price, entryPriceTry: priceTry, currentPrice: price,
               stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null, trailingStopPercent: trailingStopPercent ?? null,
               trailingStopHighest: trailingStopPercent ? price : null, commission, status: 'OPEN', autoExit: trade.autoExit ?? false,
             } });
+            positionId = opened.id;
           }
-          await tx.transaction.create({ data: { ...common, type, stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null } });
+          await tx.transaction.create({ data: { ...common, positionId, type, stopLoss: stopLoss ?? null, takeProfit: takeProfit ?? null } });
           return finish({ success: true, message: `${quantity} adet ${symbol} alındı`, warnings, price, priceTry, fxRate, quantity, total, commission });
         }
         if (!position) throw new TradeError('Açık pozisyon bulunamadı');
@@ -167,7 +169,7 @@ export async function executeTrade(db: PrismaClient, userId: string, input: Trad
         } });
         await tx.user.update({ where: { id: userId }, data: { balance: { increment: sale.total - sale.commission } } });
         const breakdown = pnlBreakdown(quantity, position.entryPrice, positionCost, price, fxRate, position.commission * quantity / position.quantity, sale.commission);
-        const entry = await tx.transaction.create({ data: { ...common, type, pnl: sale.pnl, pnlPercent: sale.pnlPercent,
+        const entry = await tx.transaction.create({ data: { ...common, positionId: position.id, type, pnl: sale.pnl, pnlPercent: sale.pnlPercent,
           pricePnlTry: breakdown.pricePnlTry, fxPnlTry: breakdown.fxPnlTry, buyCommissionTry: position.commission * quantity / position.quantity,
           executionReason: automation?.reason ?? 'MANUAL' } });
         if (automation) await tx.appNotification.create({ data: { userId, eventKey: `sale:${entry.id}`, title: 'Otomatik simülasyon satışı',

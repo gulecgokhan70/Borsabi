@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
 vi.mock('../lib/auth', () => ({ authOptions: {} }));
-vi.mock('../lib/db', () => ({ prisma: { transaction: { findFirst: vi.fn() } } }));
+vi.mock('../lib/db', () => ({ prisma: { transaction: { findFirst: vi.fn(), findMany: vi.fn() } } }));
 vi.mock('../lib/ai-provider', () => ({ requestAICompletion: vi.fn() }));
 vi.mock('../lib/request-limit', () => ({ takeRequestSlot: () => ({ allowed: true }) }));
 import { getServerSession } from 'next-auth';
@@ -32,4 +32,21 @@ it('ignores client amounts and retains the verified receipt when AI is offline',
   expect(response.status).toBe(200);
   expect(data).toMatchObject({ aiAvailable: false, facts: { totalTry: 4000, cashChangeTry: -4008, pnlTry: null, plannedRiskTry: 400 } });
   expect(JSON.stringify(vi.mocked(requestAICompletion).mock.calls)).not.toContain('999999');
+});
+
+it('loads only the selected position cycle and account up to the sale date', async () => {
+  const date = new Date('2026-09-14T00:00:00Z');
+  vi.mocked(prisma.transaction.findFirst).mockResolvedValue({ id: 'trade', userId: 'owner', positionId: 'position-cycle', symbol: 'THYAO.IS', marketType: 'BIST', type: 'SELL', total: 110, commission: .22, pnl: 9.58, createdAt: date } as any);
+  vi.mocked(prisma.transaction.findMany).mockResolvedValue([{ id: 'buy', note: 'İlk planım', quantity: 1, createdAt: date, stopLoss: 90, takeProfit: 120 }] as any);
+  vi.mocked(requestAICompletion).mockRejectedValue(new Error('offline'));
+  const body = await (await POST(request())).json();
+  expect(body.decisionHistory).toMatchObject({ linked: true, hasMore: false, purchases: [{ note: 'İlk planım' }] });
+  expect(prisma.transaction.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner', positionId: 'position-cycle', type: 'BUY', createdAt: { lte: date } }, take: 21 }));
+});
+it('does not guess the buying reason for legacy sales', async () => {
+  vi.mocked(prisma.transaction.findFirst).mockResolvedValue({ id: 'trade', type: 'SELL', positionId: null, createdAt: new Date(), total: 100, commission: 0 } as any);
+  vi.mocked(requestAICompletion).mockRejectedValue(new Error('offline'));
+  const body = await (await POST(request())).json();
+  expect(body.decisionHistory).toEqual({ linked: false, hasMore: false, purchases: [] });
+  expect(prisma.transaction.findMany).not.toHaveBeenCalled();
 });

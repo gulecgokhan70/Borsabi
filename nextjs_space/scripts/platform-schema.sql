@@ -91,3 +91,6 @@ CREATE TABLE IF NOT EXISTS "AiContentReport" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "AiContentReport_userId_fingerprint_key" ON "AiContentReport"("userId", "fingerprint");
 CREATE INDEX IF NOT EXISTS "AiContentReport_status_createdAt_idx" ON "AiContentReport"("status", "createdAt");
+
+ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "positionId" TEXT;
+CREATE INDEX IF NOT EXISTS "Transaction_userId_positionId_createdAt_idx" ON "Transaction" ("userId", "positionId", "createdAt");

@@ -85,6 +85,7 @@ model Position {
 }
 
 model Transaction {
+  positionId  String? // Position cycle for decision notes; legacy records remain unlinked
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
@@ -109,6 +110,7 @@ model Transaction {
   executionReason String?
   createdAt   DateTime @default(now())
 
+  @@index([userId, positionId, createdAt])
   @@index([userId, createdAt])
   @@index([symbol])
 }
