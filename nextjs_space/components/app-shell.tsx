@@ -1,4 +1,5 @@
 'use client';
+import { updateFirstSteps, validJourneySymbol } from '@/lib/first-steps';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
@@ -230,6 +231,13 @@ const NAV_ITEMS = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() || {};
   const pathname = usePathname();
+  const accountId = session?.user?.id;
+  useEffect(() => {
+    const encoded = pathname?.startsWith('/stock/') ? pathname.slice('/stock/'.length) : '';
+    let symbol = '';
+    try { symbol = decodeURIComponent(encoded); } catch { return; }
+    if (accountId && validJourneySymbol(symbol)) updateFirstSteps(accountId, { symbol });
+  }, [pathname, accountId]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

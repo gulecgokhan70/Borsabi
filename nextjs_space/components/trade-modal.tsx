@@ -124,6 +124,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   const total = qty * unitPriceTry;
   const commission = total * userCommRate;
   const totalWithCommission = type === 'BUY' ? total + commission : total - commission;
+  const estimatedBalance = type === 'BUY' ? userBalance - totalWithCommission : userBalance + totalWithCommission;
   const quantityError = tradeQuantityError(qty, type, userPositionQty, totalWithCommission, userBalance, marketType === 'CRYPTO');
   const sl = parseFloat(stopLoss) || 0;
   const tp = parseFloat(takeProfit) || 0;
@@ -531,6 +532,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               <div className="flex justify-between text-xs"><span className="text-muted-foreground">Toplam</span><span className="text-foreground font-mono">{formatCurrency(total)}</span></div>
               <div className="flex justify-between text-xs"><span className="text-muted-foreground">Komisyon (%{(userCommRate * 100).toFixed(2).replace(/\.?0+$/, '')})</span><span className="text-[#F59E0B] font-mono">{formatCurrency(commission)}</span></div>
               <div className="border-t border-black/[0.08] dark:border-white/[0.08] pt-2 flex justify-between text-sm"><span className="text-muted-foreground font-medium">{type === 'BUY' ? 'Bakiyeden düşülecek (TL)' : 'Bakiyeye eklenecek (TL)'}</span><span className="text-foreground font-bold font-mono">{formatCurrency(totalWithCommission)}</span></div>
+              <div className="flex justify-between gap-3 text-sm"><span className="text-muted-foreground">İşlem sonrası tahmini nakit bakiye</span><span className="font-mono">{formatCurrency(estimatedBalance)}</span></div>
+              <p className="text-xs text-muted-foreground">Komisyon dahildir. Kesin tutar, işlem sırasında sunucunun fiyatı ve kuru ile hesaplanır.</p>
               {riskReward > 0 && (
                 <div className="flex justify-between text-xs"><span className="text-muted-foreground">Risk/Getiri</span><span className="text-[#3B82F6] font-mono">1:{riskReward.toFixed(1)}</span></div>
               )}

@@ -35,3 +35,9 @@ it('never uses a Midas quote for indices', async () => {
 it('marks unavailable quotes as errors', async () => {
   expect((await getMarketQuotes(['BTC-USD']))[0]).toMatchObject({ price: 0, error: true });
 });
+it('does not infer an open market from a populated price or daily volume', async () => {
+  vi.mocked(getMidasStockMap).mockResolvedValue(new Map([['THYAO', { Last: 100, TotalVolume: 5000 } as any]]));
+  vi.mocked(cachedQuoteBatch).mockResolvedValue(new Map([['AKBNK.IS', { regularMarketPrice: 50, marketState: 'CLOSED' }]]));
+  const quotes = await getMarketQuotes(['THYAO.IS', 'AKBNK.IS']);
+  expect(quotes.map(q => q.marketOpen)).toEqual([null, false]);
+});

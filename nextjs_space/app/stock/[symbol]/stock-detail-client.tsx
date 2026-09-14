@@ -1,4 +1,5 @@
 'use client';
+import { formatQuoteTime } from '@/lib/quote-metadata';
 import { percentagePoints } from '@/lib/ux-metrics';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -40,6 +41,11 @@ interface OHLCData {
 }
 
 interface StockData {
+  priceSource?: string | null;
+  priceAsOf?: string | null;
+  priceTimeKind?: 'candle' | 'quote';
+  checkedAt?: string;
+  marketOpen?: boolean | null;
   symbol: string;
   name: string;
   shortName: string;
@@ -481,6 +487,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
       )}
 
+      {data && <section aria-label="Son fiyat bilgisi" className="glass-inner rounded-xl p-3 text-xs text-muted-foreground space-y-1">
+        <p>Son fiyat kaynağı: {data.priceSource || 'Bilinmiyor'}</p>
+        <p>{data.priceTimeKind === 'candle' ? 'Mum zamanı' : 'Fiyat zamanı'}: {formatQuoteTime(data.priceAsOf)}</p>
+        <p>Son kontrol: {formatQuoteTime(data.checkedAt)}</p>
+        <p>Seans durumu: {data.marketOpen === true ? 'Kaynağa göre açık' : data.marketOpen === false ? 'Kaynağa göre kapalı' : 'Kaynak tarafından doğrulanmadı'}. Veriler gecikmeli olabilir; son kontrol saati fiyatın zamanı değildir.</p>
+        {activePoint && <p>Yukarıdaki fiyat grafikte seçtiğin muma aittir; bu bölüm son fiyat verisini açıklar.</p>}
+      </section>}
       {/* ===== PRICE CHART ===== */}
       <ChartSurface>
         <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) setDrawingTool('none'); }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>

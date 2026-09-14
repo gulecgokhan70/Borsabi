@@ -179,3 +179,18 @@ it('blocks an oversell in the real form and recovers when the quantity is correc
   expect(button('1 Adet Sat').props.disabled).toBe(false);
   expect(textOf(modal)).not.toContain('En fazla 1 adet satabilirsiniz');
 });
+it('shows post-trade cash including the profile commission for both directions', async () => {
+  heldQuantity = 1;
+  await mount('THYAO.IS');
+  await act(async () => button('Al').props.onClick());
+  let modal = renderer!.root.findByType(TradeModal);
+  let quantity = modal.findByProps({ placeholder: 'Adet girin' });
+  await act(async () => quantity.props.onChange({ target: { value: '1' } }));
+  expect(textOf(modal)).toContain('İşlem sonrası tahmini nakit bakiye₺99.683,87');
+  await act(async () => modal.props.onClose());
+  await act(async () => button('Sat').props.onClick());
+  modal = renderer!.root.findByType(TradeModal);
+  quantity = modal.findByProps({ placeholder: 'Adet girin' });
+  await act(async () => quantity.props.onChange({ target: { value: '1' } }));
+  expect(textOf(modal)).toContain('İşlem sonrası tahmini nakit bakiye₺100.314,87');
+});

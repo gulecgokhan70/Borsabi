@@ -1,4 +1,5 @@
 'use client';
+import { FirstSteps } from '@/components/first-steps';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { useSession } from 'next-auth/react';
@@ -37,7 +38,7 @@ export function DashboardClient() {
   const [stocks, setStocks] = useState<any[]>([]);
   const [cryptos, setCryptos] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any>(null);
-  const [bistOpen, setBistOpen] = useState(true);
+  const [bistOpen, setBistOpen] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [tradeModal, setTradeModal] = useState<any>(null);
   const [stockSort, setStockSort] = useState<'alpha' | 'change' | 'price'>('alpha');
@@ -199,7 +200,7 @@ export function DashboardClient() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
             <span className={`w-2 h-2 rounded-full ${lastUpdate && (Date.now() - lastUpdate) > 120000 ? 'bg-[#F59E0B]' : 'bg-[#22C55E] animate-pulse'}`} />
-            <span>{lastUpdate ? `${formatTimeAgo(lastUpdate)} güncellendi` : 'Yükleniyor...'}</span>
+            <span>{lastUpdate ? `Son kontrol: ${formatTimeAgo(lastUpdate)}` : 'Yükleniyor...'}</span>
           </div>
           <button onClick={() => fetchData()} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -207,10 +208,12 @@ export function DashboardClient() {
         </div>
       </div>
 
-      {!bistOpen && !loading && (
+      <p className="text-xs text-muted-foreground">Son kontrol zamanı fiyatın gerçekleştiği zaman değildir. Fiyat zamanı ve kaynak bilgisi varlık detayında gösterilir.</p>
+      {portfolio?.accountId && <FirstSteps key={portfolio.accountId} accountId={portfolio.accountId} buyCount={portfolio.buyCount ?? 0} />}
+      {bistOpen === false && !loading && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
           <span className="text-[#F59E0B] text-lg">🔔</span>
-          <p className="text-[#F59E0B] text-sm font-medium">BIST şu an kapalı — son kapanış fiyatları gösteriliyor.</p>
+          <p className="text-[#F59E0B] text-sm font-medium">Kaynak BIST seansını kapalı bildiriyor. Fiyatın zamanını varlık detayından kontrol edin.</p>
         </div>
       )}
 

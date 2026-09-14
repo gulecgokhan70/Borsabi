@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+import { updateFirstSteps, readFirstSteps } from '@/lib/first-steps';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useVisiblePoll } from '@/hooks/use-visible-poll';
 import { useRouter } from 'next/navigation';
@@ -17,6 +19,8 @@ export function PortfolioClient() {
   const router = useRouter();
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewed, setReviewed] = useState(false);
+  useEffect(() => { setReviewed(portfolio?.accountId ? readFirstSteps(portfolio.accountId).reviewed === true : false); }, [portfolio?.accountId]);
   const [bistComparison, setBistComparison] = useState<any[]>([]);
   const [tradeModal, setTradeModal] = useState<any>(null);
 
@@ -256,6 +260,14 @@ export function PortfolioClient() {
         </div>
       </div>
 
+      {(portfolio?.buyCount ?? 0) > 0 && <section id="ilk-islem-sonucu" className="glass-card rounded-xl p-4 space-y-2 scroll-mt-24">
+        <h2 className="font-semibold">İlk işleminin sonucunu incele</h2>
+        <p className="text-sm text-muted-foreground">Açık pozisyonda “Kâr/zarar nasıl oluştu?” bölümünü aç. İşlemi kapattıysan işlem günlüğünde alış ve satış komisyonlarını karşılaştır.</p>
+        <div className="flex flex-wrap gap-4">
+          <Link href="/trade-log" className="min-h-[44px] inline-flex items-center text-blue-500 underline">İşlem günlüğünü aç</Link>
+          <button disabled={reviewed} onClick={() => { updateFirstSteps(portfolio.accountId, { reviewed: true }); setReviewed(true); }} className="min-h-[44px] text-blue-500 underline disabled:text-muted-foreground">{reviewed ? 'İnceleme adımı tamamlandı' : 'Sonucumu inceledim'}</button>
+        </div>
+      </section>}
       {/* Open Positions */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-xl">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
@@ -264,8 +276,9 @@ export function PortfolioClient() {
         </div>
         {(positions?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-muted-foreground">Henüz açık pozisyonunuz yok</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Dashboard&#39;dan bir hisseye tıklayarak işlem yapabilirsiniz</p>
+            <p className="text-sm text-muted-foreground">Şu anda açık pozisyonunuz yok</p>
+            <Link href="/piyasalar" className="inline-flex items-center min-h-[44px] text-blue-500 underline">{(portfolio?.buyCount ?? 0) > 0 ? 'Piyasaları keşfet' : 'İlk sanal işlemine başla'}</Link>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Piyasalardan bir varlık seçip komisyonu görerek sanal işlem yapabilirsiniz</p>
           </div>
         ) : (
           <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">

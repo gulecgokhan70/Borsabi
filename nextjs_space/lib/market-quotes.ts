@@ -1,3 +1,4 @@
+import { quoteMarketOpen } from './quote-metadata';
 import { cachedQuoteBatch } from './yahoo-finance';
 import { getMidasStockMap, type MidasStock } from './midas-api';
 import { BIST_ALL_ASSETS, isIndexSymbol } from './constants';
@@ -52,7 +53,6 @@ export async function getMarketQuotes(symbols: string[]) {
       if (midas && positivePrice(midas)) {
         // Midas verisinden oluştur - Last > Close > PreviousClose fallback
         const price = positivePrice(midas);
-        const isOpen = (midas.Last > 0 && midas.TotalVolume > 0);
         return {
           symbol: sym,
           name: nameMap.get(sym) || nameMap.get(cleanSym) || cleanSym,
@@ -66,7 +66,7 @@ export async function getMarketQuotes(symbols: string[]) {
           prevClose: midas.PreviousClose ?? 0,
           marketCap: midas.MarketValue ?? 0,
           currency: 'TRY',
-          marketOpen: isOpen,
+          marketOpen: null,
           source: 'midas',
         };
       }
@@ -89,7 +89,7 @@ export async function getMarketQuotes(symbols: string[]) {
         prevClose: q?.regularMarketPreviousClose ?? 0,
         marketCap: q?.marketCap ?? 0,
         currency: q?.currency ?? 'TRY',
-        marketOpen: rawPrice > 0,
+        marketOpen: quoteMarketOpen(q?.marketState),
         source: 'yahoo',
         error: price <= 0,
       };

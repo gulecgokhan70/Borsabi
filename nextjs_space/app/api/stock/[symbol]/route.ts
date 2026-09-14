@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 import { getMidasStock } from '@/lib/midas-api';
+import { quoteTimestamp, quoteMarketOpen } from '@/lib/quote-metadata';
 import { assetCurrency } from '@/lib/asset-display';
 
 function calculateRSI(closes: number[], period = 14): number {
@@ -348,6 +349,11 @@ export async function GET(
       name: assetInfo?.name ?? quote?.shortName ?? symbol,
       shortName: assetInfo?.shortName ?? symbol.replace('.IS', '').replace('-USD', ''),
       price: finalPrice,
+      priceSource: midasPrice ? 'Midas' : yahooPrice ? 'Yahoo Finance' : ohlcPrice ? 'Geçmiş grafik verisi' : null,
+      priceAsOf: midasPrice ? (m?.Last === midasPrice ? quoteTimestamp(m.DateTime) : null) : yahooPrice ? quoteTimestamp(quote?.regularMarketTime) : ohlcPrice ? quoteTimestamp(ohlc[ohlc.length - 1]?.time) : null,
+      priceTimeKind: !midasPrice && !yahooPrice && ohlcPrice ? 'candle' : 'quote',
+      checkedAt: new Date().toISOString(),
+      marketOpen: midasPrice ? null : quoteMarketOpen(quote?.marketState),
       change: Number(m ? (m.DailyChange ?? 0) : (quote?.regularMarketChange ?? 0)) || 0,
       changePercent: Number(m ? (m.DailyChangePercent ?? 0) : (quote?.regularMarketChangePercent ?? 0)) || 0,
       high: m ? (m.High || m.PreviousClose || 0) : (quote?.regularMarketDayHigh ?? 0),

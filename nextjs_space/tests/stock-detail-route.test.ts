@@ -46,3 +46,16 @@ it('preserves the native crypto unit in the partial-error response', async () =>
   vi.mocked(cachedQuote).mockResolvedValue({ get regularMarketPrice() { throw new Error('Invalid quote payload'); } } as any);
   expect(await (await request('BTC-USD')).json()).toMatchObject({ currency: 'USD', _partialError: expect.any(String) });
 });
+it('attaches the chosen source time without confusing a previous close with the current quote timestamp', async () => {
+  const date = new Date('2026-09-11T12:00:00Z');
+  vi.mocked(getMidasStock).mockResolvedValue({ Last: 0, Close: 100, DateTime: date.getTime() } as any);
+  expect(await (await request('THYAO.IS')).json()).toMatchObject({ priceSource: 'Midas', priceAsOf: null, marketOpen: null });
+  vi.mocked(cachedQuote).mockResolvedValue({ regularMarketPrice: 500, regularMarketTime: date, marketState: 'CLOSED' } as any);
+  expect(await (await request('BTC-USD')).json()).toMatchObject({ priceSource: 'Yahoo Finance', priceAsOf: date.toISOString(), marketOpen: false, checkedAt: expect.any(String) });
+});
+it('labels the historical fallback timestamp as a candle time', async () => {
+  const date = new Date('2026-09-11T12:00:00Z');
+  vi.mocked(cachedQuote).mockRejectedValue(new Error('Unavailable'));
+  vi.mocked(cachedChart).mockResolvedValue({ quotes: [{ date, close: 100 }] } as any);
+  expect(await (await request('BTC-USD')).json()).toMatchObject({ price: 100, priceAsOf: date.toISOString(), priceTimeKind: 'candle' });
+});
