@@ -1,4 +1,5 @@
 'use client';
+import { tradeQuantityError } from '@/lib/ux-metrics';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, TrendingUp, TrendingDown, AlertTriangle, Loader2, ChevronDown, Shield, Activity } from 'lucide-react';
@@ -117,12 +118,13 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
   }, [isOpen, marketType]);
 
   const execPrice = orderType === 'market' ? (price ?? 0) : (parseFloat(limitPrice) || (price ?? 0));
-  const qty = parseFloat(quantity) || 0;
+  const qty = quantity.trim() === '' ? 0 : Number(quantity);
   const fxRate = marketType === 'CRYPTO' ? (fx?.rate ?? 0) : 1;
   const unitPriceTry = execPrice * fxRate;
   const total = qty * unitPriceTry;
   const commission = total * userCommRate;
   const totalWithCommission = type === 'BUY' ? total + commission : total - commission;
+  const quantityError = tradeQuantityError(qty, type, userPositionQty, totalWithCommission, userBalance, marketType === 'CRYPTO');
   const sl = parseFloat(stopLoss) || 0;
   const tp = parseFloat(takeProfit) || 0;
   const potentialLoss = sl > 0 ? Math.abs(execPrice - sl) * fxRate * qty : 0;
@@ -137,7 +139,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
   const handleTrade = async () => {
     if (busy.current || loading || !accountReady || (!pending && fxRate <= 0)) return;
-    if (!pending && qty <= 0) { toast.error('Geçerli bir miktar girin'); return; }
+    if (!pending && quantityError) { toast.error(quantityError); return; }
     if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) {
       toast.error('Limit fiyatı girin'); return;
     }
@@ -332,6 +334,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               {inputMode === 'quantity' ? (
                 <input
                   type="number"
+                  aria-invalid={!!quantityError} aria-describedby={quantityError ? "trade-quantity-error" : undefined}
                   value={quantity}
                   onChange={(e: any) => {
                     const val = e?.target?.value ?? '';
@@ -363,12 +366,12 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               )}
 
               {/* Calculated info */}
-              {inputMode === 'cash' && qty > 0 && (
+              {inputMode === 'cash' && !quantityError && qty > 0 && (
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                   {qty} adet • Birim fiyat: {formatCurrency(execPrice, currencyCode)} • Yaklaşık tutar: {formatCurrency(total)}
                 </p>
               )}
-              {inputMode === 'quantity' && qty > 0 && execPrice > 0 && (
+              {inputMode === 'quantity' && !quantityError && qty > 0 && execPrice > 0 && (
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
                   Tutar: {formatCurrency(total)}
                 </p>
@@ -517,7 +520,8 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               {fx ? `1 USD = ${formatCurrency(fx.rate)} • Kur zamanı: ${new Date(fx.asOf).toLocaleString('tr-TR')}. Tutarlar tahminidir; işlemde sunucunun son kuru kullanılır.` : fxError || 'USD/TL kuru yükleniyor…'}
             </p>}
             {/* Summary */}
-            <div className="p-3 glass-inner rounded-lg space-y-2">
+            {type === 'SELL' && <p className="text-xs text-muted-foreground">Satılabilir miktar: {userPositionQty.toLocaleString('tr-TR', { maximumFractionDigits: 8 })} adet</p>}
+            {quantityError ? <p id="trade-quantity-error" role="alert" className="text-sm text-red-500">{quantityError}</p> : <div className="p-3 glass-inner rounded-lg space-y-2">
               {orderType !== 'market' && (
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">İşlem Fiyatı</span>
@@ -530,10 +534,10 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
               {riskReward > 0 && (
                 <div className="flex justify-between text-xs"><span className="text-muted-foreground">Risk/Getiri</span><span className="text-[#3B82F6] font-mono">1:{riskReward.toFixed(1)}</span></div>
               )}
-            </div>
+            </div>}
 
             {/* Warning */}
-            {stopLoss && takeProfit && qty > 0 && (
+            {stopLoss && takeProfit && !quantityError && qty > 0 && (
               <div className="flex items-start gap-2 p-2.5 bg-[#22C55E]/10 rounded-lg">
                 <Shield className="w-4 h-4 text-[#22C55E] flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-[#22C55E]">
@@ -545,14 +549,14 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
 
             <button
               onClick={handleTrade}
-              disabled={loading || qty <= 0 || !accountReady || fxRate <= 0}
+              disabled={loading || !!quantityError || !accountReady || fxRate <= 0}
               className={`w-full py-2.5 sm:py-3 rounded-lg font-semibold text-white transition-all disabled:opacity-50 ${
                 type === 'BUY' ? 'bg-[#22C55E] hover:bg-[#16A34A]' : 'bg-[#EF4444] hover:bg-[#DC2626]'
               }`}
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
                 <>
-                  {type === 'BUY' ? `${qty} Adet Al` : `${qty} Adet Sat`}
+                  {quantityError ? (type === 'BUY' ? 'Sanal alım' : 'Sanal satış') : type === 'BUY' ? `${qty} Adet Al` : `${qty} Adet Sat`}
                   {orderType !== 'market' && <span className="text-xs opacity-75 ml-1">({orderType === 'limit' ? 'Limit' : 'Stop-Limit'})</span>}
                 </>
               )}

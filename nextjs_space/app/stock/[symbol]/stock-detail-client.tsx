@@ -1,4 +1,5 @@
 'use client';
+import { percentagePoints } from '@/lib/ux-metrics';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -597,7 +598,11 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             <div className="flex flex-col items-center justify-center h-full text-center gap-2">
               <BarChart3 className="w-10 h-10 text-[#475569]" />
               <p className="text-sm text-muted-foreground">Grafik verisi şu an mevcut değil</p>
-              <p className="text-xs text-[#475569]">Bu hisse için geçmiş fiyat verisi alınamadı</p>
+              <p className="text-xs text-muted-foreground">Seçili zaman aralığı için veri alınamadı. Başka bir aralık deneyebilirsiniz.</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button onClick={() => { setPeriod('1y'); setChartInterval('1d'); }} className="min-h-[44px] text-blue-500 underline">1 yıllık grafiği göster</button>
+                <button onClick={() => void fetchData()} className="min-h-[44px] text-blue-500 underline">Yeniden dene</button>
+              </div>
             </div>
           )}
         </div>
@@ -1089,10 +1094,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   </p>
                 </div>
               ) : null}
-              {data.freeFloat ? (
+              {marketType === 'BIST' ? (
                 <div className="glass-inner rounded-lg p-3">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">Serbest Dolaşım</p>
-                  <p className="text-foreground font-bold font-mono">%{(data.freeFloat * 100).toFixed(1)}</p>
+                  <p className="text-foreground font-bold font-mono">{percentagePoints(data.freeFloat) === null ? 'Veri doğrulanamadı' : `%${percentagePoints(data.freeFloat)!.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}`}</p>
                 </div>
               ) : null}
               {data.volatility ? (

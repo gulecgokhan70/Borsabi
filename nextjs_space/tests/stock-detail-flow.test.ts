@@ -26,6 +26,7 @@ import { tradeSchema } from '../lib/trading';
 
 let renderer: ReactTestRenderer | undefined;
 let fxUnavailable = false;
+let heldQuantity = 0;
 let orderBody: any;
 let loseReply = false;
 const sessionValues = new Map<string, string>();
@@ -50,12 +51,12 @@ const mount = async (symbol = 'BTC-USD') => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  fxUnavailable = false; orderBody = undefined; loseReply = false; sessionValues.clear();
+  fxUnavailable = false; heldQuantity = 0; orderBody = undefined; loseReply = false; sessionValues.clear();
   vi.stubGlobal('sessionStorage', { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => sessionValues.set(key, value), removeItem: (key: string) => sessionValues.delete(key) });
   fetchMock.mockReset().mockImplementation(async (input: string, options?: RequestInit) => {
     if (input.startsWith('/api/stock/')) return Response.json(fixture(decodeURIComponent(input.split('/')[3].split('?')[0])));
     if (input.startsWith('/api/news')) return Response.json({ news: [] });
-    if (input === '/api/portfolio') return Response.json({ accountId: 'test-user', balance: 100000, commissionRate: 0.002, positions: [] });
+    if (input === '/api/portfolio') return Response.json({ accountId: 'test-user', balance: 100000, commissionRate: 0.002, positions: [{ symbol: "THYAO.IS", quantity: heldQuantity }] });
     if (input === '/api/fx') return fxUnavailable
       ? Response.json({ error: 'Kur alınamadı' }, { status: 503 })
       : Response.json({ rate: 32, asOf: new Date().toISOString() });
@@ -132,7 +133,7 @@ it('blocks BTC order submission when the FX request fails', async () => {
   await act(async () => button('Al').props.onClick());
   const modal = renderer!.root.findByType(TradeModal);
   await act(async () => modal.findByProps({ placeholder: 'Adet girin' }).props.onChange({ target: { value: '0.001' } }));
-  const submit = modal.findAllByType('button').find(node => textOf(node).endsWith(' Adet Al'))!;
+  const submit = modal.findAllByType('button').find(node => textOf(node) === 'Sanal alım')!;
   expect(submit.props.disabled).toBe(true);
   expect(textOf(modal)).toContain('Kur alınamadı');
   expect(orderBody).toBeUndefined();
@@ -149,4 +150,32 @@ it('keeps BIST in TRY without requesting FX, and excludes index buy/sell buttons
   expect(button('Al')).toBeUndefined();
   expect(button('Sat')).toBeUndefined();
   expect(textOf(renderer!.root)).toContain('Puan');
+});
+
+
+it('keeps invalid quantity feedback visible and suppresses negative accounting totals', async () => {
+  await mount('THYAO.IS');
+  await act(async () => button('Al').props.onClick());
+  const modal = renderer!.root.findByType(TradeModal);
+  await act(async () => modal.findByProps({ placeholder: 'Adet girin' }).props.onChange({ target: { value: '-1' } }));
+  expect(button('Sanal alım').props.disabled).toBe(true);
+  expect(textOf(modal)).toContain('Sıfırdan büyük');
+  expect(textOf(modal)).not.toContain('Bakiyeden düşülecek');
+  expect(textOf(modal)).not.toContain('-₺');
+  expect(orderBody).toBeUndefined();
+});
+it('blocks an oversell in the real form and recovers when the quantity is corrected', async () => {
+  heldQuantity = 1;
+  await mount('THYAO.IS');
+  await act(async () => button('Sat').props.onClick());
+  const modal = renderer!.root.findByType(TradeModal);
+  const input = modal.findByProps({ placeholder: 'Adet girin' });
+  await act(async () => input.props.onChange({ target: { value: '2' } }));
+  expect(button('Sanal satış').props.disabled).toBe(true);
+  expect(textOf(modal)).toContain('En fazla 1 adet satabilirsiniz');
+  await act(async () => button('Sanal satış').props.onClick());
+  expect(orderBody).toBeUndefined();
+  await act(async () => input.props.onChange({ target: { value: '1' } }));
+  expect(button('1 Adet Sat').props.disabled).toBe(false);
+  expect(textOf(modal)).not.toContain('En fazla 1 adet satabilirsiniz');
 });

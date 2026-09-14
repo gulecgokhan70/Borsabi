@@ -1,3 +1,4 @@
+import { profitFactorOf } from '@/lib/ux-metrics';
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -320,12 +321,12 @@ export async function POST(request: NextRequest) {
     );
 
     const winningTrades = trades.filter((t: Trade) => t.pnl > 0);
-    const losingTrades = trades.filter((t: Trade) => t.pnl <= 0);
+    const losingTrades = trades.filter((t: Trade) => t.pnl < 0);
     const totalPnL = trades.reduce((s: number, t: Trade) => s + t.pnl, 0);
     const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
     const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s: number, t: Trade) => s + t.pnl, 0) / winningTrades.length : 0;
     const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((s: number, t: Trade) => s + t.pnl, 0) / losingTrades.length) : 0;
-    const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0;
+    const { profitFactor, profitFactorStatus } = profitFactorOf(trades.map(t => t.pnl));
     const maxDrawdown = calculateMaxDrawdown(equity);
     const avgHoldingDays = trades.length > 0 ? Math.round(trades.reduce((s: number, t: Trade) => s + t.holdingDays, 0) / trades.length) : 0;
     const totalReturn = ((equity[equity.length - 1] - 100000) / 100000) * 100;
@@ -346,7 +347,8 @@ export async function POST(request: NextRequest) {
         totalReturn: Math.round(totalReturn * 100) / 100,
         avgWin: Math.round(avgWin * 100) / 100,
         avgLoss: Math.round(avgLoss * 100) / 100,
-        profitFactor: Math.round(profitFactor * 100) / 100,
+        profitFactor: profitFactor === null ? null : Math.round(profitFactor * 100) / 100,
+        profitFactorStatus,
         maxDrawdown: Math.round(maxDrawdown * 100) / 100,
         avgHoldingDays,
         finalCapital: equity[equity.length - 1],

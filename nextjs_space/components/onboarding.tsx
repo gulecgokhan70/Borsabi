@@ -32,7 +32,7 @@ const SLIDES = [
     icon: GraduationCap,
     color: '#EC4899',
     title: 'Master Akademi',
-    desc: '6 kurs, interaktif quizler ve adım adım eğitim ile profesyonel trader olma yolunda ilerleyin.',
+    desc: 'Kurslar, interaktif quizler ve adım adım eğitim ile profesyonel trader olma yolunda ilerleyin.',
   },
 ];
 
