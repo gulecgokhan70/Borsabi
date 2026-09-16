@@ -4,7 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 // Keep React state, effects, the detail page and TradeModal real. Only replace
 // navigation, chart drawing and animation, which need a browser layout engine.
-vi.mock('next/navigation', () => ({ useRouter: () => ({ back: vi.fn() }) }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ back: vi.fn(), push: vi.fn() }) }));
+vi.mock('next/link', () => ({ default: ({ children, ...props }: any) => createElement('a', props, children) }));
 vi.mock('framer-motion', () => ({
   motion: { div: 'div' }, AnimatePresence: ({ children }: { children: ReactNode }) => children,
 }));
@@ -55,6 +56,7 @@ beforeEach(() => {
   vi.stubGlobal('sessionStorage', { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => sessionValues.set(key, value), removeItem: (key: string) => sessionValues.delete(key) });
   fetchMock.mockReset().mockImplementation(async (input: string, options?: RequestInit) => {
     if (input.startsWith('/api/stock/')) return Response.json(fixture(decodeURIComponent(input.split('/')[3].split('?')[0])));
+    if (input === '/api/watchlist') return Response.json(options?.method === 'POST' ? { added: true } : { data: [] });
     if (input.startsWith('/api/news')) return Response.json({ news: [] });
     if (input === '/api/portfolio') return Response.json({ accountId: 'test-user', balance: 100000, commissionRate: 0.002, positions: [{ symbol: "THYAO.IS", quantity: heldQuantity }] });
     if (input === '/api/fx') return fxUnavailable
@@ -210,4 +212,26 @@ it('shows a fee-inclusive scenario only for valid buys and sends the original de
   const submit = modal.findAllByType('button').find(node => textOf(node).endsWith(' Adet Al'))!;
   await act(async () => submit.props.onClick());
   expect(orderBody.note).toBe('Destek seviyesini izleyeceğim.');
+});
+
+
+it('uses one-day data for 1G and submits a watchlist toggle once for rapid taps', async () => {
+  await mount('THYAO.IS');
+  await act(async () => button('1A').props.onClick());
+  await act(async () => button('1G').props.onClick());
+  expect(fetchMock).toHaveBeenCalledWith('/api/stock/THYAO.IS?period=1d&interval=5m');
+  const save = renderer!.root.findByProps({ 'aria-label': 'İzleme listesine ekle' });
+  await act(async () => { await Promise.all([save.props.onClick(), save.props.onClick()]); });
+  expect(fetchMock.mock.calls.filter(([url, options]) => url === '/api/watchlist' && options?.method === 'POST')).toHaveLength(1);
+  expect(renderer!.root.findByProps({ 'aria-label': 'İzleme listesinden çıkar' }).props['aria-pressed']).toBe(true);
+});
+
+it('disables trades when the detail response has no usable price', async () => {
+  fetchMock.mockImplementation(async (url: string) => url.startsWith('/api/stock/')
+    ? Response.json({ ...fixture('THYAO.IS'), price: 0 })
+    : Response.json({ data: [], news: [] }));
+  await mount('THYAO.IS');
+  expect(button('Al').props.disabled).toBe(true);
+  expect(button('Sat').props.disabled).toBe(true);
+  expect(textOf(renderer!.root)).toContain('Fiyat alınamadı');
 });

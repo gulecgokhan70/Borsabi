@@ -232,6 +232,7 @@ const NAV_ITEMS = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() || {};
   const pathname = usePathname();
+  const stockPage = pathname?.startsWith('/stock/');
   const accountId = session?.user?.id;
   useEffect(() => {
     const encoded = pathname?.startsWith('/stock/') ? pathname.slice('/stock/'.length) : '';
@@ -358,7 +359,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={`flex-1 min-w-0 overflow-y-auto ${stockPage ? 'bg-background' : ''}`}>
         {/* Desktop top bar */}
         <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
           <Link href="/dashboard" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
@@ -378,7 +379,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
         </div>
         {/* Mobile header */}
-        <div className="sticky top-0 z-30 flex items-center gap-2 px-3 py-2.5 glass-nav lg:hidden">
+        <div className={`${stockPage ? 'hidden' : 'flex'} sticky top-0 z-30 items-center gap-2 px-3 py-2.5 glass-nav lg:hidden`}>
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
             <Menu className="w-5 h-5" />
           </button>
@@ -403,9 +404,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
         </div>
-        <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
-          <BreakingNewsBanner />
-          <PageTransition>{children}</PageTransition>
+        <div className={stockPage ? "max-w-[1400px] mx-auto pb-24" : "p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto"}>
+          {!stockPage && <BreakingNewsBanner />}
+          {stockPage ? children : <PageTransition>{children}</PageTransition>}
           {/* Global Footer */}
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-6 pb-2">
             <Link href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</Link>
@@ -420,7 +421,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
+      <nav className={`${stockPage ? 'hidden' : ''} fixed bottom-0 left-0 right-0 z-50 lg:hidden`}>
         <div className="glass-nav border-t border-black/[0.06] dark:border-white/[0.06] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
           <div className="flex items-end justify-around">
             {[

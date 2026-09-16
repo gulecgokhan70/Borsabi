@@ -9,6 +9,9 @@ import {
   Info, Percent, Building2, LineChart, Newspaper, ExternalLink, Clock, Brain,
   Sparkles, AlertTriangle, CheckCircle, ArrowRight, RefreshCw
 } from 'lucide-react';
+import Link from 'next/link';
+import { Bookmark, Bell, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent, isIndexSymbol } from '@/lib/constants';
 import { assetCurrency, tradableMarketType } from '@/lib/asset-display';
@@ -94,7 +97,7 @@ const PERIODS = [
   { label: '30dk', value: '5d', interval: '30m', key: '30m' },
   { label: '1sa', value: '5d', interval: '1h', key: '1h' },
   { label: '4sa', value: '1mo', interval: '4h', key: '4h' },
-  { label: '1G', value: '3mo', interval: '1d', key: '1d-daily' },
+  { label: '1G', value: '1d', interval: '5m', key: '1d-daily' },
   { label: '1H', value: '1w', interval: '1h', key: '1w' },
   { label: '1A', value: '1mo', interval: '1d', key: '1mo' },
   { label: '3A', value: '3mo', interval: '1d', key: '3mo' },
@@ -166,10 +169,43 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [analysis, setAnalysis] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
-  const [insightTab, setInsightTab] = useState<'analysis' | 'news'>('analysis');
+  const [insightTab, setInsightTab] = useState<'analysis' | 'news'>('news');
   const [newsLoading, setNewsLoading] = useState(true);
   // İnteraktif grafik: hover/touch noktasının verileri
   const [activePoint, setActivePoint] = useState<any>(null);
+
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savePending = useRef(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    setSaved(false);
+    setWatchlistLoading(true);
+    fetch('/api/watchlist').then(r => r.ok ? r.json() : null).then(body => {
+      if (!cancelled) setSaved((body?.data ?? []).some((item: any) => item.symbol === assetSymbol));
+    }).catch(() => {}).finally(() => { if (!cancelled) setWatchlistLoading(false); });
+    return () => { cancelled = true; };
+  }, [assetSymbol]);
+  async function toggleSaved() {
+    if (savePending.current || watchlistLoading || !data) return;
+    savePending.current = true;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: assetSymbol, name: data.name, type: marketType || 'BIST' }) });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Liste güncellenemedi');
+      setSaved(!!body.added);
+    } catch { toast.error('İzleme listesi güncellenemedi. Tekrar deneyin.'); }
+    finally { savePending.current = false; setSaving(false); }
+  }
+  async function shareStock() {
+    const url = `${window.location.origin}/stock/${encodeURIComponent(assetSymbol)}`;
+    try {
+      if (navigator.share) await navigator.share({ title: `${data?.shortName || symbol} · BorsaBi`, url });
+      else { await navigator.clipboard.writeText(url); toast.success('Hisse bağlantısı kopyalandı'); }
+    } catch (error) { if (!(error instanceof Error && error.name === 'AbortError')) toast.error('Paylaşım açılamadı. Sayfa adresini tarayıcıdan kopyalayabilirsiniz.'); }
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -437,105 +473,42 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   }
 
   return (
-    <div className="min-h-screen glass-inner p-4 md:p-6 space-y-5">
-      {/* Header */}
-      {data ? (
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 rounded-lg glass-card hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
-              <ArrowLeft className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">{data.shortName}</h1>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors duration-150 ${isPositive ? 'bg-[#22C55E]/20 text-[#22C55E]' : 'bg-[#EF4444]/20 text-[#F87171]'}`}>
-                  {displayChangePercent >= 0 ? '+' : ''}{displayChangePercent.toFixed(2)}%
-                </span>
-              </div>
-              <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
-                {displayDate ? <span className="text-[#3B82F6] font-medium">{displayDate}</span> : data.name}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className={`text-3xl font-bold transition-colors duration-150 ${activePoint ? 'text-[#3B82F6]' : 'text-foreground'}`}>
-                {fp(displayPrice)}
-              </p>
-              <p className={`text-sm font-medium transition-colors duration-150 ${isPositive ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
-                {isPositive ? <TrendingUp className="w-4 h-4 inline mr-1" /> : <TrendingDown className="w-4 h-4 inline mr-1" />}
-                {isIndex ? `${displayChangePercent >= 0 ? '+' : ''}${displayChangePercent.toFixed(2)}%` : `${displayChange >= 0 ? '+' : ''}${fp(displayChange)}`}
-              </p>
-            </div>
-            {marketType && (
-              <div className="flex flex-col gap-2">
-                <button onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }}
-                  className="px-5 py-2 rounded-lg bg-[#22C55E] text-white text-sm font-semibold hover:bg-[#16A34A] transition-colors flex items-center gap-1.5">
-                  <TrendingUp className="w-4 h-4" /> Al
-                </button>
-                <button onClick={() => { setTradeSide('SELL'); setTradeOpen(true); }}
-                  className="px-5 py-2 rounded-lg bg-[#EF4444] text-white text-sm font-semibold hover:bg-[#DC2626] transition-colors flex items-center gap-1.5">
-                  <TrendingDown className="w-4 h-4" /> Sat
-                </button>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      ) : (
-        <div className="flex items-center justify-center py-6">
-          <Loader2 className="w-8 h-8 animate-spin text-[#3B82F6]" />
+    <div className="min-h-screen bg-background text-foreground px-5 md:px-8 pb-28 space-y-8 max-w-5xl mx-auto">
+      <header className="sticky top-0 lg:top-[60px] z-20 -mx-5 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 backdrop-blur flex items-center gap-3 border-b border-transparent">
+        <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/piyasalar"); }} aria-label="Geri dön" className="min-h-[44px] min-w-[44px] grid place-items-center"><ArrowLeft className="w-6 h-6" /></button>
+        <div className="min-w-0 flex-1"><p className="font-semibold truncate">{data?.shortName || symbol}</p><p className="text-xs text-muted-foreground">{data?.price && Number.isFinite(data.price) ? fp(data.price) : loading ? 'Yükleniyor…' : 'Fiyat alınamadı'}</p></div>
+        <button onClick={toggleSaved} disabled={saving || watchlistLoading || !data} aria-label={saved ? 'İzleme listesinden çıkar' : 'İzleme listesine ekle'} aria-pressed={saved} className="min-h-[44px] min-w-[44px] grid place-items-center disabled:opacity-50"><Bookmark className={`w-5 h-5 ${saved ? 'fill-current text-indigo-500' : ''}`} /></button>
+        <Link href="/alerts" aria-label="Fiyat alarmları" className="min-h-[44px] min-w-[44px] grid place-items-center"><Bell className="w-5 h-5" /></Link>
+        <button onClick={shareStock} aria-label="Hisseyi paylaş" className="min-h-[44px] min-w-[44px] grid place-items-center"><Share2 className="w-5 h-5" /></button>
+      </header>
+      {data ? <section aria-label="Hisse fiyatı" className="space-y-3">
+        <h1 className="text-3xl font-bold tracking-tight">{data.shortName}</h1>
+        <p className="text-base text-muted-foreground">{data.name}</p>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <p className="text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{displayPrice > 0 && Number.isFinite(displayPrice) ? fp(displayPrice) : 'Fiyat alınamadı'}</p>
+          <p className={`text-xl font-semibold ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{displayChangePercent >= 0 ? '+' : '-'}%{Math.abs(displayChangePercent).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
-      )}
-
-      {data && <section aria-label="Son fiyat bilgisi" className="glass-inner rounded-xl p-3 text-xs text-muted-foreground space-y-1">
-        <p>Son fiyat kaynağı: {data.priceSource || 'Bilinmiyor'}</p>
-        <p>{data.priceTimeKind === 'candle' ? 'Mum zamanı' : 'Fiyat zamanı'}: {formatQuoteTime(data.priceAsOf)}</p>
-        <p>Son kontrol: {formatQuoteTime(data.checkedAt)}</p>
-        <p>Seans durumu: {data.marketOpen === true ? 'Kaynağa göre açık' : data.marketOpen === false ? 'Kaynağa göre kapalı' : 'Kaynak tarafından doğrulanmadı'}. Veriler gecikmeli olabilir; son kontrol saati fiyatın zamanı değildir.</p>
-        {activePoint && <p>Yukarıdaki fiyat grafikte seçtiğin muma aittir; bu bölüm son fiyat verisini açıklar.</p>}
-      </section>}
+        <p className={`text-sm ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{displayChange >= 0 ? '+' : ''}{fp(displayChange)} <span className="text-muted-foreground">{displayDate || 'Günlük değişim'}</span></p>
+      </section> : <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>}
       {/* ===== PRICE CHART ===== */}
-      <ChartSurface>
-        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) setDrawingTool('none'); }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
-        {/* Chart controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-            <span className="text-xs text-muted-foreground">{isIndex ? 'Puan' : currencyCode}</span>
-            <div className="flex glass-inner rounded-lg p-0.5">
-              <button onClick={() => setChartType('candle')}
-                className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>🕯️ Mum</button>
-              <button onClick={() => setChartType('line')}
-                className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${chartType === 'line' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>📈 Çizgi</button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {PERIODS.map((p: any) => (
-              <button key={p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${(period === p.value && chartInterval === p.interval) ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <ChartSurface minimal>
         {/* Overlay toggles */}
         <div className={advancedChart ? "flex flex-wrap gap-2 mb-3" : "hidden"}>
           <button onClick={() => setOverlay(overlay === 'ema' ? 'none' : 'ema')}
-            className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
+            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
               overlay === 'ema' ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>EMA</button>
           <button onClick={() => setOverlay(overlay === 'bb' ? 'none' : 'bb')}
-            className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
+            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
               overlay === 'bb' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>Bollinger</button>
           <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
           <button onClick={() => setBottomIndicator('volume')}
-            className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
+            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
               bottomIndicator === 'volume' ? 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>Hacim</button>
           <button onClick={() => setBottomIndicator('macd')}
-            className={`px-2.5 py-1 rounded text-[10px] font-semibold transition-colors ${
+            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
               bottomIndicator === 'macd' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
             }`}>MACD</button>
           <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
@@ -545,7 +518,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Main Price Chart */}
-        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, 380px)', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
+        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, clamp(260px, 43dvh, 420px))', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
           {chartData.length > 0 ? (
             <>
             <ResponsiveContainer width="100%" height="100%">
@@ -553,9 +526,9 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 onMouseMove={handleChartMouseMove}
                 onMouseLeave={handleChartMouseLeave}>
 
-                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
-                <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
+                {advancedChart && <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />}
+                <XAxis hide={!advancedChart} dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis hide={!advancedChart} domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
                   tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(2)} />
                 <Tooltip content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
 
@@ -577,7 +550,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   </Bar>
                 ) : (
                   <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={false}
-                    fill={chartPositive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)'} />
+                    fill={advancedChart ? (chartPositive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)') : 'transparent'} />
                 )}
 
                 {/* EMA overlays */}
@@ -674,7 +647,65 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             </div>
           )}
         </div>
+        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) setDrawingTool('none'); }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
+        {/* Chart controls */}
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
+            <span className="text-xs text-muted-foreground">{isIndex ? 'Puan' : currencyCode}</span>
+            <div className="flex glass-inner rounded-lg p-0.5">
+              <button onClick={() => setChartType('candle')}
+                className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>🕯️ Mum</button>
+              <button onClick={() => setChartType('line')}
+                className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${chartType === 'line' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>📈 Çizgi</button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {PERIODS.filter(p => advancedChart || ['1d-daily', '1w', '1mo', '3mo', '6mo', '1y'].includes(p.key)).map((p: any) => (
+              <button key={p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-lg text-xs font-medium transition-colors ${(period === p.value && chartInterval === p.interval) ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
       </ChartSurface>
+
+      {data && <details className="text-xs text-muted-foreground border-b border-black/10 dark:border-white/10 pb-4">
+        <summary className="min-h-[44px] cursor-pointer">Fiyat zamanı: {formatQuoteTime(data.priceAsOf)} · Veri bilgisi</summary>
+        <div className="space-y-2 pt-2"><p>Son fiyat kaynağı: {data.priceSource || 'Bilinmiyor'} · {data.priceTimeKind === 'candle' ? 'Mum zamanı' : 'Fiyat zamanı'}: {formatQuoteTime(data.priceAsOf)}</p><p>Son kontrol: {formatQuoteTime(data.checkedAt)}</p><p>Seans: {data.marketOpen === true ? 'Kaynağa göre açık' : data.marketOpen === false ? 'Kaynağa göre kapalı' : 'Doğrulanmadı'}. Veriler gecikmeli olabilir. Kontrol saati fiyatın zamanı değildir.</p>{activePoint && <p>Üstteki fiyat grafikte seçilen muma aittir.</p>}</div>
+      </details>}
+      {data && marketType && <div role="region" aria-label="Sanal işlem" className="fixed bottom-0 left-0 right-0 lg:left-64 z-40 bg-background/95 backdrop-blur border-t border-black/5 dark:border-white/5 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-3xl mx-auto"><p className="text-[10px] text-muted-foreground text-center mb-2">Sanal işlem · Gerçek para kullanılmaz</p><div className="grid grid-cols-2 gap-3">
+          <button disabled={!Number.isFinite(data.price) || data.price <= 0} onClick={() => { setTradeSide('SELL'); setTradeOpen(true); }} className="min-h-[48px] rounded-full bg-indigo-600 text-white font-semibold disabled:opacity-40">Sat</button>
+          <button disabled={!Number.isFinite(data.price) || data.price <= 0} onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }} className="min-h-[48px] rounded-full bg-indigo-600 text-white font-semibold disabled:opacity-40">Al</button>
+        </div></div>
+      </div>}
+      {/* ===== QUICK STATS ROW ===== */}
+      {data && (
+        <section aria-label="İstatistikler"><h2 className="text-2xl font-semibold mb-5">İstatistikler</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+          {[
+            { label: 'Açılış', value: fp(data.open), icon: DollarSign, color: 'text-[#3B82F6]' },
+            { label: 'Önceki Kapanış', value: fp(data.prevClose), icon: ArrowUpDown, color: 'text-muted-foreground' },
+            { label: 'Gün Yüksek', value: fp(data.high), icon: TrendingUp, color: 'text-[#22C55E]' },
+            { label: 'Gün Düşük', value: fp(data.low), icon: TrendingDown, color: 'text-[#F87171]' },
+            ...(data.tavan ? [{ label: 'Tavan ↑', value: fp(data.tavan), icon: TrendingUp, color: 'text-[#22C55E]' }] : []),
+            ...(data.taban ? [{ label: 'Taban', value: fp(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
+            { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2, color: 'text-[#8B5CF6]' },
+            { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-slate-400 dark:text-slate-500' },
+          ].map((item: any, i: number) => (
+            <motion.div key={item.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.03 }}
+              className="py-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                <span className="text-sm text-muted-foreground">{item.label}</span>
+              </div>
+              <p className="text-foreground font-semibold text-base tabular-nums">{item.value}</p>
+            </motion.div>
+          ))}
+        </div></section>
+      )}
 
       {/* ===== AI ANALİZ & HABERLER ===== */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-2xl overflow-hidden">
@@ -992,31 +1023,6 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           </div>
         )}
       </motion.div>
-
-      {/* ===== QUICK STATS ROW ===== */}
-      {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {[
-            { label: 'Açılış', value: fp(data.open), icon: DollarSign, color: 'text-[#3B82F6]' },
-            { label: 'Önceki Kapanış', value: fp(data.prevClose), icon: ArrowUpDown, color: 'text-muted-foreground' },
-            { label: 'Gün Yüksek', value: fp(data.high), icon: TrendingUp, color: 'text-[#22C55E]' },
-            { label: 'Gün Düşük', value: fp(data.low), icon: TrendingDown, color: 'text-[#F87171]' },
-            ...(data.tavan ? [{ label: 'Tavan ↑', value: fp(data.tavan), icon: TrendingUp, color: 'text-[#22C55E]' }] : []),
-            ...(data.taban ? [{ label: 'Taban', value: fp(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
-            { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2, color: 'text-[#8B5CF6]' },
-            { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-slate-400 dark:text-slate-500' },
-          ].map((item: any, i: number) => (
-            <motion.div key={item.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.03 }}
-              className="glass-card rounded-xl p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">{item.label}</span>
-              </div>
-              <p className="text-foreground font-semibold text-sm font-mono">{item.value}</p>
-            </motion.div>
-          ))}
-        </div>
-      )}
 
       {/* ===== 52 WEEK RANGE ===== */}
       {data && (data.fiftyTwoWeekHigh > 0 || data.fiftyTwoWeekLow > 0) && (() => {
