@@ -1,3 +1,15 @@
+import { safeSourceUrl, type EvidenceSource } from './evidence';
+
+export function parseStreamSources(value: unknown): EvidenceSource[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((source): source is EvidenceSource =>
+    source && typeof source.label === 'string' && typeof source.status === 'string'
+    && (source.asOf === null || (typeof source.asOf === 'string' && Number.isFinite(Date.parse(source.asOf))))
+    && typeof source.url === 'string'
+    && (safeSourceUrl(source.url) !== null || /^\/[a-z0-9][a-z0-9/_-]*$/i.test(source.url)),
+  );
+}
+
 export function aiHttpError(status: number) {
   if (status === 401) return 'Oturumunuz sona ermiş. Yeniden giriş yapın.';
   if (status === 429) return 'AI hizmeti şu anda yoğun. Biraz bekleyip tekrar deneyin.';
@@ -5,7 +17,7 @@ export function aiHttpError(status: number) {
   if (status >= 500) return 'AI hizmetine şu anda ulaşılamıyor. Biraz sonra tekrar deneyin.';
   return 'İstek tamamlanamadı. Sorunuzu kontrol edip tekrar deneyin.';
 }
-export async function readAIStream(response: Response, onText: (text: string) => void) {
+export async function readAIStream(response: Response, onText: (text: string) => void, onSources?: (sources: EvidenceSource[]) => void) {
   const reader = response.body?.getReader();
   if (!reader) throw new Error('empty');
   const decoder = new TextDecoder();
@@ -18,6 +30,7 @@ export async function readAIStream(response: Response, onText: (text: string) =>
     let data;
     try { data = JSON.parse(raw); } catch { throw new Error('invalid-stream'); }
     if (data.error) throw new Error('provider-stream');
+    if (data.type === 'sources') { onSources?.(parseStreamSources(data.sources)); return; }
     if (data.choices?.[0]?.finish_reason) complete = true;
     const delta = data.choices?.[0]?.delta?.content;
     if (typeof delta === 'string') { content += delta; onText(content); }

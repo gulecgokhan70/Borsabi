@@ -1,4 +1,4 @@
-import { evidenceHeader, priceSource, safeSourceUrl, sourceTime, type EvidenceSource } from '@/lib/evidence';
+import { priceSource, safeSourceUrl, sourceTime, type EvidenceSource } from '@/lib/evidence';
 import { valuePositions } from '@/lib/position-valuation';
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
@@ -9,7 +9,9 @@ import { getMidasStock, getMidasStockMap } from '@/lib/midas-api';
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { prisma } from '@/lib/db';
 import { parseChatContext } from '@/lib/chat-context';
-import { getNewsImpact } from '@/lib/news-analysis';
+import { getAllNews } from '@/lib/news-feed';
+import { collectChatData, type ChatDataTask } from '@/lib/ai-data-context';
+import { chatStreamResponse } from '@/lib/ai-chat-stream';
 import { aiErrorResponse, getAIConfig, requestAICompletion } from '@/lib/ai-provider';
 
 // ============================
@@ -311,113 +313,38 @@ function detectTopics(message: string): { wantsPortfolio: boolean; wantsScreenin
   };
 }
 
-async function fetchMarketOverview(): Promise<string> {
-  try {
-    const lines: string[] = ['🏛️ Piyasa Genel Görünümü:'];
+const MARKET_QUOTES = [
+  { symbol: 'XU100.IS', label: 'BIST 100', unit: 'puan' },
+  { symbol: 'XU030.IS', label: 'BIST 30', unit: 'puan' },
+  { symbol: 'USDTRY=X', label: 'Dolar/TL', unit: 'TL' },
+  { symbol: 'EURTRY=X', label: 'Euro/TL', unit: 'TL' },
+  { symbol: 'BTC-USD', label: 'Bitcoin', unit: 'USD' },
+];
 
-    // Endeksler
-    const indices = ['XU100.IS', 'XU030.IS'];
-    for (const idx of indices) {
-      try {
-        const q = await cachedQuote(idx);
-        if (q) {
-          const name = idx === 'XU100.IS' ? 'BIST 100' : 'BIST 30';
-          const chg = q.regularMarketChangePercent ?? 0;
-          const dir = chg >= 0 ? '🟢' : '🔴';
-          lines.push(`${dir} ${name}: ${(q.regularMarketPrice ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} (${chg >= 0 ? '+' : ''}%${chg.toFixed(2)})`);
-        }
-      } catch (_e) { /* skip */ }
-    }
-
-    // Döviz / Kripto
-    const extras = [
-      { sym: 'USDTRY=X', name: 'Dolar/TL' },
-      { sym: 'EURTRY=X', name: 'Euro/TL' },
-      { sym: 'BTC-USD', name: 'Bitcoin' },
-    ];
-    for (const ex of extras) {
-      try {
-        const q = await cachedQuote(ex.sym);
-        if (q) {
-          const chg = q.regularMarketChangePercent ?? 0;
-          const dir = chg >= 0 ? '🟢' : '🔴';
-          const curr = ex.sym.includes('TRY') ? 'TL' : 'USD';
-          lines.push(`${dir} ${ex.name}: ${(q.regularMarketPrice ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${curr} (${chg >= 0 ? '+' : ''}%${chg.toFixed(2)})`);
-        }
-      } catch (_e) { /* skip */ }
-    }
-
-    // En likit 10 hisse durumu
-    const midasMap = await getMidasStockMap().catch(() => new Map());
-    const topStocks = BIST_TOP_STOCKS.slice(0, 10);
-    let upCount = 0, downCount = 0;
-    const topLines: string[] = [];
-    for (const stock of topStocks) {
-      const cleanSym = stock.shortName.toUpperCase();
-      const m = (midasMap as Map<string, any>).get(cleanSym);
-      if (m) {
-        const chg = m.DailyChangePercent ?? 0;
-        if (chg >= 0) upCount++; else downCount++;
-        const dir = chg >= 0 ? '🟢' : '🔴';
-        topLines.push(`${dir} ${stock.shortName}: ${(m.Last || m.Close).toFixed(2)} TL (%${chg >= 0 ? '+' : ''}${chg.toFixed(2)})`);
-      }
-    }
-    lines.push(`\nEn Likit 10 Hisse (${upCount} yükseliş, ${downCount} düşüş):`);
-    lines.push(...topLines);
-
-    return lines.join('\n');
-  } catch (error: any) {
-    console.error('[AI] Market overview hatası:', error?.message);
-    return '';
-  }
+async function fetchMarketQuote(asset: typeof MARKET_QUOTES[number], sources: EvidenceSource[]): Promise<string> {
+  const quote = await cachedQuote(asset.symbol);
+  if (!quote || !Number.isFinite(quote.regularMarketPrice)) return '';
+  const source = priceSource(asset.label, asset.symbol, quote.regularMarketTime);
+  sources.push(source);
+  const change = quote.regularMarketChangePercent;
+  return `${asset.label}: ${quote.regularMarketPrice!.toLocaleString('tr-TR')} ${asset.unit}; değişim: ${Number.isFinite(change) ? `%${change!.toFixed(2)}` : 'bilinmiyor'}; kaynak: Yahoo; fiyat zamanı: ${source.asOf ?? 'bilinmiyor'}. ${source.status}`;
 }
 
-async function fetchNewsData(baseUrl: string, sources: EvidenceSource[]): Promise<string> {
-  try {
-    const lines: string[] = ['📰 Son Haberler ve Gelişmeler:'];
-
-    // Haberleri çek
-    const newsRes = await fetch(`${baseUrl}/api/news?limit=10`, { headers: { 'Content-Type': 'application/json' } });
-    if (newsRes.ok) {
-      const newsData = await newsRes.json();
-      const news = newsData?.news ?? [];
-      if (news.length > 0) {
-        for (const n of news.slice(0, 10)) {
-          const cat = n.category?.toUpperCase() ?? 'GENEL';
-          const src = n.source ?? '';
-          const url = safeSourceUrl(n.url);
-          if (url) sources.push({ label: String(n.title).slice(0, 140), url, asOf: sourceTime(n.date), status: 'Haber yayın zamanı; haber iddiaları bağımsız doğrulanmış sayılmaz.' });
-          lines.push(`• [${cat}] ${n.title}${src ? ` (${src})` : ''}`);
-          if (n.summary) lines.push(`  → ${n.summary}`);
-          if (url) lines.push(`  Kaynak bağlantısı: ${url}; yayın: ${sourceTime(n.date) ?? 'bilinmiyor'}`);
-        }
-      }
-    }
-
-    // AI haber analizi çek
-    try {
-      const impact = await getNewsImpact(baseUrl);
-      if (impact) {
-        lines.push('\n🤖 AI Haber Analiz Özeti:');
-        lines.push(`Genel Hissiyat: ${impact.overallSentiment} | Risk: ${impact.riskLevel}`);
-        lines.push(`Özet: ${impact.summary}`);
-        if (impact.criticalWarnings?.length > 0) {
-          lines.push(`Kritik Uyarılar: ${impact.criticalWarnings.join('; ')}`);
-        }
-        if (impact.sectorImpacts?.length > 0) {
-          lines.push('Sektör Etkileri: ' + impact.sectorImpacts.map((s: any) => `${s.sector} ${s.direction === 'yukarı' ? '↑' : s.direction === 'aşağı' ? '↓' : '→'}`).join(', '));
-        }
-        if (impact.stockWarnings?.length > 0) {
-          lines.push('Hisse Uyarıları: ' + impact.stockWarnings.map((w: any) => `${w.symbol}: ${w.warning}`).join(', '));
-        }
-      }
-    } catch (_e) { /* skip analysis */ }
-
-    return lines.join('\n');
-  } catch (error: any) {
-    console.error('[AI] News fetch hatası:', error?.message);
-    return '';
+async function fetchNewsData(sources: EvidenceSource[]): Promise<string> {
+  // Reuse the feed cache directly. Chat needs one model call, not an analysis of
+  // another model's analysis, and must not depend on a localhost HTTP endpoint.
+  const news = (await getAllNews()).slice(0, 10);
+  if (!news.length) return '';
+  const lines = ['📰 Son Haberler ve Gelişmeler:'];
+  for (const item of news) {
+    const url = safeSourceUrl(item.url);
+    const asOf = item.dateVerified === false ? null : sourceTime(item.date);
+    if (url) sources.push({ label: item.title.slice(0, 140), url, asOf, status: 'Haber iddiaları bağımsız doğrulanmış sayılmaz; yayın zamanı bilinmiyorsa güncel olduğu varsayılmamalı.' });
+    lines.push(`• [${item.category?.toUpperCase() ?? 'GENEL'}] ${item.title.slice(0, 300)} (${item.source})`);
+    if (item.summary) lines.push(`  → ${item.summary.slice(0, 700)}`);
+    if (url) lines.push(`  Kaynak bağlantısı: ${url}; yayın: ${asOf ?? 'bilinmiyor'}`);
   }
+  return lines.join('\n');
 }
 
 async function fetchScreeningData(): Promise<string> {
@@ -436,7 +363,7 @@ async function fetchScreeningData(): Promise<string> {
       }
     }
 
-    return lines.join('\n');
+    return lines.length > 1 ? lines.join('\n') : '';
   } catch (error: any) {
     console.error('[AI] Tarama veri hatası:', error?.message);
     return '';
@@ -542,43 +469,33 @@ export async function POST(request: NextRequest) {
     const topics = detectTopics(lastUserMessage);
     const userId = (session.user as any).id;
 
-    // Paralel veri çekme
-    const sources: EvidenceSource[] = [];
-    const dataPromises: Promise<string>[] = [];
-    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
-
-    // Hisse/kripto verileri
-    for (const asset of detectedAssets) {
-      dataPromises.push(fetchStockData(asset, sources));
-    }
-
-    // Portföy verisi
+    // Each data task has an isolated source list and shares an eight-second
+    // preparation budget. A slow news/quote service cannot block all answers.
+    const tasks: ChatDataTask[] = detectedAssets.map(asset => ({
+      label: asset.shortName, run: sources => fetchStockData(asset, sources),
+    }));
     if (topics.wantsPortfolio && userId) {
-      sources.push({ label: 'Kendi simülasyon portföyünüz', url: '/portfolio', asOf: new Date().toISOString(), status: 'Hesap özeti; fiyat ve kurun zamanı ayrıca değerlendirilmelidir.' });
-      dataPromises.push(fetchPortfolioData(userId));
+      tasks.push({ label: 'Portföy', run: async sources => {
+        const text = await fetchPortfolioData(userId);
+        sources.push({ label: 'Kendi simülasyon portföyünüz', url: '/portfolio', asOf: new Date().toISOString(), status: 'Hesap özeti; fiyat ve kurun zamanı ayrıca değerlendirilmelidir.' });
+        return text;
+      } });
     }
-
-    // Piyasa genel görünümü
-    if (topics.wantsMarket || (topics.wantsNews && detectedAssets.length === 0)) {
-      sources.push({ label: 'BorsaBi piyasa özeti — Midas / Yahoo', url: '/piyasalar', asOf: null, status: 'Toplu veride kaynak zamanı doğrulanmadı; anlık olduğu varsayılmamalı.' });
-      dataPromises.push(fetchMarketOverview());
+    const needsMarket = topics.wantsMarket || (topics.wantsNews && detectedAssets.length === 0);
+    if (needsMarket) {
+      for (const asset of MARKET_QUOTES) tasks.push({ label: asset.label, run: sources => fetchMarketQuote(asset, sources) });
     }
-
-    // Haber akışı + AI analiz
     if (topics.wantsNews || topics.wantsMarket) {
-      dataPromises.push(fetchNewsData(baseUrl, sources));
+      tasks.push({ label: 'Haberler', run: fetchNewsData });
     }
-
-    // Tarama/screening verisi
-    if (topics.wantsScreening && detectedAssets.length === 0) {
-      dataPromises.push(fetchScreeningData());
+    if (needsMarket || (topics.wantsScreening && detectedAssets.length === 0)) {
+      tasks.push({ label: 'Hisse tarama özeti', run: async sources => {
+        const text = await fetchScreeningData();
+        if (text) sources.push({ label: 'BorsaBi hisse özeti — Midas', url: '/piyasalar', asOf: null, status: 'Toplu veride kaynak zamanı doğrulanmadı; anlık olduğu varsayılmamalı.' });
+        return text;
+      } });
     }
-
-    const dataResults = await Promise.allSettled(dataPromises);
-    const dataContext = dataResults
-      .filter((r: any) => r.status === 'fulfilled' && r.value)
-      .map((r: any) => r.value)
-      .join('\n\n');
+    const { text: dataContext, sources } = await collectChatData(tasks, request.signal);
 
     // Sistem promptu oluştur
     let systemPrompt = SYSTEM_PROMPT_BASE;
@@ -596,10 +513,7 @@ export async function POST(request: NextRequest) {
       signal: request.signal,
     });
 
-    // Forward bytes intact, including UTF-8 characters split across network chunks.
-    return new Response(response.body, {
-      headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', 'X-BorsaBi-Sources': evidenceHeader(sources) },
-    });
+    return chatStreamResponse(response, sources);
   } catch (error: unknown) {
     return aiErrorResponse(error);
   }

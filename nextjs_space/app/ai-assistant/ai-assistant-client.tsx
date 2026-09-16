@@ -1,5 +1,5 @@
 'use client';
-import { aiHttpError, readAIStream } from '@/lib/ai-stream-client';
+import { aiHttpError, parseStreamSources, readAIStream } from '@/lib/ai-stream-client';
 import { AIMarkdown } from '@/components/ai-markdown';
 import { useState, useRef, useEffect } from 'react';
 import type { EvidenceSource } from '@/lib/evidence';
@@ -65,8 +65,9 @@ export function AiAssistantClient() {
       });
       if (!res.ok) { showError(aiHttpError(res.status)); return; }
       let sources: EvidenceSource[] = [];
-      try { sources = JSON.parse(decodeURIComponent(res.headers.get('X-BorsaBi-Sources') || '%5B%5D')); } catch { /* Metadata is optional. */ }
-      await readAIStream(res, content => setMessages([...newMessages, { role: 'assistant', content, sources }]));
+      // Accept the legacy header during a rolling deployment; new servers use SSE metadata.
+      try { sources = parseStreamSources(JSON.parse(decodeURIComponent(res.headers.get('X-BorsaBi-Sources') || '%5B%5D'))); } catch { /* Metadata is optional. */ }
+      await readAIStream(res, content => setMessages([...newMessages, { role: 'assistant', content, sources }]), value => { sources = value; });
     } catch {
       showError(controller.signal.aborted ? 'Yanıt zamanında tamamlanamadı. Tekrar deneyebilirsiniz.' : 'Yanıt tamamlanamadı. Bağlantınızı kontrol edip tekrar deneyin.');
     } finally { clearTimeout(deadline); busy.current = false; setLoading(false); }
