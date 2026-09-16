@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { RadarSettings } from '@/components/radar-settings';
 import { motion } from 'framer-motion';
 import { Bell, Plus, Trash2, TrendingUp, TrendingDown, Check, AlertTriangle } from 'lucide-react';
 import { formatCurrency, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
@@ -17,7 +18,7 @@ export default function AlertsClient() {
   const [condition, setCondition] = useState('above');
   const [targetPrice, setTargetPrice] = useState('');
   const [creating, setCreating] = useState(false);
-  const { requestPermission } = useAlertNotifications();
+  const { requestPermission } = useAlertNotifications(false);
   const [notifPermission, setNotifPermission] = useState<string>('default');
 
   useEffect(() => {
@@ -104,6 +105,8 @@ export default function AlertsClient() {
           </button>
         </div>
       </motion.div>
+
+      <RadarSettings />
 
       {/* Create Form */}
       {showForm && (

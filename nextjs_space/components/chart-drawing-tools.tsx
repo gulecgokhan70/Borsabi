@@ -65,7 +65,7 @@ export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo,
           const isActive = activeTool === tool.id;
           return (
             <button key={tool.id} onClick={() => onToolChange(tool.id)}
-              title={tool.label}
+              title={tool.label} aria-label={tool.label} aria-pressed={isActive}
               className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all ${
                 isActive
                   ? `text-white shadow-sm`
@@ -151,7 +151,7 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
     // Find nearest candle by X position
     const candleCount = chartData.length;
     const candleWidth = plotW / candleCount;
-    const candleIndex = Math.round((pt.x - marginLeft) / candleWidth);
+    const candleIndex = Math.floor((pt.x - marginLeft) / candleWidth);
     const idx = Math.max(0, Math.min(candleIndex, candleCount - 1));
     const candle = chartData[idx];
     if (!candle) return null;

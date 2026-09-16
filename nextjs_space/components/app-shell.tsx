@@ -1,4 +1,5 @@
 'use client';
+import { useAlertNotifications } from '@/hooks/use-alert-notifications';
 import { updateResume } from '@/lib/resume';
 import { updateFirstSteps, validJourneySymbol } from '@/lib/first-steps';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -231,6 +232,7 @@ const NAV_ITEMS = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() || {};
+  useAlertNotifications(!!session?.user, session?.user?.id);
   const pathname = usePathname();
   const stockPage = pathname?.startsWith('/stock/');
   const accountId = session?.user?.id;

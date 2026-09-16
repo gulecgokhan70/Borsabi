@@ -42,7 +42,7 @@ const fixture = (symbol: string) => ({
   indicators: { rsi: 50, ema20: 79000, ema50: 78000, ema200: 77000, avgVolume: 100000, macd: 1,
     macdSignal: 0, macdHistogram: 1, bbUpper: 81000, bbMiddle: 79000, bbLower: 77000 },
   supportResistance: { supports: [{ price: 75000, strength: 2 }], resistances: [{ price: 85000, strength: 2 }] },
-  ohlc: [{ time: 100, date: new Date().toISOString(), open: 79000, high: 80000, low: 78000, close: 79300, volume: 10 }],
+  ohlc: [{ time: 100, date: new Date().toISOString(), open: 79000, high: 80000, low: 78000, close: 79300, volume: 10, macd: 1, macdSignal: 0.5, macdHistogram: 0.5 }],
 });
 
 const textOf = (node: ReactTestInstance | string): string => typeof node === 'string' ? node : node.children.map(child => textOf(child)).join('');
@@ -269,4 +269,15 @@ it('dismisses price and volume information after 3 seconds, resets on interactio
   expect(tips()[1].props.active).toBeUndefined();
   await act(async () => button('1A').props.onClick());
   expect(tips().every(tip => tip.props.active === false)).toBe(true);
+});
+
+it('selects exactly one time control and explains missing EMA history', async () => {
+  await mount();
+  await act(async () => button('Görünüm: Sade').props.onClick());
+  expect(button('1G').props['aria-pressed']).toBe(true);
+  expect(button('5dk').props['aria-pressed']).toBe(false);
+  await act(async () => button('5dk').props.onClick());
+  expect(button('1G').props['aria-pressed']).toBe(false);
+  expect(button('5dk').props['aria-pressed']).toBe(true);
+  expect(textOf(renderer!.root)).toContain('EMA200: en az 200 mum geçmişi gerekli');
 });

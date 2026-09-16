@@ -5,6 +5,7 @@ import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 import { getMidasStock } from '@/lib/midas-api';
 import { quoteTimestamp, quoteMarketOpen } from '@/lib/quote-metadata';
 import { assetCurrency } from '@/lib/asset-display';
+import { enrichCandles, chartHistoryStart, fourHourCandles } from '@/lib/chart-indicators';
 
 function calculateRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -19,52 +20,6 @@ function calculateRSI(closes: number[], period = 14): number {
   if (avgLoss === 0) return 100;
   const rs = avgGain / avgLoss;
   return 100 - (100 / (1 + rs));
-}
-
-function calculateEMA(data: number[], period: number): number[] {
-  const ema: number[] = [data[0]];
-  const k = 2 / (period + 1);
-  for (let i = 1; i < data.length; i++) {
-    ema.push(data[i] * k + ema[i - 1] * (1 - k));
-  }
-  return ema;
-}
-
-function calculateMACD(closes: number[]): { macd: number[]; signal: number[]; histogram: number[] } {
-  if (closes.length < 26) return { macd: [], signal: [], histogram: [] };
-  const ema12 = calculateEMA(closes, 12);
-  const ema26 = calculateEMA(closes, 26);
-  const macdLine = ema12.map((v, i) => v - ema26[i]);
-  const signalLine = calculateEMA(macdLine.slice(25), 9);
-  // Align signal with macd
-  const startIdx = 25 + 8; // 26-1 + 9-1
-  const histogram: number[] = [];
-  const macdOut: number[] = [];
-  const signalOut: number[] = [];
-  for (let i = 0; i < signalLine.length; i++) {
-    const mIdx = startIdx - 8 + i;
-    macdOut.push(macdLine[mIdx]);
-    signalOut.push(signalLine[i]);
-    histogram.push(macdLine[mIdx] - signalLine[i]);
-  }
-  return { macd: macdOut, signal: signalOut, histogram };
-}
-
-function calculateBollingerBands(closes: number[], period = 20, stdDev = 2) {
-  if (closes.length < period) return { upper: [], middle: [], lower: [] };
-  const upper: number[] = [];
-  const middle: number[] = [];
-  const lower: number[] = [];
-  for (let i = period - 1; i < closes.length; i++) {
-    const slice = closes.slice(i - period + 1, i + 1);
-    const avg = slice.reduce((a, b) => a + b, 0) / period;
-    const variance = slice.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / period;
-    const std = Math.sqrt(variance);
-    middle.push(avg);
-    upper.push(avg + stdDev * std);
-    lower.push(avg - stdDev * std);
-  }
-  return { upper, middle, lower };
 }
 
 /* ── Destek / Direnç Seviyeleri ── */
@@ -217,9 +172,9 @@ export async function GET(
     let ohlc: any[] = [];
     try {
       const chartResult: any = await cachedChart(symbol, {
-        period1: startDate,
+        period1: chartHistoryStart(startDate, endDate, interval),
         period2: endDate,
-        interval: interval as any,
+        interval: (interval === '4h' ? '1h' : interval) as any,
       });
 
       ohlc = (chartResult?.quotes ?? []).map((q: any) => ({
@@ -230,14 +185,18 @@ export async function GET(
         low: q?.low ?? 0,
         close: q?.close ?? 0,
         volume: q?.volume ?? 0,
-      })).filter((q: any) => q.close > 0 && q.time > 0);
+      })).filter((q: any) => [q.open, q.high, q.low, q.close].every(n => Number.isFinite(n) && n > 0) && q.time > 0 && q.time <= endDate.getTime() / 1000);
+      ohlc = [...new Map(ohlc.map(q => [q.time, q])).values()].sort((a, b) => a.time - b.time);
+      if (interval === '4h') ohlc = fourHourCandles(ohlc);
+      ohlc = enrichCandles(ohlc);
     } catch (chartErr: any) {
       console.warn('[StockDetail] Chart verisi alınamadı:', chartErr?.message);
       // ohlc boş kalır, sayfa yine de fiyat/temel verileri gösterir
     }
 
+    const indicatorCloses = ohlc.map((q: any) => q.close);
     // Günlük grafik: sadece bugünün borsa seansını göster (09:30 İstanbul)
-    if (period === '1d' && ohlc.length > 0) {
+    if (period === '1d' && isBist && ohlc.length > 0) {
       // Bugünün tarihini İstanbul saatine göre bul
       const now = new Date();
       // İstanbul UTC+3
@@ -262,28 +221,17 @@ export async function GET(
       }
     }
 
-    // Calculate indicators
+    if (period !== '1d' || !isBist) {
+      const cutoff = period === '1d' ? endDate.getTime() / 1000 - 86400 : startDate.getTime() / 1000;
+      ohlc = ohlc.filter(q => q.time >= cutoff);
+    }
     const closes = ohlc.map((q: any) => q.close);
-    const rsi = closes.length > 14 ? calculateRSI(closes) : null;
-    const ema20 = closes.length > 20 ? calculateEMA(closes, 20) : [];
-    const ema50 = closes.length > 50 ? calculateEMA(closes, 50) : [];
-    const lastEma20 = ema20.length > 0 ? ema20[ema20.length - 1] : null;
-    const lastEma50 = ema50.length > 0 ? ema50[ema50.length - 1] : null;
-
-    const totalVolume = ohlc.reduce((s: number, q: any) => s + (q.volume || 0), 0);
-    const avgVolume = ohlc.length > 0 ? Math.round(totalVolume / ohlc.length) : 0;
-
-    // MACD
-    const macdData = closes.length > 33 ? calculateMACD(closes) : { macd: [], signal: [], histogram: [] };
-    const lastMacd = macdData.macd.length > 0 ? macdData.macd[macdData.macd.length - 1] : null;
-    const lastSignal = macdData.signal.length > 0 ? macdData.signal[macdData.signal.length - 1] : null;
-    const lastHistogram = macdData.histogram.length > 0 ? macdData.histogram[macdData.histogram.length - 1] : null;
-
-    // Bollinger Bands
-    const bb = calculateBollingerBands(closes);
-    const lastBBUpper = bb.upper.length > 0 ? bb.upper[bb.upper.length - 1] : null;
-    const lastBBMiddle = bb.middle.length > 0 ? bb.middle[bb.middle.length - 1] : null;
-    const lastBBLower = bb.lower.length > 0 ? bb.lower[bb.lower.length - 1] : null;
+    const rsi = indicatorCloses.length > 14 ? calculateRSI(indicatorCloses) : null;
+    const last = ohlc[ohlc.length - 1];
+    const lastEma20 = last?.ema20 ?? null, lastEma50 = last?.ema50 ?? null, lastEma200 = last?.ema200 ?? null;
+    const lastMacd = last?.macd ?? null, lastSignal = last?.macdSignal ?? null, lastHistogram = last?.macdHistogram ?? null;
+    const lastBBUpper = last?.bbUpper ?? null, lastBBMiddle = last?.bbMiddle ?? null, lastBBLower = last?.bbLower ?? null;
+    const avgVolume = ohlc.length ? Math.round(ohlc.reduce((sum, q) => sum + q.volume, 0) / ohlc.length) : 0;
 
     // Destek / Direnç (her zaman 6 aylık günlük veriyle hesapla)
     let srOhlc = ohlc;
@@ -306,35 +254,7 @@ export async function GET(
     }
     const supportResistance = calculateSupportResistance(srOhlc);
 
-    // EMA200
-    const ema200 = closes.length > 200 ? calculateEMA(closes, 200) : [];
-    const lastEma200 = ema200.length > 0 ? ema200[ema200.length - 1] : null;
-
-    // Attach MACD, BB series to OHLC for chart overlay
-    const macdLen = macdData.macd.length;
-    const bbLen = bb.upper.length;
-    const ema20Arr = ema20;
-    const ema50Arr = ema50;
-    const enrichedOhlc = ohlc.map((item: any, i: number) => {
-      const ohlcLen = ohlc.length;
-      const macdIdx = i - (ohlcLen - macdLen);
-      const bbIdx = i - (ohlcLen - bbLen);
-      const e20 = ema20Arr.length > 0 ? ema20Arr[i] : undefined;
-      const e50 = ema50Arr.length > 0 ? ema50Arr[i] : undefined;
-      const e200Val = ema200.length > 0 ? ema200[i] : undefined;
-      return {
-        ...item,
-        ema20: e20 && i >= 19 ? Math.round(e20 * 100) / 100 : undefined,
-        ema50: e50 && i >= 49 ? Math.round(e50 * 100) / 100 : undefined,
-        ema200: e200Val && i >= 199 ? Math.round(e200Val * 100) / 100 : undefined,
-        macd: macdIdx >= 0 ? Math.round(macdData.macd[macdIdx] * 1000) / 1000 : undefined,
-        macdSignal: macdIdx >= 0 ? Math.round(macdData.signal[macdIdx] * 1000) / 1000 : undefined,
-        macdHistogram: macdIdx >= 0 ? Math.round(macdData.histogram[macdIdx] * 1000) / 1000 : undefined,
-        bbUpper: bbIdx >= 0 ? Math.round(bb.upper[bbIdx] * 100) / 100 : undefined,
-        bbMiddle: bbIdx >= 0 ? Math.round(bb.middle[bbIdx] * 100) / 100 : undefined,
-        bbLower: bbIdx >= 0 ? Math.round(bb.lower[bbIdx] * 100) / 100 : undefined,
-      };
-    });
+    const enrichedOhlc = ohlc;
 
     // Midas verisinden veya Yahoo'dan response oluştur
     const m = midasData;

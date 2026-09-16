@@ -19,6 +19,10 @@ export async function deliverNotifications(db: PrismaClient) {
   const queue = await db.appNotification.findMany({ where: { pushedAt: null, attempts: { lt: 5 } }, orderBy: { createdAt: 'asc' }, take: 30 });
   for (const event of queue) {
     if (Date.now() - started > 20_000) break;
+    if (event.eventKey.startsWith('radar:') && await db.scanCache.findUnique({ where: { id: `event-radar-disabled:${event.userId}` } })) {
+      await db.appNotification.update({ where: { id: event.id }, data: { pushedAt: new Date() } });
+      continue;
+    }
     const subscriptions = await db.pushSubscription.findMany({ where: { userId: event.userId } });
     let failed = false;
     for (const sub of subscriptions) {

@@ -1,4 +1,5 @@
 'use client';
+import { aiHttpError, readAIStream } from '@/lib/ai-stream-client';
 import { AIMarkdown } from '@/components/ai-markdown';
 import { useState, useRef, useEffect } from 'react';
 import type { EvidenceSource } from '@/lib/evidence';
@@ -30,84 +31,45 @@ interface ChatMsg {
   role: string;
   content: string;
   sources?: EvidenceSource[];
+  error?: boolean;
+  retry?: string;
 }
 
 export function AiAssistantClient() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const busy = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef?.current?.scrollTo?.({ top: scrollRef?.current?.scrollHeight ?? 0, behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = async (text?: string) => {
+  const sendMessage = async (text?: string, retryIndex?: number) => {
     const msg = (text ?? input)?.trim?.();
-    if (!msg || loading) return;
-    const userMsg: ChatMsg = { role: 'user', content: msg };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput('');
-    setLoading(true);
-
+    if (!msg || busy.current) return;
+    busy.current = true;
+    const history = retryIndex === undefined ? messages.filter(m => !m.error) : messages.slice(0, retryIndex - 1).filter(m => !m.error);
+    const newMessages: ChatMsg[] = [...history, { role: 'user', content: msg }];
+    setMessages([...newMessages, { role: 'assistant', content: '' }]);
+    setInput(''); setLoading(true);
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 120_000);
+    const showError = (content: string) => setMessages([...newMessages, { role: 'assistant', content, error: true, retry: msg }]);
     try {
       const res = await fetch('/api/ai-chat', {
-        method: 'POST',
+        method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages.filter(m => m.content.trim()).slice(-CHAT_HISTORY_LIMIT) }),
+        body: JSON.stringify({ messages: newMessages.filter(m => m.content.trim()).slice(-CHAT_HISTORY_LIMIT).map(({ role, content }) => ({ role, content })) }),
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: err?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.' }]);
-        return;
-      }
-
+      if (!res.ok) { showError(aiHttpError(res.status)); return; }
       let sources: EvidenceSource[] = [];
-      try { sources = JSON.parse(decodeURIComponent(res.headers.get('X-BorsaBi-Sources') || '%5B%5D')); } catch { /* Older servers do not send metadata. */ }
-      const reader = res?.body?.getReader?.();
-      if (!reader) return;
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-      let partialRead = '';
-
-      setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: '', sources }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        partialRead += decoder.decode(value, { stream: true });
-        const lines = partialRead.split('\n');
-        partialRead = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (line?.startsWith?.('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed?.choices?.[0]?.delta?.content ?? '';
-              if (delta) {
-                assistantContent += delta;
-                setMessages((prev: ChatMsg[]) => {
-                  const updated = [...prev];
-                  if ((updated?.length ?? 0) > 0) {
-                    updated[(updated?.length ?? 1) - 1] = { role: 'assistant', content: assistantContent, sources };
-                  }
-                  return updated;
-                });
-              }
-            } catch (e: any) { /* skip */ }
-          }
-        }
-      }
-    } catch (e: any) {
-      console.error('AI chat error:', e);
-      setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.' }]);
-    } finally {
-      setLoading(false);
-    }
+      try { sources = JSON.parse(decodeURIComponent(res.headers.get('X-BorsaBi-Sources') || '%5B%5D')); } catch { /* Metadata is optional. */ }
+      await readAIStream(res, content => setMessages([...newMessages, { role: 'assistant', content, sources }]));
+    } catch {
+      showError(controller.signal.aborted ? 'Yanıt zamanında tamamlanamadı. Tekrar deneyebilirsiniz.' : 'Yanıt tamamlanamadı. Bağlantınızı kontrol edip tekrar deneyin.');
+    } finally { clearTimeout(deadline); busy.current = false; setLoading(false); }
   };
 
   return (
@@ -163,7 +125,8 @@ export function AiAssistantClient() {
                   </div>
                 )}
                 {msg.role === 'assistant' && msg.content ? <AIMarkdown content={msg.content} /> : <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>}
-                {msg.role === 'assistant' && !(loading && i === messages.length - 1) && <ReportAIResponse content={msg.content} source="ai-assistant" />}
+                {msg.role === 'assistant' && !msg.error && !(loading && i === messages.length - 1) && <ReportAIResponse content={msg.content} source="ai-assistant" />}
+                {msg.error && i === messages.length - 1 && <button disabled={loading} onClick={() => sendMessage(msg.retry, i)} className="min-h-[44px] text-sm text-blue-500 underline">Tekrar dene</button>}
                 {!!msg.sources?.length && <details className="mt-3 text-xs border-t border-white/10 pt-2"><summary className="min-h-[44px] cursor-pointer">Kullanılan veri kaynakları</summary>{msg.sources.map((source, index) => <div key={index} className="py-2"><a href={source.url} target="_blank" rel="noopener noreferrer" className="text-[#3B82F6] underline">{source.label}</a><p>{source.asOf ? new Date(source.asOf).toLocaleString('tr-TR') : 'Kaynak zamanı bilinmiyor'}</p><p>{source.status}</p></div>)}</details>}
               </div>
             </motion.div>

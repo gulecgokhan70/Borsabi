@@ -14,6 +14,7 @@ export async function deleteOwnAccount(db: PrismaClient, userId: string, passwor
         const locked = await tx.$queryRaw<Array<{ password: string }>>`SELECT "password" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
         if (!locked.length || locked[0].password !== account.password) throw new RequestError('Hesap değişti. Yeniden giriş yapın.', 409);
         const where = { userId };
+        await tx.scanCache.deleteMany({ where: { id: `event-radar-disabled:${userId}` } });
         await tx.socialFollow.deleteMany({ where: { OR: [{ followerId: userId }, { followingId: userId }] } });
         await tx.aiContentReport.deleteMany({ where });
         await tx.chatMessage.deleteMany({ where });

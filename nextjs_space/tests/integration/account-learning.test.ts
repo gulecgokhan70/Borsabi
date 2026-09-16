@@ -24,6 +24,7 @@ afterAll(async () => {
   await db.$disconnect();
 });
 async function relatedData(userId: string, otherId: string) {
+  await db.scanCache.create({ data: { id: `event-radar-disabled:${userId}`, data: 'true' } });
   await executeTrade(db, userId, tradeSchema.parse({ symbol: 'THYAO.IS', type: 'BUY', quantity: 1, requestId: randomUUID() }), 100);
   await db.$transaction([
     db.chatMessage.create({ data: { userId, role: 'user', content: 'private note' } }),
@@ -43,6 +44,7 @@ it('deletes all owned records atomically while preserving the other account and 
   await db.chatMessage.create({ data: { userId: other.id, role: 'user', content: 'keep me' } });
   await deleteOwnAccount(db, owner.id, password);
   expect(await db.user.findUnique({ where: { id: owner.id } })).toBeNull();
+  expect(await db.scanCache.findUnique({ where: { id: `event-radar-disabled:${owner.id}` } })).toBeNull();
   for (const model of ['position', 'transaction', 'tradeRequest', 'chatMessage', 'priceAlert', 'achievement', 'watchlist', 'appNotification', 'pushSubscription', 'replaySession', 'aiContentReport'] as const) {
     expect(await (db[model].count as any)({ where: { userId: owner.id } })).toBe(0);
   }

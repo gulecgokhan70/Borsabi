@@ -56,6 +56,20 @@ it('attaches the chosen source time without confusing a previous close with the 
 it('labels the historical fallback timestamp as a candle time', async () => {
   const date = new Date('2026-09-11T12:00:00Z');
   vi.mocked(cachedQuote).mockRejectedValue(new Error('Unavailable'));
-  vi.mocked(cachedChart).mockResolvedValue({ quotes: [{ date, close: 100 }] } as any);
+  vi.mocked(cachedChart).mockResolvedValue({ quotes: [{ date, open: 100, high: 100, low: 100, close: 100 }] } as any);
   expect(await (await request('BTC-USD')).json()).toMatchObject({ price: 100, priceAsOf: date.toISOString(), priceTimeKind: 'candle' });
+});
+it('computes EMA200 from prior sessions before cropping the visible day', async () => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-16T12:00:00Z'));
+  try {
+    const quotes = Array.from({ length: 250 }, (_, i) => ({ date: new Date(Date.parse('2026-09-15T00:00:00Z') + i * 300000), open: 100, high: 101, low: 99, close: 100, volume: 10 }));
+    quotes.push({ date: new Date('2026-09-16T10:00:00Z'), open: 100, high: 101, low: 99, close: 100, volume: 10 });
+    vi.mocked(cachedChart).mockResolvedValue({ quotes } as any);
+    const res = await GET(new NextRequest('http://localhost/api/stock/THYAO.IS?period=1d&interval=5m'), { params: Promise.resolve({ symbol: 'THYAO.IS' }) });
+    const result = await res.json();
+    expect(result.ohlc).toHaveLength(1);
+    expect(result.ohlc[0].ema200).toBeCloseTo(100, 8);
+    expect(result.ohlc[0]).toMatchObject({ ema20: 100, macd: 0, bbMiddle: 100 });
+    expect(new Date(vi.mocked(cachedChart).mock.calls[0][1].period1).getTime()).toBeLessThan(Date.parse('2026-09-14T00:00:00Z'));
+  } finally { vi.useRealTimers(); }
 });

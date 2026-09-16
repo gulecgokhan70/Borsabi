@@ -110,23 +110,19 @@ type BottomIndicator = 'volume' | 'macd';
 type ChartType = 'candle' | 'line';
 
 const CandlestickShape = (props: any) => {
-  const { x, y, width, height, payload } = props;
+  const { x, width, payload, yDomain, plotHeight } = props;
   if (!payload || !payload.open || !payload.close || !payload.high || !payload.low) return null;
 
   const { open, close, high, low, isUp } = payload;
   const color = isUp ? '#22C55E' : '#EF4444';
 
-  const bodyTop = y;
-  const bodyBottom = y + Math.abs(height);
+  const pixelPerPrice = plotHeight / (yDomain[1] - yDomain[0]);
+  const priceY = (price: number) => 5 + (yDomain[1] - price) * pixelPerPrice;
+  const bodyTop = priceY(Math.max(open, close));
+  const bodyBottom = priceY(Math.min(open, close));
   const barCenter = x + width / 2;
-
-  const bodyRange = Math.abs(open - close) || 0.001;
-  const pixelPerPrice = Math.abs(height) / bodyRange;
-
-  const wickTopPrice = high - Math.max(open, close);
-  const wickTopY = bodyTop - wickTopPrice * pixelPerPrice;
-  const wickBottomPrice = Math.min(open, close) - low;
-  const wickBottomY = bodyBottom + wickBottomPrice * pixelPerPrice;
+  const wickTopY = priceY(high);
+  const wickBottomY = priceY(low);
 
   const candleWidth = Math.max(Math.min(width * 0.7, 12), 3);
   const wickWidth = Math.max(Math.min(width * 0.12, 2), 1);
@@ -135,7 +131,7 @@ const CandlestickShape = (props: any) => {
     <g>
       <rect x={barCenter - wickWidth / 2} y={wickTopY} width={wickWidth} height={Math.max(bodyTop - wickTopY, 0)} fill={color} />
       <rect x={barCenter - wickWidth / 2} y={bodyBottom} width={wickWidth} height={Math.max(wickBottomY - bodyBottom, 0)} fill={color} />
-      <rect x={barCenter - candleWidth / 2} y={bodyTop} width={candleWidth} height={Math.max(Math.abs(height), 1)} fill={isUp ? color : color} fillOpacity={isUp ? 0.3 : 0.8} stroke={color} strokeWidth={1} rx={1} />
+      <rect x={barCenter - candleWidth / 2} y={bodyTop} width={candleWidth} height={Math.max(bodyBottom - bodyTop, 1)} fill={isUp ? color : color} fillOpacity={isUp ? 0.3 : 0.8} stroke={color} strokeWidth={1} rx={1} />
     </g>
   );
 };
@@ -152,6 +148,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const fp = (v: number) => isIndex ? formatNumber(v) : formatCurrency(v, currencyCode);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('1d');
+  const [periodKey, setPeriodKey] = useState('1d-daily');
   const [chartInterval, setChartInterval] = useState('5m');
   const isIntraday = ['1d', '2d', '5d'].includes(period) || ['5m', '15m', '30m', '1h', '4h'].includes(chartInterval);
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
@@ -226,26 +223,30 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     } catch (error) { if (!(error instanceof Error && error.name === 'AbortError')) toast.error('Paylaşım açılamadı. Sayfa adresini tarayıcıdan kopyalayabilirsiniz.'); }
   }
 
+  const chartRequest = useRef(0);
   const fetchData = useCallback(async () => {
+    const requestId = ++chartRequest.current;
     try {
       const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}?period=${period}&interval=${chartInterval}`);
       const json = await res.json();
       // error alanı olmasa veya kısmi veri geldiyse setData yap
-      if (json && json.symbol) setData(json);
+      if (requestId === chartRequest.current && json && json.symbol) setData(json);
     } catch (e: any) {
       console.error('Stock data error:', e);
     } finally {
-      setLoading(false);
+      if (requestId === chartRequest.current) setLoading(false);
     }
   }, [symbol, period, chartInterval]);
 
   useEffect(() => {
     setLoading(true);
     setActivePoint(null); // Periyod değişince aktif nokta sıfırla
+    setDrawings([]);
+    const requestState = chartRequest;
     fetchData();
     const refreshMs = isIntraday ? 30000 : 60000;
     const interval = setInterval(fetchData, refreshMs);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); requestState.current++; };
   }, [fetchData, isIntraday]);
 
   // Fetch news for this symbol
@@ -348,38 +349,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       candleWick: [d.low, d.high],
       isUp: d.close >= d.open,
     }));
-    // Son fiyat verisini grafik sonuna ekle (tüm zaman dilimlerinde güncel fiyat görünsün)
-    if (data?.price && ohlcData.length > 0) {
-      const lastEntry = ohlcData[ohlcData.length - 1];
-      const nowLabel = new Date().toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
-      const intraLabel = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-      const currentLabel = isIntraday ? intraLabel : nowLabel;
-      // Sadece son veri noktasından farklıysa ekle
-      if (lastEntry.date !== currentLabel && Math.abs(lastEntry.close - data.price) > 0.001) {
-        ohlcData.push({
-          date: currentLabel,
-          open: lastEntry.close,
-          high: Math.max(lastEntry.close, data.price),
-          low: Math.min(lastEntry.close, data.price),
-          close: data.price,
-          volume: data.volume || 0,
-          ema20: lastEntry.ema20,
-          ema50: lastEntry.ema50,
-          ema200: lastEntry.ema200,
-          macd: lastEntry.macd,
-          macdSignal: lastEntry.macdSignal,
-          macdHistogram: lastEntry.macdHistogram,
-          bbUpper: lastEntry.bbUpper,
-          bbMiddle: lastEntry.bbMiddle,
-          bbLower: lastEntry.bbLower,
-          candleBody: [Math.min(lastEntry.close, data.price), Math.max(lastEntry.close, data.price)],
-          candleWick: [Math.min(lastEntry.close, data.price), Math.max(lastEntry.close, data.price)],
-          isUp: data.price >= lastEntry.close,
-        });
-      }
-    }
     return ohlcData;
-  }, [data?.ohlc, data?.price, data?.volume, isIntraday, period]);
+  }, [data?.ohlc, isIntraday, period]);
 
   // Aktif nokta varsa o noktanın verisini göster, yoksa güncel fiyatı göster
   const firstClose = chartData.length > 0 ? chartData[0]?.close ?? 0 : 0;
@@ -403,12 +374,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const closes = chartData.map((d: any) => d.close).filter(Boolean);
     const highs = chartData.map((d: any) => d.high).filter(Boolean);
     const lows = chartData.map((d: any) => d.low).filter(Boolean);
-    const allVals = [...closes, ...highs, ...lows];
+    const indicatorValues = advancedChart ? chartData.flatMap(d => overlay === 'ema' ? [d.ema20, d.ema50, d.ema200] : overlay === 'bb' ? [d.bbUpper, d.bbLower] : []).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)) : [];
+    const allVals = [...closes, ...highs, ...lows, ...indicatorValues];
     const mn = Math.min(...allVals);
     const mx = Math.max(...allVals);
-    const pad = (mx - mn) * 0.05;
+    const pad = Math.max((mx - mn) * 0.05, Math.abs(mx) * 0.001, 0.01);
     return [mn - pad, mx + pad];
-  }, [chartData]);
+  }, [chartData, advancedChart, overlay]);
 
   // The chart moves into a dialog portal in full screen, so observe each mounted node.
   const chartObserver = useRef<ResizeObserver | null>(null);
@@ -547,8 +519,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 onMouseLeave={handleChartMouseLeave}>
 
                 {advancedChart && <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />}
-                <XAxis hide={!advancedChart} dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis hide={!advancedChart} domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
+                <XAxis height={25} hide={!advancedChart} dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                <YAxis hide={!advancedChart} domain={yDomain} allowDataOverflow tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
                   tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(2)} />
                 <Tooltip active={tooltipChart === 'price' ? undefined : false} content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
 
@@ -563,7 +535,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
                 {/* Price rendering: Candle or Line */}
                 {chartType === 'candle' ? (
-                  <Bar dataKey="candleBody" shape={<CandlestickShape />} isAnimationActive={false}>
+                  <Bar dataKey="candleBody" shape={<CandlestickShape yDomain={yDomain} plotHeight={chartDimensions.height - (advancedChart ? 30 : 5)} />} isAnimationActive={false}>
                     {chartData.map((entry: any, idx: number) => (
                       <Cell key={idx} fill={entry.isUp ? '#22C55E' : '#EF4444'} />
                     ))}
@@ -606,7 +578,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               <p className="text-sm text-muted-foreground">Grafik verisi şu an mevcut değil</p>
               <p className="text-xs text-muted-foreground">Seçili zaman aralığı için veri alınamadı. Başka bir aralık deneyebilirsiniz.</p>
               <div className="flex flex-wrap justify-center gap-3">
-                <button onClick={() => { setPeriod('1y'); setChartInterval('1d'); }} className="min-h-[44px] text-blue-500 underline">1 yıllık grafiği göster</button>
+                <button onClick={() => { setPeriod('1y'); setChartInterval('1d'); setPeriodKey('1y'); }} className="min-h-[44px] text-blue-500 underline">1 yıllık grafiği göster</button>
                 <button onClick={() => void fetchData()} className="min-h-[44px] text-blue-500 underline">Yeniden dene</button>
               </div>
             </div>
@@ -627,6 +599,9 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           </div>
         )}
 
+        {advancedChart && overlay === 'ema' && <p className="text-xs text-muted-foreground" role="status">{[20, 50, 200].filter(n => !chartData.some(d => Number.isFinite(d[`ema${n}` as 'ema20']))).map(n => `EMA${n}: en az ${n} mum geçmişi gerekli.`).join(' ')}</p>}
+        {advancedChart && overlay === 'bb' && !chartData.some(d => Number.isFinite(d.bbMiddle)) && <p className="text-xs text-muted-foreground" role="status">Bollinger için en az 20 mum geçmişi gerekli.</p>}
+        {bottomIndicator === 'macd' && !chartData.some(d => Number.isFinite(d.macd)) && <p className="text-xs text-muted-foreground py-3" role="status">MACD için yeterli geçmiş veri alınamadı (en az 34 mum). Başka bir zaman aralığı deneyin.</p>}
         {/* Bottom Indicator: Volume or MACD */}
         <div className="mt-3 border-t border-black/[0.06] dark:border-white/[0.06] pt-2">
           {bottomIndicator === 'volume' && chartData.length > 0 && (
@@ -648,7 +623,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
               </ResponsiveContainer>
             </div>
           )}
-          {bottomIndicator === 'macd' && chartData.length > 0 && (
+          {bottomIndicator === 'macd' && chartData.some(d => Number.isFinite(d.macd)) && (
             <div style={{ height: '120px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData.filter((d: any) => d.macd !== undefined)} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
@@ -669,7 +644,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             </div>
           )}
         </div>
-        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) setDrawingTool('none'); }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
+        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) { setDrawingTool('none'); if (['5m', '15m', '30m', '1h', '4h'].includes(periodKey)) { setPeriodKey('1d-daily'); setPeriod('1d'); setChartInterval('5m'); } } }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
         {/* Chart controls */}
         <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -684,8 +659,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           </div>
           <div className="flex flex-wrap gap-1">
             {PERIODS.filter(p => advancedChart || ['1d-daily', '1w', '1mo', '3mo', '6mo', '1y'].includes(p.key)).map((p: any) => (
-              <button key={p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); }}
-                className={`min-h-[44px] min-w-[44px] px-2 rounded-lg text-xs font-medium transition-colors ${(period === p.value && chartInterval === p.interval) ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
+              <button key={p.key} aria-pressed={periodKey === p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); setPeriodKey(p.key); }}
+                className={`min-h-[44px] min-w-[44px] px-2 rounded-lg text-xs font-medium transition-colors ${(periodKey === p.key) ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
                 {p.label}
               </button>
             ))}
