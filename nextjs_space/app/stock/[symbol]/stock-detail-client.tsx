@@ -173,6 +173,25 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [newsLoading, setNewsLoading] = useState(true);
   // İnteraktif grafik: hover/touch noktasının verileri
   const [activePoint, setActivePoint] = useState<any>(null);
+  const [tooltipChart, setTooltipChart] = useState<'price' | 'volume' | 'macd' | null>(null);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeChartInfo = useCallback(() => {
+    if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current);
+    tooltipTimer.current = null;
+    setTooltipChart(null);
+    setActivePoint(null);
+  }, []);
+  const showChartInfo = useCallback((chart: 'price' | 'volume' | 'macd') => {
+    if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current);
+    setTooltipChart(chart);
+    if (chart !== 'price') setActivePoint(null);
+    tooltipTimer.current = setTimeout(closeChartInfo, 3000);
+  }, [closeChartInfo]);
+  useEffect(() => {
+    closeChartInfo();
+    return () => { if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current); };
+  }, [symbol, period, chartInterval, chartType, bottomIndicator, closeChartInfo]);
+
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -408,6 +427,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   // Recharts mouse/touch event handler
   const handleChartMouseMove = useCallback((e: any) => {
     if (e?.activePayload?.[0]?.payload) {
+      showChartInfo('price');
       setActivePoint(e.activePayload[0].payload);
       // Haptic feedback (throttled)
       const now = Date.now();
@@ -416,11 +436,9 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         lastHapticTs.current = now;
       }
     }
-  }, [haptic]);
+  }, [haptic, showChartInfo]);
 
-  const handleChartMouseLeave = useCallback(() => {
-    setActivePoint(null);
-  }, []);
+  const handleChartMouseLeave = closeChartInfo;
 
   // Calculate 52-week range position
   const range52Pct = data && data.fiftyTwoWeekHigh > data.fiftyTwoWeekLow
@@ -518,19 +536,21 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
 
         {/* Main Price Chart */}
-        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, clamp(260px, 43dvh, 420px))', position: 'relative' }} onTouchEnd={() => setActivePoint(null)}>
+        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, clamp(260px, 43dvh, 420px))', position: 'relative' }}>
           {chartData.length > 0 ? (
             <>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
                 onMouseMove={handleChartMouseMove}
+                onMouseDown={handleChartMouseMove}
+                onMouseUp={handleChartMouseMove}
                 onMouseLeave={handleChartMouseLeave}>
 
                 {advancedChart && <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />}
                 <XAxis hide={!advancedChart} dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                 <YAxis hide={!advancedChart} domain={['auto', 'auto']} tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
                   tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(2)} />
-                <Tooltip content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
+                <Tooltip active={tooltipChart === 'price' ? undefined : false} content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
 
                 {/* Bollinger Bands */}
                 {advancedChart && overlay === 'bb' && (
@@ -549,7 +569,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     ))}
                   </Bar>
                 ) : (
-                  <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={false}
+                  <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={false} activeDot={tooltipChart === 'price' ? undefined : false}
                     fill={advancedChart ? (chartPositive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)') : 'transparent'} />
                 )}
 
@@ -612,11 +632,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           {bottomIndicator === 'volume' && chartData.length > 0 && (
             <div style={{ height: '100px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}>
+                <ComposedChart data={chartData} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
+                  onMouseMove={() => showChartInfo('volume')} onMouseDown={() => showChartInfo('volume')} onMouseUp={() => showChartInfo('volume')} onMouseLeave={closeChartInfo}>
                   <XAxis dataKey="date" hide />
                   <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65}
                     tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : `${v}`} />
-                  <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '8px', fontSize: '11px', backdropFilter: 'blur(16px)' }}
+                  <Tooltip active={tooltipChart === 'volume' ? undefined : false} contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '8px', fontSize: '11px', backdropFilter: 'blur(16px)' }}
                     formatter={(value: any) => [formatNumber(value), 'Hacim']} />
                   <Bar dataKey="volume" radius={[1, 1, 0, 0]}>
                     {chartData.map((entry: any, idx: number) => (
@@ -630,10 +651,11 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           {bottomIndicator === 'macd' && chartData.length > 0 && (
             <div style={{ height: '120px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData.filter((d: any) => d.macd !== undefined)} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}>
+                <ComposedChart data={chartData.filter((d: any) => d.macd !== undefined)} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
+                  onMouseMove={() => showChartInfo('macd')} onMouseDown={() => showChartInfo('macd')} onMouseUp={() => showChartInfo('macd')} onMouseLeave={closeChartInfo}>
                   <XAxis dataKey="date" hide />
                   <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65} />
-                  <Tooltip content={<MacdTooltip />} />
+                  <Tooltip active={tooltipChart === 'macd' ? undefined : false} content={<MacdTooltip />} />
                   <ReferenceLine y={0} stroke="#334155" />
                   <Bar dataKey="macdHistogram" radius={[1, 1, 0, 0]}>
                     {chartData.filter((d: any) => d.macd !== undefined).map((entry: any, idx: number) => (

@@ -10,7 +10,7 @@ vi.mock('framer-motion', () => ({
   motion: { div: 'div' }, AnimatePresence: ({ children }: { children: ReactNode }) => children,
 }));
 vi.mock('recharts', () => {
-  const container = ({ children, onMouseMove }: any) => createElement('section', { onMouseMove }, children);
+  const container = ({ children, onMouseMove, onMouseDown, onMouseUp }: any) => createElement('section', { onMouseMove, onMouseDown, onMouseUp }, children);
   return {
     ResponsiveContainer: container, ComposedChart: container,
     Bar: container, Line: () => null, Area: () => null, XAxis: () => null,
@@ -22,6 +22,7 @@ vi.mock('../components/chart-drawing-tools', () => ({ ChartDrawingToolbar: () =>
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
 
 import StockDetailClient from '../app/stock/[symbol]/stock-detail-client';
+import { Tooltip } from 'recharts';
 import { TradeModal } from '../components/trade-modal';
 import { tradeSchema } from '../lib/trading';
 
@@ -234,4 +235,38 @@ it('disables trades when the detail response has no usable price', async () => {
   expect(button('Al').props.disabled).toBe(true);
   expect(button('Sat').props.disabled).toBe(true);
   expect(textOf(renderer!.root)).toContain('Fiyat alınamadı');
+});
+
+
+it('dismisses price and volume information after 3 seconds, resets on interaction and reopens', async () => {
+  await mount('BTC-USD');
+  const charts = () => renderer!.root.findAllByType('section').filter(node => node.props.onMouseMove);
+  const tips = () => renderer!.root.findAllByType(Tooltip);
+  const move = () => charts()[0].props.onMouseMove({ activePayload: [{ payload: { close: 78000, date: 'Test' } }] });
+  await act(async () => move());
+  expect(tips()[0].props.active).toBeUndefined();
+  expect(textOf(renderer!.root)).toContain('$78.000,00');
+  await act(async () => { vi.advanceTimersByTime(2000); });
+  await act(async () => move());
+  await act(async () => { vi.advanceTimersByTime(2000); });
+  expect(tips()[0].props.active).toBeUndefined();
+  await act(async () => { vi.advanceTimersByTime(1000); });
+  expect(tips()[0].props.active).toBe(false);
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.315,50');
+  await act(async () => move());
+  expect(tips()[0].props.active).toBeUndefined();
+  await act(async () => charts()[1].props.onMouseMove());
+  expect(tips()[0].props.active).toBe(false);
+  expect(tips()[1].props.active).toBeUndefined();
+  await act(async () => { vi.advanceTimersByTime(3000); });
+  expect(tips().every(tip => tip.props.active === false)).toBe(true);
+  await act(async () => button('MACD').props.onClick());
+  await act(async () => charts()[1].props.onMouseDown());
+  expect(tips()[1].props.active).toBeUndefined();
+  await act(async () => { vi.advanceTimersByTime(3000); });
+  expect(tips()[1].props.active).toBe(false);
+  await act(async () => charts()[1].props.onMouseUp());
+  expect(tips()[1].props.active).toBeUndefined();
+  await act(async () => button('1A').props.onClick());
+  expect(tips().every(tip => tip.props.active === false)).toBe(true);
 });
