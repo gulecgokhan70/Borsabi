@@ -48,3 +48,14 @@ it('writes one digest per eligible user, skips opt-out/new users and checkpoints
   await runRadarCycle(db, now + 600000);
   expect(records).toHaveLength(1);
 });
+it('baselines broader topic coverage on upgrade and notifies only new conditional scenarios', () => {
+  const initial = { ...readRadarState(), checkedAt: now - 600000, baselineAt: now - 600000 };
+  const first = buildEventRadar([news('Almanya ekonomik önlem paketi hazırlığında')], now);
+  const upgrade = radarTransition(initial, first, true, now);
+  expect(upgrade.changes).toEqual([]);
+  expect(radarTransition(upgrade.state, first, true, now + 600000).changes).toEqual([]);
+  const second = buildEventRadar([news('İhracat yeni pazarlara açılıyor', { url: 'https://dunya.com/other' })], now);
+  const fresh = radarTransition(upgrade.state, second, true, now + 600000);
+  expect(fresh.changes).toHaveLength(1);
+  expect(fresh.changes[0].category).toContain('Koşullu senaryo');
+});

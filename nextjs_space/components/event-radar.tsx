@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import type { ImpactScenario } from '@/lib/radar-scenarios';
 import type { RadarReport } from '@/lib/event-radar';
 export function EventRadar() {
   const [report, setReport] = useState<RadarReport | null>(null);
@@ -23,18 +24,27 @@ export function EventRadar() {
     <p className="text-sm text-muted-foreground">Olası etkiler gösterilir; al/sat sinyali değildir.</p>
     <div role="status" className="text-sm text-muted-foreground">{loading ? 'Güncel gelişmeler inceleniyor…' : error || (report?.status === 'insufficient' && !report.headlines?.length ? 'Güncel etki senaryosu bulunamadı. Bu, piyasada risk olmadığı anlamına gelmez.' : '')}</div>
     {report?.conflict && <p className="text-sm text-amber-600 dark:text-amber-400">Aynı alan için zıt etkili haberler var. Tek yönlü sonuç çıkarılmıyor.</p>}
-    {report?.events.map(event => <details key={event.id} className="glass-inner rounded-xl p-3">
-      <summary className="cursor-pointer min-h-[44px] text-sm font-medium text-foreground"><span className="block text-xs text-muted-foreground mb-1">{event.category}{event.symbols.length ? ` · ${event.symbols.join(', ')}` : ''}</span>{event.title}</summary>
-      <p className="text-xs text-muted-foreground mt-3">{new Date(event.publishedAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} (Türkiye saati) · {event.sourceType}</p>
-      {event.channels.map(c => <div key={c.sector} className="mt-3 text-sm space-y-1"><p className="font-medium text-foreground">{c.sector} · Olası etki: {c.direction}</p><p className="text-muted-foreground">{c.mechanism}</p><p className="text-muted-foreground"><strong>Ters senaryo / belirsizlik:</strong> {c.counterScenario}</p></div>)}
+    {report && <div className="rounded-xl glass-inner p-3 space-y-1">
+      <p className="font-semibold text-sm">Varsayımsal piyasa görünümü: {report.marketOutlook ?? 'Koşula bağlı'}</p>
+      <p className="text-xs text-muted-foreground">Son 48 saatteki başlıklara bağlı senaryoların özeti. Gerçekleşen piyasa tepkisi ölçülmedi.</p>
+    </div>}
+    {report?.events.map(event => <article key={event.id} className="glass-inner rounded-xl p-4 space-y-3">
+      <p className="text-xs text-muted-foreground">{event.category}{event.symbols.length ? ` · ${event.symbols.join(', ')}` : ''}</p>
+      <h3 className="text-sm font-semibold">{event.title}</h3>
+      <p className="text-xs text-muted-foreground">{new Date(event.publishedAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} · {event.sourceType}</p>
+      {event.scenario && <ScenarioView scenario={event.scenario} />}
+      <details><summary className="text-xs cursor-pointer min-h-[44px]">Başlığa özgü etki ayrıntısı</summary>
+        {event.channels.map(c => <div key={c.sector} className="mt-3 text-sm space-y-1"><p className="font-medium">{c.sector} · Olası etki: {c.direction}</p><p className="text-muted-foreground">{c.mechanism}</p><p className="text-muted-foreground"><strong>Ters senaryo / belirsizlik:</strong> {c.counterScenario}</p></div>)}
+      </details>
       <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[44px] text-sm text-blue-500 underline">Kaynağı oku · {event.sourceHost}</a>
-    </details>)}
+    </article>)}
     {!!report?.headlines?.length && <div className="space-y-3">
-      <h3 className="font-semibold">Son haberler</h3>
-      <p className="text-xs text-muted-foreground">Bu başlıklar için otomatik yön tahmini yapılmadı.</p>
-      {report.headlines.map(item => <article key={item.sourceUrl} className="border-b border-black/[0.06] dark:border-white/[0.06] pb-3">
-        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="block text-sm font-medium min-h-[44px] py-2">{item.title}</a>
-        <p className="text-xs text-muted-foreground">{item.sourceHost} · {new Date(item.publishedAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}{item.older ? ' · 48 saatten eski' : ''}</p>
+      <h3 className="font-semibold">Gelişmeler ve olası etkileri</h3>
+      {report.headlines.map(item => <article key={item.sourceUrl} className="glass-inner rounded-xl p-4 space-y-3">
+        <h4 className="text-sm font-semibold">{item.title}</h4>
+        <p className="text-xs text-muted-foreground">{item.sourceHost} · {new Date(item.publishedAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}{item.older ? ' · 48 saatten eski; güncel piyasa özetine dahil değil' : ''}</p>
+        {item.scenario ? <ScenarioView scenario={item.scenario} /> : <p className="text-xs text-muted-foreground">Bu başlık için sektör etkisi belirlenemedi; yön tahmini üretilmedi.</p>}
+        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center text-sm text-blue-500 underline">Kaynağı oku</a>
       </article>)}
     </div>}
     {!loading && report && !report.events.length && !report.headlines?.length && <p className="text-sm text-muted-foreground">Kaynaklardan son 7 güne ait tarihli haber alınamadı. Kaynak durumunu aşağıdan kontrol edebilirsin.</p>}
@@ -44,4 +54,20 @@ export function EventRadar() {
     </details>}
     {report && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer min-h-[44px]">Kapsam ve yöntem</summary><ul className="list-disc pl-4 space-y-2">{report.limitations.map(line => <li key={line}>{line}</li>)}</ul><p className="mt-3">Analiz zamanı: {new Date(report.generatedAt).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} (Türkiye saati)</p></details>}
   </section>;
+}
+
+function ScenarioView({ scenario }: { scenario: ImpactScenario }) {
+  return <div className="space-y-3">
+    <p className="text-sm font-semibold">{scenario.topic} · Varsayımsal yön: <span className={scenario.direction === 'Pozitif' ? 'text-emerald-600 dark:text-emerald-400' : scenario.direction === 'Negatif' ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}>{scenario.direction}</span></p>
+    <p className="text-xs text-muted-foreground"><strong>Varsayım:</strong> {scenario.assumption}</p>
+    <p className="text-sm"><strong>Piyasa etkisi:</strong> {scenario.market}</p>
+    <div className="grid gap-3 md:grid-cols-2 text-sm">
+      <div className="rounded-lg border border-emerald-500/25 p-3"><p className="font-semibold text-emerald-600 dark:text-emerald-400">Pozitif senaryo</p><p className="mt-1">{scenario.positive}</p></div>
+      <div className="rounded-lg border border-red-500/25 p-3"><p className="font-semibold text-red-600 dark:text-red-400">Negatif senaryo</p><p className="mt-1">{scenario.negative}</p></div>
+    </div>
+    <div className="space-y-3"><h5 className="text-sm font-semibold">Sektör etkileri</h5>{scenario.sectors.map(s => <div key={s.sector} className="text-xs space-y-1 border-l-2 border-blue-500/30 pl-3">
+      <p className="font-semibold text-sm">{s.sector}</p><p><strong className="text-emerald-600 dark:text-emerald-400">Pozitif:</strong> {s.positive}</p><p><strong className="text-red-600 dark:text-red-400">Negatif:</strong> {s.negative}</p>
+    </div>)}</div>
+    <details className="text-xs text-muted-foreground"><summary className="cursor-pointer min-h-[44px]">Senaryoyu takip etmek için</summary><ul className="list-disc pl-4 space-y-1">{scenario.watch.map(w => <li key={w}>{w}</li>)}</ul><p className="mt-2">Bu veriler otomatik doğrulanmadı; senaryonun hangi koşullarda değişeceğini gösterir.</p></details>
+  </div>;
 }

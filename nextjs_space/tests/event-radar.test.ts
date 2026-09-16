@@ -19,7 +19,8 @@ it('does not infer market direction from a rate decision without its consensus e
 });
 it('abstains on speculation, negation, unsupported topics and ambiguous multi-event headlines', () => {
   for (const title of ['Petrol yükseldi mi?', 'Petrol yükseldi iddiası yalanlandı', 'Petrol artacak beklentisi', 'Petrol yükselmedi', 'TCMB faiz indirecek', 'Aselsan sözleşme imzalamadı', 'Petrol geçen yıl yükseldi', 'Bitcoin rekor kırdı', 'Petrol yükseldi, ardından petrol düştü']) {
-    expect(buildEventRadar([news(title)], now).status, title).toBe('insufficient');
+    expect(buildEventRadar([news(title)], now).events, title).toEqual([]);
+    expect(buildEventRadar([news(title)], now).marketOutlook, title).toBe('Koşula bağlı');
   }
 });
 it('ignores future, stale, missing, malformed and synthetic publication dates', () => {

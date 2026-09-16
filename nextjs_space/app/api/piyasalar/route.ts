@@ -18,13 +18,13 @@ const CURRENCY_PAIRS = [
 const COMMODITY_SYMBOLS = [
   { symbol: 'GC=F', name: 'Altın (Ons)', shortName: 'Altın', icon: '🥇' },
   { symbol: 'SI=F', name: 'Gümüş (Ons)', shortName: 'Gümüş', icon: '🥈' },
-  { symbol: 'CL=F', name: 'Ham Petrol (Brent)', shortName: 'Petrol', icon: '🛢️' },
+  { symbol: 'BZ=F', name: 'Brent Petrol', shortName: 'Petrol', icon: '🛢️' },
   { symbol: 'NG=F', name: 'Doğal Gaz', shortName: 'Doğalgaz', icon: '🔥' },
 ];
 
 async function getSparkline(symbol: string): Promise<number[]> {
   try {
-    const data = await cachedChart(symbol, { period1: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), period2: new Date(), interval: '1h' as any });
+    const data = await cachedChart(symbol, { period1: new Date(Math.floor(Date.now() / 3600000) * 3600000 - 2 * 86400000), period2: new Date(Math.floor(Date.now() / 3600000) * 3600000), interval: '1h' as any });
     const closes = (data?.quotes ?? []).map((q: any) => q?.close).filter((v: any) => v != null && !isNaN(v));
     if (closes.length > 20) {
       const step = Math.ceil(closes.length / 20);
@@ -34,20 +34,24 @@ async function getSparkline(symbol: string): Promise<number[]> {
   } catch { return []; }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const params = new URL(request.url).searchParams;
+  const group = params.get('group');
+  const groups = ['currencies', 'commodities', 'crypto', 'indices', 'bistStocks'];
+  if (group && !groups.includes(group)) return NextResponse.json({ error: 'Geçersiz piyasa grubu' }, { status: 400 });
+  const wants = (key: string) => !group || group === key;
   try {
     // Fetch all data in parallel
     const allCurrSymbols = CURRENCY_PAIRS.map(c => c.symbol);
     const allCommSymbols = COMMODITY_SYMBOLS.map(c => c.symbol);
     const cryptoSymbols = CRYPTO_ASSETS.map(c => c.symbol);
-    const bistTopSymbols = BIST_TOP_STOCKS.map(s => s.symbol);
 
     const [currQuotes, commQuotes, cryptoQuotes, indexQuotes, midasRes] = await Promise.allSettled([
-      cachedQuoteBatch(allCurrSymbols),
-      cachedQuoteBatch(allCommSymbols),
-      cachedQuoteBatch(cryptoSymbols),
-      cachedQuoteBatch(INDEX_SYMBOLS),
-      getMidasStockMap(),
+      wants('currencies') ? cachedQuoteBatch(allCurrSymbols) : wants('commodities') ? cachedQuoteBatch(['USDTRY=X']) : Promise.resolve(new Map()),
+      wants('commodities') ? cachedQuoteBatch(allCommSymbols) : Promise.resolve(new Map()),
+      wants('crypto') ? cachedQuoteBatch(cryptoSymbols) : Promise.resolve(new Map()),
+      wants('indices') ? cachedQuoteBatch(INDEX_SYMBOLS) : Promise.resolve(new Map()),
+      wants('bistStocks') ? getMidasStockMap() : Promise.resolve(new Map()),
     ]);
 
     const currData: Map<string, any> = currQuotes.status === 'fulfilled' ? currQuotes.value : new Map();
@@ -57,7 +61,7 @@ export async function GET() {
     const midasData = midasRes.status === 'fulfilled' ? midasRes.value : new Map();
 
     // Sparklines only for indices (fast, cached)
-    const sparkSymbols = INDEX_SYMBOLS;
+    const sparkSymbols = wants('indices') && params.get('history') === '1' ? INDEX_SYMBOLS : [];
     const sparkResults = await Promise.allSettled(sparkSymbols.map(s => getSparkline(s)));
     const sparkMap: Record<string, number[]> = {};
     sparkSymbols.forEach((s, i) => {
@@ -189,14 +193,20 @@ export async function GET() {
         changePercent: Math.round(changePercent * 100) / 100,
         volume: m.TotalVolume || 0,
       };
-    }).filter(s => s.price > 0);
+    });
 
-    return NextResponse.json({
-      currencies,
-      commodities,
-      crypto,
-      indices,
-      bistStocks,
+    const result = { currencies, commodities, crypto, indices, bistStocks };
+    const selected: Record<string, { price: number; [key: string]: any }[]> = Object.fromEntries(Object.entries(result).filter(([key]) => wants(key)));
+    let unavailable = 0;
+    for (const [key, rows] of Object.entries(selected)) {
+      const available = rows.filter(row => Number.isFinite(row.price) && row.price > 0);
+      unavailable += rows.length - available.length;
+      selected[key] = available;
+    }
+    // Never render missing provider prices as zero or describe a failed request as an empty market.
+    if (Object.values(selected).every(rows => rows.length === 0)) return NextResponse.json({ error: 'Bu piyasanın verileri şu anda alınamıyor.' }, { status: 503 });
+    return NextResponse.json({ ...selected, unavailable, checkedAt: new Date().toISOString() }, {
+      headers: { 'Cache-Control': 'private, max-age=30' },
     });
   } catch (e: any) {
     console.error('Piyasalar API error:', e);

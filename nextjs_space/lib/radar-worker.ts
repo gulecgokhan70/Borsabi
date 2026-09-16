@@ -5,7 +5,7 @@ import { getAllNews } from './news-feed';
 export const RADAR_STATE_ID = 'event-radar-worker-v1';
 export const RADAR_INTERVAL = 10 * 60_000;
 export const radarPreferenceId = (id: string) => `event-radar-disabled:${id}`;
-type State = { checkedAt: number; baselineAt: number | null; seen: Record<string, number>; report?: RadarReport };
+type State = { scenarioVersion?: 1; checkedAt: number; baselineAt: number | null; seen: Record<string, number>; report?: RadarReport };
 export function readRadarState(data?: string | null): State {
   if (!data) return { checkedAt: 0, baselineAt: null, seen: {} };
   // A malformed checkpoint must fail closed, not replay old notifications.
@@ -17,11 +17,23 @@ export function radarFingerprint(event: RadarEvent) {
   return createHash('sha256').update(JSON.stringify([event.category,
     event.title.toLocaleLowerCase('tr-TR').replace(/[^\p{L}\p{N}]+/gu, ' ').trim(), event.symbols, event.channels])).digest('hex');
 }
+function conditionalEvents(report: RadarReport): RadarEvent[] {
+  return (report.headlines ?? []).filter(h => !h.older && h.scenario).map(h => ({
+    id: `conditional:${h.sourceUrl}`, title: h.title, publishedAt: h.publishedAt,
+    sourceUrl: h.sourceUrl, sourceHost: h.sourceHost, sourceType: ['kap.org.tr', 'tcmb.gov.tr', 'tuik.gov.tr'].includes(h.sourceHost) ? 'Birincil kaynak' : 'Haber kaynağı',
+    category: `Koşullu senaryo · ${h.scenario!.topic}`, symbols: [],
+    channels: h.scenario!.sectors.map(s => ({ sector: s.sector, direction: 'belirsiz', mechanism: s.positive, counterScenario: s.negative })),
+  }));
+}
 export function radarTransition(previous: State, report: RadarReport, feedAvailable: boolean, now: number) {
   const seen = Object.fromEntries(Object.entries(previous.seen).filter(([, time]) => now - time < 7 * 86400000));
-  const changes = previous.baselineAt === null ? [] : report.events.filter(event => !seen[radarFingerprint(event)]);
-  for (const event of report.events) seen[radarFingerprint(event)] = now;
-  return { changes, state: { checkedAt: now, baselineAt: previous.baselineAt ?? (feedAvailable ? now : null), seen, report } satisfies State };
+  const expanded = conditionalEvents(report);
+  // First cycle after the feature upgrade silently baselines expanded coverage.
+  // Existing subscribers must not receive a backlog of newly classified old headlines.
+  const candidates = [...report.events, ...(previous.scenarioVersion === 1 ? expanded : [])];
+  const changes = previous.baselineAt === null ? [] : candidates.filter(event => !seen[radarFingerprint(event)]);
+  for (const event of [...report.events, ...expanded]) seen[radarFingerprint(event)] = now;
+  return { changes, state: { scenarioVersion: 1, checkedAt: now, baselineAt: previous.baselineAt ?? (feedAvailable ? now : null), seen, report } satisfies State };
 }
 export async function runRadarCycle(db: PrismaClient, now = Date.now()) {
   const cached = await db.scanCache.findUnique({ where: { id: RADAR_STATE_ID } });

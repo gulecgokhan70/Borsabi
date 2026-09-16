@@ -36,3 +36,14 @@ it('renders real unmatched headlines and source failures instead of an empty rad
   expect(text(renderer!.root)).toContain('Kaynağa ulaşılamadı');
   expect(renderer!.root.findByType('a').props.href).toBe('https://dunya.com/ekonomi/paket');
 });
+it('shows market and sector scenarios directly for a previously unmatched headline', async () => {
+  const report = buildEventRadar([{ title: "Almanya Çin'e yönelik ekonomik önlem paketi hazırlığında", url: 'https://dunya.com/paket', date: '2026-09-16T10:00:00Z' }], Date.parse('2026-09-16T12:00:00Z'));
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(report)));
+  await act(async () => { renderer = create(createElement(EventRadar)); });
+  const content = text(renderer!.root);
+  expect(content).toContain('Piyasa etkisi:');
+  expect(content).toContain('Sektör etkileri');
+  expect(content).toContain('Pozitif senaryo');
+  expect(content).toContain('Negatif senaryo');
+  expect(content).toContain('Otomotiv, tekstil ve ihracatçılar');
+});

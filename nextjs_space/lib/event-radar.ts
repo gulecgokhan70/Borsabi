@@ -1,3 +1,4 @@
+import { buildImpactScenario, type ImpactScenario } from './radar-scenarios';
 import type { NewsSourceStatus } from './news-feed';
 
 /** Deterministic headline scenarios, not a calibrated return/probability model. */
@@ -8,11 +9,12 @@ type Rule = { id: string; label: string; match: RegExp; channels: Channel[]; com
 export type RadarEvent = {
   id: string; title: string; publishedAt: string; sourceUrl: string; sourceHost: string;
   sourceType: 'Birincil kaynak' | 'Haber kaynağı'; category: string;
-  channels: Channel[]; symbols: string[];
+  channels: Channel[]; symbols: string[]; scenario?: ImpactScenario | null;
 };
-export type RadarHeadline = { title: string; sourceUrl: string; sourceHost: string; publishedAt: string; older: boolean };
+export type RadarHeadline = { title: string; sourceUrl: string; sourceHost: string; publishedAt: string; older: boolean; scenario?: ImpactScenario | null };
 export type RadarReport = {
   version: 'headline-scenarios-v1'; generatedAt: string; status: 'scenarios' | 'insufficient';
+  marketOutlook: 'Pozitif' | 'Negatif' | 'Karma' | 'Koşula bağlı';
   headlines: RadarHeadline[]; sources?: NewsSourceStatus[];
   events: RadarEvent[]; omitted: number; conflict: boolean; limitations: string[];
 };
@@ -93,7 +95,7 @@ export function buildEventRadar(input: RadarNews[], now = Date.now()): RadarRepo
     seen.push({ title: canonical, url: urlKey, rule: rule.id });
     events.push({ id: `${rule.id}:${urlKey}`, title: item.title.slice(0, 500), category: rule.label,
       publishedAt: new Date(published).toISOString(), sourceUrl: origin.url, sourceHost: origin.host, sourceType: origin.type,
-      channels: rule.channels, symbols: rule.companyOnly ? symbols : [] });
+      channels: rule.channels, symbols: rule.companyOnly ? symbols : [], scenario: buildImpactScenario(item.title) });
     if (events.length === 8) break;
   }
   const signs = new Map<string, Set<Direction>>();
@@ -113,14 +115,19 @@ export function buildEventRadar(input: RadarNews[], now = Date.now()): RadarRepo
     if (!key || headlineKeys.has(key) || headlineKeys.has(url) || eventUrls.has(url)) continue;
     headlineKeys.add(key); headlineKeys.add(url);
     headlines.push({ title: item.title.slice(0, 500), sourceUrl: origin.url, sourceHost: origin.host,
-      publishedAt: new Date(published).toISOString(), older: now - published > 48 * 3600_000 });
+      publishedAt: new Date(published).toISOString(), older: now - published > 48 * 3600_000, scenario: buildImpactScenario(item.title) });
     if (headlines.length === 12) break;
   }
-  return { headlines, version: 'headline-scenarios-v1', generatedAt: new Date(now).toISOString(),
-    status: events.length ? 'scenarios' : 'insufficient', events, omitted: input.length - events.length,
+  const directions = [...events.map(e => e.scenario?.direction), ...headlines.filter(h => !h.older).map(h => h.scenario?.direction)];
+  // Unclassified/conditional items are never counted as measured neutral market evidence.
+  const positive = directions.includes('Pozitif'), negative = directions.includes('Negatif');
+  const marketOutlook = directions.includes('Karma') || (positive && negative) ? 'Karma'
+    : positive ? 'Pozitif' : negative ? 'Negatif' : 'Koşula bağlı';
+  return { marketOutlook, headlines, version: 'headline-scenarios-v1', generatedAt: new Date(now).toISOString(),
+    status: events.length || headlines.some(h => h.scenario && !h.older) ? 'scenarios' : 'insufficient', events, omitted: input.length - events.length,
     conflict: [...signs.values()].some(s => s.has('olumlu') && s.has('olumsuz')),
-    limitations: ['Başlık temelli olası etki analizi; fiyat hedefi, getiri tahmini veya al/sat sinyali değildir.',
-      'Tahmin başarısı ölçülmedi; olasılık veya güven yüzdesi hesaplanmıyor.',
+    limitations: ['Başlık konusundan kurulan koşullu senaryolar; piyasa hareketinin gerçekleştiğini veya haberin doğrulandığını göstermez.',
+      'Tahmin başarısı ölçülmedi; olasılık veya güven yüzdesi hesaplanmıyor. Piyasa özeti yalnız son 48 saatteki başlıkların varsayımlarını toplar; endeks getirisi tahmini değildir.',
       'Etki senaryoları son 48 saatten, haber listesi son 7 günden seçilir. Kaynak türü, içeriğin doğrulandığı anlamına gelmez.',
       'Beklenti-gerçekleşme farkı, piyasa tepkisi ve bilanço büyüklükleri henüz sayısal olarak bağlı değil.'] };
 }
