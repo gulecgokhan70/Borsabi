@@ -41,6 +41,11 @@ export function AiAssistantClient() {
   const [loading, setLoading] = useState(false);
   const busy = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const symbol = new URLSearchParams(window.location.search).get('symbol');
+    if (symbol && /^[A-Z0-9.^=-]{1,24}$/.test(symbol)) setInput(`${symbol} analizini derinleştir. Fiyat hareketi, haberler ve riskleri kaynak zamanlarıyla açıkla.`);
+  }, []);
 
   useEffect(() => {
     scrollRef?.current?.scrollTo?.({ top: scrollRef?.current?.scrollHeight ?? 0, behavior: 'smooth' });

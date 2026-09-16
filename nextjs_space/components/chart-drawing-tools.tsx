@@ -116,7 +116,7 @@ interface CandleData {
   [key: string]: any;
 }
 
-export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTool, drawings, setDrawings, chartData, magnetEnabled = false }: {
+export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTool, drawings, setDrawings, chartData, magnetEnabled = false, axisSide = 'left' }: {
   chartHeight: number;
   chartWidth: number;
   yDomain: [number, number];
@@ -125,6 +125,7 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
   setDrawings: React.Dispatch<React.SetStateAction<Drawing[]>>;
   chartData?: CandleData[];
   magnetEnabled?: boolean;
+  axisSide?: 'left' | 'right';
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
@@ -137,8 +138,8 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [yMin, yMax] = yDomain;
-  const marginLeft = 65;
-  const marginRight = 5;
+  const marginLeft = axisSide === 'right' ? 0 : 65;
+  const marginRight = axisSide === 'right' ? 70 : 5;
   const marginTop = 5;
   const marginBottom = 25;
   const plotW = chartWidth - marginLeft - marginRight;

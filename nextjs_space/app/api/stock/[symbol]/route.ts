@@ -7,21 +7,6 @@ import { quoteTimestamp, quoteMarketOpen } from '@/lib/quote-metadata';
 import { assetCurrency } from '@/lib/asset-display';
 import { enrichCandles, chartHistoryStart, fourHourCandles } from '@/lib/chart-indicators';
 
-function calculateRSI(closes: number[], period = 14): number {
-  if (closes.length < period + 1) return 50;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff > 0) gains += diff;
-    else losses += Math.abs(diff);
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - (100 / (1 + rs));
-}
-
 /* ── Destek / Direnç Seviyeleri ── */
 function calculateSupportResistance(ohlc: { high: number; low: number; close: number }[]): { supports: { price: number; strength: number }[]; resistances: { price: number; strength: number }[] } {
   if (ohlc.length < 10) return { supports: [], resistances: [] };
@@ -166,6 +151,7 @@ export async function GET(
       case '3mo': startDate.setMonth(endDate.getMonth() - 3); break;
       case '6mo': startDate.setMonth(endDate.getMonth() - 6); break;
       case '1y': startDate.setFullYear(endDate.getFullYear() - 1); break;
+      case '5y': startDate.setFullYear(endDate.getFullYear() - 5); break;
       default: startDate.setMonth(endDate.getMonth() - 1);
     }
 
@@ -194,7 +180,6 @@ export async function GET(
       // ohlc boş kalır, sayfa yine de fiyat/temel verileri gösterir
     }
 
-    const indicatorCloses = ohlc.map((q: any) => q.close);
     // Günlük grafik: sadece bugünün borsa seansını göster (09:30 İstanbul)
     if (period === '1d' && isBist && ohlc.length > 0) {
       // Bugünün tarihini İstanbul saatine göre bul
@@ -226,8 +211,8 @@ export async function GET(
       ohlc = ohlc.filter(q => q.time >= cutoff);
     }
     const closes = ohlc.map((q: any) => q.close);
-    const rsi = indicatorCloses.length > 14 ? calculateRSI(indicatorCloses) : null;
     const last = ohlc[ohlc.length - 1];
+    const rsi = last?.rsi ?? null;
     const lastEma20 = last?.ema20 ?? null, lastEma50 = last?.ema50 ?? null, lastEma200 = last?.ema200 ?? null;
     const lastMacd = last?.macd ?? null, lastSignal = last?.macdSignal ?? null, lastHistogram = last?.macdHistogram ?? null;
     const lastBBUpper = last?.bbUpper ?? null, lastBBMiddle = last?.bbMiddle ?? null, lastBBLower = last?.bbLower ?? null;

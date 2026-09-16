@@ -1,4 +1,6 @@
 'use client';
+import { readStockAnalysis } from '@/lib/stock-analysis-stream';
+import { aiHttpError } from '@/lib/ai-stream-client';
 import { formatQuoteTime } from '@/lib/quote-metadata';
 import { percentagePoints } from '@/lib/ux-metrics';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -21,6 +23,8 @@ import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, ReferenceLine, Cell
 } from 'recharts';
+import { StockAnalysisSheet } from '@/components/stock-analysis-sheet';
+import { CandlestickChart, SlidersHorizontal } from 'lucide-react';
 import { ChartSurface } from '@/components/chart-surface';
 import { ChartDrawingToolbar, ChartDrawingOverlay, type DrawingTool } from '@/components/chart-drawing-tools';
 
@@ -32,6 +36,10 @@ interface OHLCData {
   low: number;
   close: number;
   volume: number;
+  rsi?: number;
+  sma20?: number;
+  sma50?: number;
+  sma200?: number;
   ema20?: number;
   ema50?: number;
   ema200?: number;
@@ -103,10 +111,10 @@ const PERIODS = [
   { label: '3A', value: '3mo', interval: '1d', key: '3mo' },
   { label: '6A', value: '6mo', interval: '1d', key: '6mo' },
   { label: '1Y', value: '1y', interval: '1d', key: '1y' },
+  { label: '5Y', value: '5y', interval: '1wk', key: '5y' },
 ];
 
-type ChartOverlay = 'ema' | 'bb' | 'none';
-type BottomIndicator = 'volume' | 'macd';
+type ChartOverlay = 'ema' | 'sma' | 'none';
 type ChartType = 'candle' | 'line';
 
 const CandlestickShape = (props: any) => {
@@ -154,7 +162,11 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [overlay, setOverlay] = useState<ChartOverlay>('ema');
   const [advancedChart, setAdvancedChart] = useState(false);
   const [chartType, setChartType] = useState<ChartType>('line');
-  const [bottomIndicator, setBottomIndicator] = useState<BottomIndicator>('volume');
+  const [fullChart, setFullChart] = useState(false);
+  const [showBands, setShowBands] = useState(false);
+  const [showVolume, setShowVolume] = useState(true);
+  const [showRSI, setShowRSI] = useState(true);
+  const [showMACD, setShowMACD] = useState(true);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('none');
   const [drawings, setDrawings] = useState<any[]>([]);
   const [magnetEnabled, setMagnetEnabled] = useState(false);
@@ -166,11 +178,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [analysis, setAnalysis] = useState<any>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
-  const [insightTab, setInsightTab] = useState<'analysis' | 'news'>('news');
+  const [analysisTime, setAnalysisTime] = useState<string | null>(null);
+  const analysisRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setAnalysis(null); setAnalysisError(''); setAnalysisTime(null); setAnalysisLoading(false);
+    return () => { analysisRequest.current?.abort(); analysisRequest.current = null; };
+  }, [symbol]);
+  const [showAllNews, setShowAllNews] = useState(false);
+  const [showAllStats, setShowAllStats] = useState(false);
   const [newsLoading, setNewsLoading] = useState(true);
   // İnteraktif grafik: hover/touch noktasının verileri
   const [activePoint, setActivePoint] = useState<any>(null);
-  const [tooltipChart, setTooltipChart] = useState<'price' | 'volume' | 'macd' | null>(null);
+  const [tooltipChart, setTooltipChart] = useState<'price' | 'volume' | 'macd' | 'rsi' | null>(null);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeChartInfo = useCallback(() => {
     if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current);
@@ -178,7 +197,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     setTooltipChart(null);
     setActivePoint(null);
   }, []);
-  const showChartInfo = useCallback((chart: 'price' | 'volume' | 'macd') => {
+  const showChartInfo = useCallback((chart: 'price' | 'volume' | 'macd' | 'rsi') => {
     if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current);
     setTooltipChart(chart);
     if (chart !== 'price') setActivePoint(null);
@@ -187,7 +206,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   useEffect(() => {
     closeChartInfo();
     return () => { if (tooltipTimer.current !== null) clearTimeout(tooltipTimer.current); };
-  }, [symbol, period, chartInterval, chartType, bottomIndicator, closeChartInfo]);
+  }, [symbol, period, chartInterval, chartType, fullChart, showVolume, showMACD, showRSI, closeChartInfo]);
 
 
   const [saved, setSaved] = useState(false);
@@ -260,13 +279,16 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   const fetchAnalysis = useCallback(async () => {
-    if (!data || analysisLoading) return;
+    if (!data || analysisRequest.current) return;
+    const controller = new AbortController();
+    analysisRequest.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 90_000);
     setAnalysisLoading(true);
     setAnalysisError('');
-    setAnalysis(null);
+    setAnalysis(null); setAnalysisTime(null);
     try {
       const res = await fetch('/api/stock-analysis', {
-        method: 'POST',
+        method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol: data.symbol, name: data.name, price: data.price, currency: currencyCode,
@@ -279,50 +301,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           recentNews: news.slice(0, 8).map((n: any) => ({ title: n.title, sentiment: n.sentiment, source: n.source, category: n.category })),
         }),
       });
-      if (!res.ok) throw new Error('Analiz isteği başarısız');
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      let partialRead = '';
-      while (true) {
-        const { done, value } = await reader!.read();
-        if (done) break;
-        partialRead += decoder.decode(value, { stream: true });
-        const lines = partialRead.split('\n');
-        partialRead = lines.pop() || '';
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const d = line.slice(6);
-            if (d === '[DONE]') return;
-            try {
-              const parsed = JSON.parse(d);
-              if (parsed.status === 'completed' && parsed.result) {
-                setAnalysis(parsed.result);
-                return;
-              } else if (parsed.status === 'error') {
-                throw new Error(parsed.message || 'Analiz hatası');
-              }
-            } catch { /* skip */ }
-          }
-        }
+      if (!res.ok) throw new Error(aiHttpError(res.status));
+      const result = await readStockAnalysis(res);
+      if (analysisRequest.current === controller && !controller.signal.aborted) {
+        setAnalysis(result); setAnalysisTime(new Date().toISOString());
       }
-    } catch (e: any) {
-      setAnalysisError(e?.message || 'Analiz yapılamadı');
+    } catch (error) {
+      if (analysisRequest.current === controller) setAnalysisError(controller.signal.aborted ? 'Analiz zamanında tamamlanamadı. Tekrar deneyebilirsiniz.' : error instanceof Error ? error.message : 'Analiz yapılamadı.');
     } finally {
-      setAnalysisLoading(false);
+      clearTimeout(timeout);
+      if (analysisRequest.current === controller) { analysisRequest.current = null; setAnalysisLoading(false); }
     }
-  }, [data, news, analysisLoading, currencyCode]);
-
-  // Data yüklenince otomatik analiz başlat
-  const analysisTriggered = useRef(false);
-  useEffect(() => {
-    if (data && !analysis && !analysisLoading && !analysisTriggered.current) {
-      analysisTriggered.current = true;
-      // Haberlerin yüklenmesini biraz bekle
-      const t = setTimeout(() => fetchAnalysis(), 500);
-      return () => clearTimeout(t);
-    }
-  }, [data, analysis, analysisLoading, fetchAnalysis]);
-
+  }, [data, news, currencyCode]);
 
   const chartData = useMemo(() => {
     const ohlcData = (data?.ohlc ?? []).map((d: OHLCData) => ({
@@ -336,6 +326,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       low: d.low,
       close: d.close,
       volume: d.volume,
+      rsi: d.rsi,
+      sma20: d.sma20, sma50: d.sma50, sma200: d.sma200,
       ema20: d.ema20,
       ema50: d.ema50,
       ema200: d.ema200,
@@ -374,13 +366,14 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const closes = chartData.map((d: any) => d.close).filter(Boolean);
     const highs = chartData.map((d: any) => d.high).filter(Boolean);
     const lows = chartData.map((d: any) => d.low).filter(Boolean);
-    const indicatorValues = advancedChart ? chartData.flatMap(d => overlay === 'ema' ? [d.ema20, d.ema50, d.ema200] : overlay === 'bb' ? [d.bbUpper, d.bbLower] : []).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)) : [];
-    const allVals = [...closes, ...highs, ...lows, ...indicatorValues];
+    const indicatorValues = advancedChart ? chartData.flatMap(d => [...(overlay === 'ema' ? [d.ema20, d.ema50, d.ema200] : overlay === 'sma' ? [d.sma20, d.sma50, d.sma200] : []), ...(showBands ? [d.bbUpper, d.bbLower] : [])]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)) : [];
+    const reference = !advancedChart && period === '1d' && data && Number.isFinite(data.prevClose) && data.prevClose > 0 ? [data.prevClose] : [];
+    const allVals = [...closes, ...highs, ...lows, ...indicatorValues, ...reference];
     const mn = Math.min(...allVals);
     const mx = Math.max(...allVals);
     const pad = Math.max((mx - mn) * 0.05, Math.abs(mx) * 0.001, 0.01);
     return [mn - pad, mx + pad];
-  }, [chartData, advancedChart, overlay]);
+  }, [chartData, advancedChart, overlay, showBands, data, period]);
 
   // The chart moves into a dialog portal in full screen, so observe each mounted node.
   const chartObserver = useRef<ResizeObserver | null>(null);
@@ -462,9 +455,29 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     );
   }
 
+  const openTrade = (side: 'BUY' | 'SELL') => {
+    setFullChart(false); setAdvancedChart(false); setDrawingTool('none');
+    setTradeSide(side); setTradeOpen(true);
+  };
+  const tradeActions = data && marketType ? <div className="max-w-3xl mx-auto">
+    <p className="text-[10px] text-muted-foreground text-center mb-2">Sanal işlem · Gerçek para kullanılmaz</p>
+    <div className="grid grid-cols-2 gap-3">
+      <button disabled={!Number.isFinite(data.price) || data.price <= 0} onClick={() => openTrade('SELL')} className="min-h-[48px] rounded-full bg-[#514CF0] text-white text-lg font-semibold disabled:opacity-40">Sat</button>
+      <button disabled={!Number.isFinite(data.price) || data.price <= 0} onClick={() => openTrade('BUY')} className="min-h-[48px] rounded-full bg-[#514CF0] text-white text-lg font-semibold disabled:opacity-40">Al</button>
+    </div>
+  </div> : null;
+  const chartControls = <>
+    <div className="min-w-0 flex-1 flex items-center justify-between gap-0.5" aria-label="Grafik dönemi">
+      {PERIODS.filter(p => ['1d-daily', '1w', '1mo', '3mo', '1y', '5y'].includes(p.key)).map(p =>
+        <button key={p.key} aria-pressed={periodKey === p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); setPeriodKey(p.key); }}
+          className={`h-11 min-w-[30px] px-1 sm:px-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${periodKey === p.key ? 'bg-black/[0.05] dark:bg-white/10 text-foreground' : 'text-foreground hover:bg-black/[0.03] dark:hover:bg-white/5'}`}>{p.label}</button>)}
+    </div>
+    <button aria-label={chartType === 'line' ? 'Mum grafiğine geç' : 'Çizgi grafiğine geç'} aria-pressed={chartType === 'candle'} title={chartType === 'line' ? 'Mum grafiği' : 'Çizgi grafiği'} onClick={() => setChartType(chartType === 'line' ? 'candle' : 'line')} className="shrink-0 w-11 h-11 grid place-items-center text-emerald-500">{chartType === 'line' ? <CandlestickChart className="w-5 h-5" /> : <Activity className="w-5 h-5" />}</button>
+  </>;
+
   return (
-    <div className="min-h-screen bg-background text-foreground px-5 md:px-8 pb-28 space-y-8 max-w-5xl mx-auto">
-      <header className="sticky top-0 lg:top-[60px] z-20 -mx-5 md:-mx-8 px-4 md:px-8 py-3 bg-background/95 backdrop-blur flex items-center gap-3 border-b border-transparent">
+    <div className="stock-focus min-h-screen bg-white dark:bg-[#0d0d0d] text-foreground px-5 md:px-8 pb-28 space-y-7 max-w-5xl mx-auto">
+      <header className="sticky top-0 lg:top-[60px] z-20 -mx-5 md:-mx-8 px-4 md:px-8 py-3 bg-white/95 dark:bg-[#0d0d0d]/95 backdrop-blur flex items-center gap-3 border-b border-transparent">
         <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/piyasalar"); }} aria-label="Geri dön" className="min-h-[44px] min-w-[44px] grid place-items-center"><ArrowLeft className="w-6 h-6" /></button>
         <div className="min-w-0 flex-1"><p className="font-semibold truncate">{data?.shortName || symbol}</p><p className="text-xs text-muted-foreground">{data?.price && Number.isFinite(data.price) ? fp(data.price) : loading ? 'Yükleniyor…' : 'Fiyat alınamadı'}</p></div>
         <button onClick={toggleSaved} disabled={saving || watchlistLoading || !data} aria-label={saved ? 'İzleme listesinden çıkar' : 'İzleme listesine ekle'} aria-pressed={saved} className="min-h-[44px] min-w-[44px] grid place-items-center disabled:opacity-50"><Bookmark className={`w-5 h-5 ${saved ? 'fill-current text-indigo-500' : ''}`} /></button>
@@ -472,43 +485,35 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         <button onClick={shareStock} aria-label="Hisseyi paylaş" className="min-h-[44px] min-w-[44px] grid place-items-center"><Share2 className="w-5 h-5" /></button>
       </header>
       {data ? <section aria-label="Hisse fiyatı" className="space-y-3">
-        <h1 className="text-3xl font-bold tracking-tight">{data.shortName}</h1>
-        <p className="text-base text-muted-foreground">{data.name}</p>
+        <h1 className="text-lg font-normal leading-snug">{data.name}</h1>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <p className="text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{displayPrice > 0 && Number.isFinite(displayPrice) ? fp(displayPrice) : 'Fiyat alınamadı'}</p>
+          <p className="text-[40px] leading-tight sm:text-5xl font-semibold tracking-tight tabular-nums">{displayPrice > 0 && Number.isFinite(displayPrice) ? fp(displayPrice) : 'Fiyat alınamadı'}{isIndex && <span className="text-sm font-normal ml-2 text-muted-foreground">Puan</span>}</p>
           <p className={`text-xl font-semibold ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{displayChangePercent >= 0 ? '+' : '-'}%{Math.abs(displayChangePercent).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         <p className={`text-sm ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{displayChange >= 0 ? '+' : ''}{fp(displayChange)} <span className="text-muted-foreground">{displayDate || 'Günlük değişim'}</span></p>
       </section> : <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>}
       {/* ===== PRICE CHART ===== */}
-      <ChartSurface minimal>
-        {/* Overlay toggles */}
-        <div className={advancedChart ? "flex flex-wrap gap-2 mb-3" : "hidden"}>
-          <button onClick={() => setOverlay(overlay === 'ema' ? 'none' : 'ema')}
-            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
-              overlay === 'ema' ? 'bg-[#8B5CF6]/20 text-[#8B5CF6] border border-[#8B5CF6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
-            }`}>EMA</button>
-          <button onClick={() => setOverlay(overlay === 'bb' ? 'none' : 'bb')}
-            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
-              overlay === 'bb' ? 'bg-[#F59E0B]/20 text-[#F59E0B] border border-[#F59E0B]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
-            }`}>Bollinger</button>
-          <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
-          <button onClick={() => setBottomIndicator('volume')}
-            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
-              bottomIndicator === 'volume' ? 'bg-[#3B82F6]/20 text-[#3B82F6] border border-[#3B82F6]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
-            }`}>Hacim</button>
-          <button onClick={() => setBottomIndicator('macd')}
-            className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${
-              bottomIndicator === 'macd' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/40' : 'glass-inner text-muted-foreground border border-transparent hover:text-foreground'
-            }`}>MACD</button>
-          <span className="border-l border-black/[0.08] dark:border-white/[0.08] mx-1" />
-          <ChartDrawingToolbar activeTool={drawingTool} onToolChange={setDrawingTool}
-            onClear={() => setDrawings([])} onUndo={() => setDrawings(prev => prev.slice(0, -1))} drawingCount={drawings.length}
-            magnetEnabled={magnetEnabled} onToggleMagnet={() => setMagnetEnabled(prev => !prev)} />
-        </div>
+      <ChartSurface title={data?.shortName || symbol} subtitle={data?.price ? fp(data.price) : 'Alınamadı'} full={fullChart}
+        onFullChange={value => { setFullChart(value); setAdvancedChart(value); setDrawingTool('none'); if (value) setChartType('candle'); }}
+        controls={chartControls} footer={tradeActions}>
+        {advancedChart && <div className="space-y-3 mb-5">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" aria-label="Teknik göstergeler">
+            {(['ema', 'sma'] as const).map(kind => <button key={kind} aria-pressed={overlay === kind} onClick={() => setOverlay(overlay === kind ? 'none' : kind)} className={`shrink-0 min-h-[44px] px-3 rounded-lg text-sm font-medium ${overlay === kind ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-black/[0.03] dark:bg-white/5'}`}>{kind.toUpperCase()}</button>)}
+            <button aria-pressed={showBands} onClick={() => setShowBands(!showBands)} className={`shrink-0 min-h-[44px] px-3 rounded-lg text-sm ${showBands ? 'bg-amber-500/10 text-amber-600' : 'bg-black/[0.03] dark:bg-white/5'}`}>Bollinger</button>
+            {([{ label: 'Hacim', value: showVolume, set: setShowVolume }, { label: 'RSI', value: showRSI, set: setShowRSI }, { label: 'MACD', value: showMACD, set: setShowMACD }]).map(item => <button key={item.label} aria-pressed={item.value} onClick={() => item.set(!item.value)} className={`shrink-0 min-h-[44px] px-3 rounded-lg text-sm ${item.value ? 'bg-black/[0.06] dark:bg-white/10' : 'text-muted-foreground'}`}>{item.label}</button>)}
+          </div>
+          {overlay !== 'none' && <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">{[20, 50, 200].map((n, i) => <span key={n} className="shrink-0 rounded-md bg-black/[0.03] dark:bg-white/5 px-3 py-2 text-sm"><span style={{ color: ['#a855f7', '#84a817', '#0ea5e9'][i] }}>●</span> {overlay.toUpperCase()}({n})</span>)}</div>}
+          <details className="text-sm text-muted-foreground"><summary className="min-h-[44px] flex items-center gap-2 cursor-pointer"><SlidersHorizontal className="w-4 h-4" /> Grafik araçları ve aralık</summary>
+            <div className="space-y-3 py-2">
+              <label className="flex items-center gap-3">Mum aralığı / dönem<select aria-label="Mum aralığı ve dönem" value={periodKey} onChange={e => { const p = PERIODS.find(item => item.key === e.target.value); if (p) { setPeriod(p.value); setChartInterval(p.interval); setPeriodKey(p.key); } }} className="min-h-[44px] bg-transparent border border-black/10 dark:border-white/10 rounded-lg px-3">{PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}{p.key === '1d-daily' ? ' · Günlük görünüm' : ''}</option>)}</select></label>
+              <ChartDrawingToolbar activeTool={drawingTool} onToolChange={setDrawingTool} onClear={() => setDrawings([])} onUndo={() => setDrawings(prev => prev.slice(0, -1))} drawingCount={drawings.length} magnetEnabled={magnetEnabled} onToggleMagnet={() => setMagnetEnabled(prev => !prev)} />
+              <p className="text-xs leading-5">EMA: son fiyatlara ağırlık veren ortalama. SMA: basit fiyat ortalaması. RSI: fiyat hareketinin gücü. MACD: ortalamalar arasındaki fark. Bollinger: fiyatın ortalama çevresindeki değişim bantları.</p>
+            </div>
+          </details>
+        </div>}
 
         {/* Main Price Chart */}
-        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, clamp(260px, 43dvh, 420px))', position: 'relative' }}>
+        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, clamp(260px, 46dvh, 460px))', position: 'relative' }}>
           {chartData.length > 0 ? (
             <>
             <ResponsiveContainer width="100%" height="100%">
@@ -518,14 +523,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 onMouseUp={handleChartMouseMove}
                 onMouseLeave={handleChartMouseLeave}>
 
-                {advancedChart && <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />}
+                {advancedChart && <CartesianGrid strokeDasharray="1 5" stroke="currentColor" opacity={0.18} />}
                 <XAxis height={25} hide={!advancedChart} dataKey="date" tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                <YAxis hide={!advancedChart} domain={yDomain} allowDataOverflow tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
-                  tickFormatter={(v: number) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v.toFixed(2)} />
+                <YAxis orientation="right" hide={!advancedChart} domain={yDomain} allowDataOverflow tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
+                  tickFormatter={(v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} />
                 <Tooltip active={tooltipChart === 'price' ? undefined : false} content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
+                {!advancedChart && period === '1d' && data && Number.isFinite(data.prevClose) && data.prevClose > 0 && <ReferenceLine y={data.prevClose} stroke="#94a3b8" strokeDasharray="1 5" label={{ value: fp(data.prevClose), position: 'insideTopLeft', fill: '#64748b', fontSize: 11 }} />}
 
                 {/* Bollinger Bands */}
-                {advancedChart && overlay === 'bb' && (
+                {advancedChart && showBands && (
                   <>
                     <Line type="monotone" dataKey="bbUpper" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
                     <Line type="monotone" dataKey="bbLower" stroke="#F59E0B" strokeWidth={1} strokeDasharray="4 2" dot={false} />
@@ -541,22 +547,15 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     ))}
                   </Bar>
                 ) : (
-                  <Area type="monotone" dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={false} activeDot={tooltipChart === 'price' ? undefined : false}
+                  <Area type="linear" isAnimationActive={false} dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={({ cx, cy, index }: any) => !advancedChart && index === chartData.length - 1 ? <g key="last-price"><circle cx={cx} cy={cy} r={12} fill={chartPositive ? '#22C55E' : '#EF4444'} opacity={0.12} /><circle cx={cx} cy={cy} r={3.5} fill={chartPositive ? '#22C55E' : '#EF4444'} /></g> : <g key={index} />} activeDot={tooltipChart === 'price' ? undefined : false}
                     fill={advancedChart ? (chartPositive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)') : 'transparent'} />
                 )}
 
-                {/* EMA overlays */}
-                {advancedChart && overlay === 'ema' && (
-                  <>
-                    <Line type="monotone" dataKey="ema20" stroke="#3B82F6" strokeWidth={1.5} dot={false} strokeOpacity={0.8} />
-                    <Line type="monotone" dataKey="ema50" stroke="#F59E0B" strokeWidth={1.5} dot={false} strokeOpacity={0.8} />
-                    <Line type="monotone" dataKey="ema200" stroke="#EF4444" strokeWidth={1.5} dot={false} strokeOpacity={0.6} />
-                  </>
-                )}
+                {advancedChart && overlay !== 'none' && [20, 50, 200].map((n, i) => <Line key={`${overlay}${n}`} type="linear" dataKey={`${overlay}${n}`} stroke={['#a855f7', '#84a817', '#0ea5e9'][i]} strokeWidth={1.5} dot={false} activeDot={false} isAnimationActive={false} />)}
               </ComposedChart>
             </ResponsiveContainer>
             {advancedChart && chartDimensions.width > 0 && (
-              <ChartDrawingOverlay
+              <ChartDrawingOverlay axisSide="right"
                 chartHeight={chartDimensions.height}
                 chartWidth={chartDimensions.width}
                 yDomain={yDomain}
@@ -585,32 +584,17 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           )}
         </div>
 
-        {/* EMA Legend */}
-        {advancedChart && overlay === 'ema' && (
-          <div className="flex flex-wrap gap-4 mt-2 px-2">
-            <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#3B82F6] inline-block rounded" /> <span className="text-muted-foreground">EMA20</span></span>
-            <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#F59E0B] inline-block rounded" /> <span className="text-muted-foreground">EMA50</span></span>
-            <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#EF4444] inline-block rounded" /> <span className="text-muted-foreground">EMA200</span></span>
-          </div>
-        )}
-        {advancedChart && overlay === 'bb' && (
-          <div className="flex flex-wrap gap-4 mt-2 px-2">
-            <span className="flex items-center gap-1.5 text-[10px]"><span className="w-3 h-0.5 bg-[#F59E0B] inline-block rounded" style={{ borderTop: '1px dashed #F59E0B' }} /> <span className="text-muted-foreground">Bollinger Bantları (20, 2)</span></span>
-          </div>
-        )}
-
-        {advancedChart && overlay === 'ema' && <p className="text-xs text-muted-foreground" role="status">{[20, 50, 200].filter(n => !chartData.some(d => Number.isFinite(d[`ema${n}` as 'ema20']))).map(n => `EMA${n}: en az ${n} mum geçmişi gerekli.`).join(' ')}</p>}
-        {advancedChart && overlay === 'bb' && !chartData.some(d => Number.isFinite(d.bbMiddle)) && <p className="text-xs text-muted-foreground" role="status">Bollinger için en az 20 mum geçmişi gerekli.</p>}
-        {bottomIndicator === 'macd' && !chartData.some(d => Number.isFinite(d.macd)) && <p className="text-xs text-muted-foreground py-3" role="status">MACD için yeterli geçmiş veri alınamadı (en az 34 mum). Başka bir zaman aralığı deneyin.</p>}
-        {/* Bottom Indicator: Volume or MACD */}
-        <div className="mt-3 border-t border-black/[0.06] dark:border-white/[0.06] pt-2">
-          {bottomIndicator === 'volume' && chartData.length > 0 && (
-            <div style={{ height: '100px' }}>
+        {advancedChart && overlay !== 'none' && <p className="text-xs text-muted-foreground" role="status">{[20, 50, 200].filter(n => !chartData.some(d => Number.isFinite(d[`${overlay}${n}` as 'ema20']))).map(n => `${overlay.toUpperCase()}${n}: en az ${n} mum geçmişi gerekli.`).join(' ')}</p>}
+        {advancedChart && showBands && !chartData.some(d => Number.isFinite(d.bbMiddle)) && <p className="text-xs text-muted-foreground" role="status">Bollinger için en az 20 mum geçmişi gerekli.</p>}
+        {/* Independent indicator panels share the same candle timeline. */}
+        <div className={advancedChart ? "mt-3 space-y-4" : "hidden"}>
+          {advancedChart && showVolume && chartData.length > 0 && (
+            <div><h3 className="text-xs text-muted-foreground mb-2">Hacim</h3><div style={{ height: '72px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
                   onMouseMove={() => showChartInfo('volume')} onMouseDown={() => showChartInfo('volume')} onMouseUp={() => showChartInfo('volume')} onMouseLeave={closeChartInfo}>
                   <XAxis dataKey="date" hide />
-                  <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65}
+                  <YAxis orientation="right" tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65}
                     tickFormatter={(v: number) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : `${v}`} />
                   <Tooltip active={tooltipChart === 'volume' ? undefined : false} contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid rgba(128,128,128,0.2)', borderRadius: '8px', fontSize: '11px', backdropFilter: 'blur(16px)' }}
                     formatter={(value: any) => [formatNumber(value), 'Hacim']} />
@@ -621,19 +605,28 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   </Bar>
                 </ComposedChart>
               </ResponsiveContainer>
-            </div>
+            </div></div>
           )}
-          {bottomIndicator === 'macd' && chartData.some(d => Number.isFinite(d.macd)) && (
-            <div style={{ height: '120px' }}>
+          {advancedChart && showRSI && <div className="border-t border-black/5 dark:border-white/10 pt-3"><h3 className="text-sm mb-2">RSI(14)</h3>
+            {chartData.some(d => Number.isFinite(d.rsi)) ? <div style={{ height: 110 }}><ResponsiveContainer width="100%" height="100%"><ComposedChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 0 }} onMouseMove={() => showChartInfo('rsi')} onMouseDown={() => showChartInfo('rsi')} onMouseUp={() => showChartInfo('rsi')} onMouseLeave={closeChartInfo}>
+              <CartesianGrid strokeDasharray="1 5" stroke="currentColor" opacity={0.15} /><XAxis dataKey="date" hide /><YAxis orientation="right" width={65} domain={[0, 100]} ticks={[0, 50, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+              <ReferenceLine y={30} stroke="#F59E0B" strokeDasharray="2 3" /><ReferenceLine y={70} stroke="#F59E0B" strokeDasharray="2 3" />
+              <Tooltip active={tooltipChart === 'rsi' ? undefined : false} formatter={(value: any) => [Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 }), 'RSI']} contentStyle={{ backgroundColor: 'var(--tooltip-bg)', borderRadius: 12 }} />
+              <Line dataKey="rsi" stroke="#e68a16" dot={false} activeDot={false} strokeWidth={1.5} isAnimationActive={false} />
+            </ComposedChart></ResponsiveContainer></div> : <p role="status" className="text-xs text-muted-foreground py-4">RSI için en az 15 mum geçmişi gerekli.</p>}
+          </div>}
+          {advancedChart && showMACD && !chartData.some(d => Number.isFinite(d.macd)) && <p className="text-xs text-muted-foreground py-3" role="status">MACD için en az 34 mum geçmişi gerekli.</p>}
+          {advancedChart && showMACD && chartData.some(d => Number.isFinite(d.macd)) && (
+            <div><h3 className="text-sm mb-2">MACD(12,26,9)</h3><div style={{ height: '100px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData.filter((d: any) => d.macd !== undefined)} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
+                <ComposedChart data={chartData} margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
                   onMouseMove={() => showChartInfo('macd')} onMouseDown={() => showChartInfo('macd')} onMouseUp={() => showChartInfo('macd')} onMouseLeave={closeChartInfo}>
                   <XAxis dataKey="date" hide />
-                  <YAxis tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65} />
+                  <YAxis orientation="right" tick={{ fill: '#64748B', fontSize: 9 }} axisLine={false} tickLine={false} width={65} />
                   <Tooltip active={tooltipChart === 'macd' ? undefined : false} content={<MacdTooltip />} />
                   <ReferenceLine y={0} stroke="#334155" />
                   <Bar dataKey="macdHistogram" radius={[1, 1, 0, 0]}>
-                    {chartData.filter((d: any) => d.macd !== undefined).map((entry: any, idx: number) => (
+                    {chartData.map((entry: any, idx: number) => (
                       <Cell key={idx} fill={(entry.macdHistogram ?? 0) >= 0 ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'} />
                     ))}
                   </Bar>
@@ -641,44 +634,18 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                   <Line type="monotone" dataKey="macdSignal" stroke="#F59E0B" strokeWidth={1.5} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
-            </div>
+            </div></div>
           )}
         </div>
-        <button className="min-h-[44px] px-3 glass-inner rounded-lg text-sm" aria-pressed={advancedChart} onClick={() => { setAdvancedChart(!advancedChart); if (advancedChart) { setDrawingTool('none'); if (['5m', '15m', '30m', '1h', '4h'].includes(periodKey)) { setPeriodKey('1d-daily'); setPeriod('1d'); setChartInterval('5m'); } } }}>Görünüm: {advancedChart ? 'Gelişmiş' : 'Sade'}</button>
-        {/* Chart controls */}
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-            <span className="text-xs text-muted-foreground">{isIndex ? 'Puan' : currencyCode}</span>
-            <div className="flex glass-inner rounded-lg p-0.5">
-              <button onClick={() => setChartType('candle')}
-                className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${chartType === 'candle' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>🕯️ Mum</button>
-              <button onClick={() => setChartType('line')}
-                className={`min-h-[44px] px-2.5 py-1 rounded text-xs font-semibold transition-colors ${chartType === 'line' ? 'bg-[#3B82F6] text-white' : 'text-slate-400 dark:text-slate-500 hover:text-muted-foreground'}`}>📈 Çizgi</button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {PERIODS.filter(p => advancedChart || ['1d-daily', '1w', '1mo', '3mo', '6mo', '1y'].includes(p.key)).map((p: any) => (
-              <button key={p.key} aria-pressed={periodKey === p.key} onClick={() => { setPeriod(p.value); setChartInterval(p.interval); setPeriodKey(p.key); }}
-                className={`min-h-[44px] min-w-[44px] px-2 rounded-lg text-xs font-medium transition-colors ${(periodKey === p.key) ? 'bg-[#3B82F6] text-white' : 'glass-inner text-muted-foreground hover:text-foreground'}`}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
       </ChartSurface>
+
+      {data && <StockAnalysisSheet symbol={data.symbol} name={data.shortName} analysis={analysis} generatedAt={analysisTime} loading={analysisLoading} error={analysisError} onGenerate={fetchAnalysis} formatPrice={fp} />}
 
       {data && <details className="text-xs text-muted-foreground border-b border-black/10 dark:border-white/10 pb-4">
         <summary className="min-h-[44px] cursor-pointer">Fiyat zamanı: {formatQuoteTime(data.priceAsOf)} · Veri bilgisi</summary>
         <div className="space-y-2 pt-2"><p>Son fiyat kaynağı: {data.priceSource || 'Bilinmiyor'} · {data.priceTimeKind === 'candle' ? 'Mum zamanı' : 'Fiyat zamanı'}: {formatQuoteTime(data.priceAsOf)}</p><p>Son kontrol: {formatQuoteTime(data.checkedAt)}</p><p>Seans: {data.marketOpen === true ? 'Kaynağa göre açık' : data.marketOpen === false ? 'Kaynağa göre kapalı' : 'Doğrulanmadı'}. Veriler gecikmeli olabilir. Kontrol saati fiyatın zamanı değildir.</p>{activePoint && <p>Üstteki fiyat grafikte seçilen muma aittir.</p>}</div>
       </details>}
-      {data && marketType && <div role="region" aria-label="Sanal işlem" className="fixed bottom-0 left-0 right-0 lg:left-64 z-40 bg-background/95 backdrop-blur border-t border-black/5 dark:border-white/5 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="max-w-3xl mx-auto"><p className="text-[10px] text-muted-foreground text-center mb-2">Sanal işlem · Gerçek para kullanılmaz</p><div className="grid grid-cols-2 gap-3">
-          <button disabled={!Number.isFinite(data.price) || data.price <= 0} onClick={() => { setTradeSide('SELL'); setTradeOpen(true); }} className="min-h-[48px] rounded-full bg-indigo-600 text-white font-semibold disabled:opacity-40">Sat</button>
-          <button disabled={!Number.isFinite(data.price) || data.price <= 0} onClick={() => { setTradeSide('BUY'); setTradeOpen(true); }} className="min-h-[48px] rounded-full bg-indigo-600 text-white font-semibold disabled:opacity-40">Al</button>
-        </div></div>
-      </div>}
+      {tradeActions && !fullChart && <div role="region" aria-label="Sanal işlem" className="fixed bottom-0 left-0 right-0 lg:left-64 z-40 bg-white/95 dark:bg-[#0d0d0d]/95 backdrop-blur px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{tradeActions}</div>}
       {/* ===== QUICK STATS ROW ===== */}
       {data && (
         <section aria-label="İstatistikler"><h2 className="text-2xl font-semibold mb-5">İstatistikler</h2><div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
@@ -691,343 +658,34 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             ...(data.taban ? [{ label: 'Taban', value: fp(data.taban), icon: TrendingDown, color: 'text-[#EF4444]' }] : []),
             { label: 'Hacim', value: formatNumber(data.volume), icon: Volume2, color: 'text-[#8B5CF6]' },
             { label: 'Ort. Hacim', value: formatNumber(data.indicators?.avgVolume ?? 0), icon: Activity, color: 'text-slate-400 dark:text-slate-500' },
-          ].map((item: any, i: number) => (
+          ].filter((_, i) => showAllStats || i < 4).map((item: any, i: number) => (
             <motion.div key={item.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + i * 0.03 }}
               className="py-2">
               <div className="flex items-center gap-1.5 mb-1">
-                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
                 <span className="text-sm text-muted-foreground">{item.label}</span>
               </div>
               <p className="text-foreground font-semibold text-base tabular-nums">{item.value}</p>
             </motion.div>
           ))}
-        </div></section>
+        </div><button aria-expanded={showAllStats} onClick={() => setShowAllStats(!showAllStats)} className="min-h-[44px] text-indigo-600 dark:text-indigo-400 font-medium mt-3">{showAllStats ? 'Daha az göster' : 'Daha fazla göster'}</button></section>
       )}
 
-      {/* ===== AI ANALİZ & HABERLER ===== */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-card rounded-2xl overflow-hidden">
-        {/* Tab Header */}
-        <div className="px-4 pt-4 pb-0">
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-black/[0.04] dark:bg-white/[0.04]">
-            <button
-              onClick={() => { setInsightTab('analysis'); if (!analysis && !analysisLoading) fetchAnalysis(); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                insightTab === 'analysis'
-                  ? 'bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Brain className="w-3.5 h-3.5" /> AI Analiz
-            </button>
-            <button
-              onClick={() => setInsightTab('news')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                insightTab === 'news'
-                  ? 'bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Newspaper className="w-3.5 h-3.5" />
-              Haberler
-              {news.length > 0 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                insightTab === 'news' ? 'bg-white/20 text-white' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
-              }`}>{news.length}</span>}
-            </button>
-          </div>
-        </div>
+      <section aria-label="İlgili haberler" className="py-4">
+        <div className="flex items-center justify-between gap-3 mb-5"><h2 className="text-2xl font-semibold">İlgili haberler</h2>{news.length > 3 && <button onClick={() => setShowAllNews(!showAllNews)} className="min-h-[44px] text-indigo-600 dark:text-indigo-400 font-medium text-sm">{showAllNews ? 'Daha az göster' : 'Tümünü gör'}</button>}</div>
+        {newsLoading ? <p role="status" className="text-muted-foreground text-sm">Haberler yükleniyor…</p> : news.length === 0 ? <p className="text-muted-foreground text-sm">Bu varlık için güncel haber bulunamadı.</p> : <div className="space-y-7">{news.slice(0, showAllNews ? news.length : 3).map((item: any, index: number) => <a key={index} href={item.url} target="_blank" rel="noopener noreferrer" className="block group">
+          <p className="text-sm text-muted-foreground mb-2">{item.source} · {item.dateVerified === false ? 'Yayın zamanı bilinmiyor' : formatQuoteTime(item.date)}</p>
+          <div className="flex gap-4 items-start"><h3 className="text-lg leading-relaxed flex-1 group-hover:text-indigo-600">{item.title}</h3><ExternalLink className="w-4 h-4 mt-2 shrink-0 text-muted-foreground" /></div>
+        </a>)}</div>}
+      </section>
 
-        {/* ===== AI ANALİZ TAB ===== */}
-        {insightTab === 'analysis' && (
-          <div className="p-4">
-            {/* Loading */}
-            {analysisLoading && (
-              <div className="py-8 flex flex-col items-center gap-3">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full border-2 border-[#8B5CF6]/20 border-t-[#8B5CF6] animate-spin" />
-                  <Brain className="w-5 h-5 text-[#8B5CF6] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                </div>
-                <p className="text-xs text-muted-foreground">Teknik göstergeler ve haberler analiz ediliyor...</p>
-              </div>
-            )}
-
-            {/* Error */}
-            {analysisError && !analysisLoading && (
-              <div className="py-6 flex flex-col items-center gap-2">
-                <AlertTriangle className="w-7 h-7 text-[#F59E0B]" />
-                <p className="text-xs text-muted-foreground">{analysisError}</p>
-                <button onClick={fetchAnalysis} className="text-xs text-[#8B5CF6] hover:underline mt-1">Tekrar Dene</button>
-              </div>
-            )}
-
-            {/* No Analysis - CTA */}
-            {!analysis && !analysisLoading && !analysisError && (
-              <div className="py-6 flex flex-col items-center gap-3 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8B5CF6]/10 to-[#6366F1]/10 flex items-center justify-center">
-                  <Sparkles className="w-7 h-7 text-[#8B5CF6]" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Yapay Zekâ Analizi</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Teknik göstergeleri ve haberleri analiz eder</p>
-                </div>
-                <button
-                  onClick={fetchAnalysis}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-[#8B5CF6] to-[#6366F1] text-white hover:opacity-90 transition-opacity shadow-md"
-                >
-                  <Sparkles className="w-3.5 h-3.5" /> Analiz Et
-                </button>
-              </div>
-            )}
-
-            {/* Analysis Result */}
-            {analysis && !analysisLoading && (
-              <div className="space-y-3">
-                {/* Sinyal + Trend + Güven Row */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div className={`rounded-xl p-3 text-center ${
-                    analysis.sinyal === 'AL' ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
-                    analysis.sinyal === 'SAT' ? 'bg-[#EF4444]/10 border border-[#EF4444]/20' :
-                    'bg-[#F59E0B]/10 border border-[#F59E0B]/20'
-                  }`}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Sinyal</p>
-                    <p className={`text-lg font-bold ${
-                      analysis.sinyal === 'AL' ? 'text-[#22C55E]' :
-                      analysis.sinyal === 'SAT' ? 'text-[#EF4444]' :
-                      'text-[#F59E0B]'
-                    }`}>{analysis.sinyal}</p>
-                  </div>
-                  <div className={`rounded-xl p-3 text-center ${
-                    analysis.trend === 'YUKARI' ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
-                    analysis.trend === 'AŞAĞI' ? 'bg-[#EF4444]/10 border border-[#EF4444]/20' :
-                    'bg-[#6366F1]/10 border border-[#6366F1]/20'
-                  }`}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Trend</p>
-                    <div className="flex items-center justify-center gap-1">
-                      {analysis.trend === 'YUKARI' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
-                       analysis.trend === 'AŞAĞI' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
-                       <ArrowRight className="w-4 h-4 text-[#6366F1]" />}
-                      <p className={`text-xs font-bold ${
-                        analysis.trend === 'YUKARI' ? 'text-[#22C55E]' :
-                        analysis.trend === 'AŞAĞI' ? 'text-[#EF4444]' :
-                        'text-[#6366F1]'
-                      }`}>{analysis.trend}</p>
-                    </div>
-                  </div>
-                  <div className={`rounded-xl p-3 text-center ${
-                    (analysis.guven_skoru ?? 0) >= 70 ? 'bg-[#22C55E]/10 border border-[#22C55E]/20' :
-                    (analysis.guven_skoru ?? 0) >= 40 ? 'bg-[#F59E0B]/10 border border-[#F59E0B]/20' :
-                    'bg-[#EF4444]/10 border border-[#EF4444]/20'
-                  }`}>
-                    <p className="text-[10px] text-muted-foreground uppercase">Güven</p>
-                    <p className={`text-lg font-bold ${
-                      (analysis.guven_skoru ?? 0) >= 70 ? 'text-[#22C55E]' :
-                      (analysis.guven_skoru ?? 0) >= 40 ? 'text-[#F59E0B]' : 'text-[#EF4444]'
-                    }`}>{analysis.guven_skoru ?? '-'}<span className="text-[10px] font-normal">/100</span></p>
-                  </div>
-                </div>
-
-                {/* Genel Görünüm */}
-                <div className="glass-inner rounded-xl p-3.5">
-                  <p className="text-xs text-foreground leading-relaxed">{analysis.genel_gorunum}</p>
-                </div>
-
-                {/* Haber Etkisi */}
-                {analysis.haber_etkisi && (typeof analysis.haber_etkisi === 'object' ? analysis.haber_etkisi.ozet : analysis.haber_etkisi) && (
-                  <div className={`rounded-xl border p-3 ${
-                    (analysis.haber_etkisi?.duygu || '') === 'OLUMLU' ? 'bg-[#22C55E]/5 border-[#22C55E]/15' :
-                    (analysis.haber_etkisi?.duygu || '') === 'OLUMSUZ' ? 'bg-[#EF4444]/5 border-[#EF4444]/15' :
-                    'bg-[#8B5CF6]/5 border-[#8B5CF6]/15'
-                  }`}>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Newspaper className={`w-3.5 h-3.5 ${
-                        (analysis.haber_etkisi?.duygu || '') === 'OLUMLU' ? 'text-[#22C55E]' :
-                        (analysis.haber_etkisi?.duygu || '') === 'OLUMSUZ' ? 'text-[#EF4444]' :
-                        'text-[#8B5CF6]'
-                      }`} />
-                      <p className="text-[10px] font-semibold uppercase text-muted-foreground">Haber Etkisi</p>
-                      {analysis.haber_etkisi?.duygu && (
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
-                          analysis.haber_etkisi.duygu === 'OLUMLU' ? 'bg-[#22C55E]/10 text-[#22C55E]' :
-                          analysis.haber_etkisi.duygu === 'OLUMSUZ' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
-                          'bg-[#6366F1]/10 text-[#6366F1]'
-                        }`}>{analysis.haber_etkisi.duygu}</span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-foreground leading-relaxed">
-                      {typeof analysis.haber_etkisi === 'string' ? analysis.haber_etkisi : analysis.haber_etkisi.ozet}
-                    </p>
-                    {analysis.haber_etkisi?.onemli_gelismeler?.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {analysis.haber_etkisi.onemli_gelismeler.map((g: string, i: number) => (
-                          <div key={i} className="flex items-start gap-1.5">
-                            <span className="text-[#8B5CF6] text-[10px] mt-0.5">▸</span>
-                            <p className="text-[10px] text-muted-foreground leading-relaxed">{g}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Teknik Analiz 4'lü Grid */}
-                {analysis.teknik_analiz && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {[{
-                      title: 'Trend', text: analysis.teknik_analiz.trend_analizi,
-                      icon: <TrendingUp className="w-3.5 h-3.5" />, color: '#6366F1'
-                    }, {
-                      title: 'Momentum', text: analysis.teknik_analiz.momentum,
-                      icon: <Activity className="w-3.5 h-3.5" />, color: '#F59E0B'
-                    }, {
-                      title: 'Hacim', text: analysis.teknik_analiz.hacim_analizi,
-                      icon: <BarChart3 className="w-3.5 h-3.5" />, color: '#22C55E'
-                    }, {
-                      title: 'Destek/Direnç', text: analysis.teknik_analiz.destek_direnc,
-                      icon: <Layers className="w-3.5 h-3.5" />, color: '#8B5CF6'
-                    }].map((item, i) => (
-                      <div key={i} className="glass-inner rounded-xl p-3">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: item.color + '15', color: item.color }}>
-                            {item.icon}
-                          </div>
-                          <h4 className="text-[11px] font-semibold text-foreground">{item.title}</h4>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">{item.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Önemli Seviyeler + Strateji yan yana */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {/* Önemli Seviyeler */}
-                  {analysis.onemli_seviyeler && (
-                    <div className="glass-inner rounded-xl p-3">
-                      <h4 className="text-[11px] font-semibold text-foreground mb-2 flex items-center gap-1">
-                        <Gauge className="w-3.5 h-3.5 text-[#F59E0B]" /> Seviyeler
-                      </h4>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {[{ label: 'Destek 1', value: analysis.onemli_seviyeler.destek1, color: '#22C55E' },
-                          { label: 'Destek 2', value: analysis.onemli_seviyeler.destek2, color: '#16A34A' },
-                          { label: 'Direnç 1', value: analysis.onemli_seviyeler.direnc1, color: '#EF4444' },
-                          { label: 'Direnç 2', value: analysis.onemli_seviyeler.direnc2, color: '#DC2626' },
-                        ].filter(s => s.value).map((s, i) => (
-                          <div key={i} className="text-center p-1.5 rounded-lg" style={{ backgroundColor: s.color + '08', border: `1px solid ${s.color}15` }}>
-                            <p className="text-[9px] text-muted-foreground">{s.label}</p>
-                            <p className="text-xs font-bold" style={{ color: s.color }}>{typeof s.value === 'number' ? fp(s.value) : s.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Strateji */}
-                  {analysis.strateji && (
-                    <div className="glass-inner rounded-xl p-3">
-                      <h4 className="text-[11px] font-semibold text-foreground mb-2 flex items-center gap-1">
-                        <Target className="w-3.5 h-3.5 text-[#8B5CF6]" /> Strateji
-                      </h4>
-                      <div className="space-y-1.5">
-                        {analysis.strateji.kisa_vade && (
-                          <div className="p-2 rounded-lg bg-[#6366F1]/5 border border-[#6366F1]/10">
-                            <p className="text-[9px] font-medium text-[#6366F1] uppercase">Kısa Vade</p>
-                            <p className="text-[11px] text-foreground leading-relaxed mt-0.5">{analysis.strateji.kisa_vade}</p>
-                          </div>
-                        )}
-                        {analysis.strateji.orta_vade && (
-                          <div className="p-2 rounded-lg bg-[#8B5CF6]/5 border border-[#8B5CF6]/10">
-                            <p className="text-[9px] font-medium text-[#8B5CF6] uppercase">Orta Vade</p>
-                            <p className="text-[11px] text-foreground leading-relaxed mt-0.5">{analysis.strateji.orta_vade}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Riskler */}
-                {analysis.riskler?.length > 0 && (
-                  <div className="glass-inner rounded-xl p-3">
-                    <h4 className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 text-[#F59E0B]" /> Riskler
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {analysis.riskler.map((risk: string, i: number) => (
-                        <span key={i} className="text-[10px] px-2 py-1 rounded-lg bg-[#F59E0B]/5 border border-[#F59E0B]/10 text-muted-foreground">
-                          ⚠️ {risk}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Yenile butonu */}
-                <div className="flex justify-center pt-1">
-                  <button
-                    onClick={fetchAnalysis}
-                    disabled={analysisLoading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <RefreshCw className="w-3 h-3" /> Analizi Yenile
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ===== HABERLER TAB ===== */}
-        {insightTab === 'news' && (
-          <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06] max-h-[400px] overflow-y-auto">
-            {newsLoading ? (
-              <div className="px-5 py-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6] mx-auto" /></div>
-            ) : news.length === 0 ? (
-              <div className="px-5 py-8 text-center text-xs text-muted-foreground">
-                {symbol.endsWith('.IS') ? 'Bu hisse için güncel haber veya KAP bildirimi bulunamadı' : 'Güncel haber bulunamadı'}
-              </div>
-            ) : (
-              news.map((n: any, i: number) => (
-                <a
-                  key={i}
-                  href={n.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    n.category === 'kap' ? 'bg-[#F59E0B]/10' : n.sentiment === 'positive' ? 'bg-[#22C55E]/10' : n.sentiment === 'negative' ? 'bg-[#EF4444]/10' : 'bg-[#8B5CF6]/10'
-                  }`}>
-                    {n.category === 'kap' ? <Shield className="w-4 h-4 text-[#F59E0B]" /> :
-                     n.sentiment === 'positive' ? <TrendingUp className="w-4 h-4 text-[#22C55E]" /> :
-                     n.sentiment === 'negative' ? <TrendingDown className="w-4 h-4 text-[#EF4444]" /> :
-                     <Newspaper className="w-4 h-4 text-[#8B5CF6]" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{n.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                        n.category === 'kap' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]'
-                      }`}>{n.source}</span>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <Clock className="w-2.5 h-2.5" />
-                        {n.date ? new Date(n.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                    </div>
-                  </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-1" />
-                </a>
-              ))
-            )}
-          </div>
-        )}
-      </motion.div>
-
+      <details className="border-t border-black/10 dark:border-white/10 pt-3"><summary className="min-h-[44px] cursor-pointer font-medium">Diğer veriler ve göstergeler</summary>
       {/* ===== 52 WEEK RANGE ===== */}
       {data && (data.fiftyTwoWeekHigh > 0 || data.fiftyTwoWeekLow > 0) && (() => {
         const distToHigh = data.fiftyTwoWeekHigh > 0 ? ((data.fiftyTwoWeekHigh - data.price) / data.price) * 100 : 0;
         const distToLow = data.fiftyTwoWeekLow > 0 ? ((data.price - data.fiftyTwoWeekLow) / data.fiftyTwoWeekLow) * 100 : 0;
         return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-          className="glass-card rounded-xl p-4">
+          className="py-6 border-t border-black/5 dark:border-white/10">
           <h3 className="text-foreground font-semibold text-sm mb-3 flex items-center gap-2">
             <Target className="w-4 h-4 text-[#3B82F6]" /> 52 Haftalık Aralık
           </h3>
@@ -1064,7 +722,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {/* ===== FUNDAMENTALS (NATIVE QUOTE CURRENCY) ===== */}
       {data && (data.vwap || data.fk || data.pddd || data.marketCap) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="glass-card rounded-xl p-4">
+          className="py-6 border-t border-black/5 dark:border-white/10">
           <button onClick={() => setShowFundamentals(!showFundamentals)}
             className="w-full flex items-center justify-between mb-3">
             <h3 className="text-foreground font-semibold text-sm flex items-center gap-2">
@@ -1133,7 +791,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {/* ===== TECHNICAL INDICATORS ===== */}
       {data && (data.indicators?.rsi !== null || data.indicators?.macd !== null) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-          className="glass-card rounded-xl p-4">
+          className="py-6 border-t border-black/5 dark:border-white/10">
           <h3 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
             <LineChart className="w-4 h-4 text-[#3B82F6]" /> Teknik Göstergeler
           </h3>
@@ -1265,7 +923,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       {/* Destek / Direnç Seviyeleri */}
       {data && data.supportResistance && (data.supportResistance.supports.length > 0 || data.supportResistance.resistances.length > 0) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-          className="glass-card rounded-xl p-4">
+          className="py-6 border-t border-black/5 dark:border-white/10">
           <h3 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
             <Layers className="w-4 h-4 text-[#8B5CF6]" /> Destek & Direnç Seviyeleri
           </h3>
@@ -1353,6 +1011,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
       )}
 
 
+      </details>
       {/* Disclaimer */}
       <p className="text-center text-xs text-[#475569] py-4">
         ⚠️ Bu sayfa yalnızca eğitim amaçlıdır. Yatırım tavsiyesi değildir.

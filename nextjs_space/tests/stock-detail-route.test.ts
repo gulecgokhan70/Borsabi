@@ -69,7 +69,21 @@ it('computes EMA200 from prior sessions before cropping the visible day', async 
     const result = await res.json();
     expect(result.ohlc).toHaveLength(1);
     expect(result.ohlc[0].ema200).toBeCloseTo(100, 8);
-    expect(result.ohlc[0]).toMatchObject({ ema20: 100, macd: 0, bbMiddle: 100 });
+    expect(result.ohlc[0]).toMatchObject({ ema20: 100, sma200: 100, rsi: 50, macd: 0, bbMiddle: 100 });
+    expect(result.indicators.rsi).toBe(result.ohlc[0].rsi);
     expect(new Date(vi.mocked(cachedChart).mock.calls[0][1].period1).getTime()).toBeLessThan(Date.parse('2026-09-14T00:00:00Z'));
+  } finally { vi.useRealTimers(); }
+});
+it('returns the real five-year range with weekly warmup rather than silently using one month', async () => {
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-16T12:00:00Z'));
+  try {
+    const quotes = ['2020-01-01', '2022-01-01', '2026-09-15'].map(date => ({ date: new Date(date), open: 100, high: 101, low: 99, close: 100, volume: 10 }));
+    vi.mocked(cachedChart).mockResolvedValue({ quotes } as any);
+    const response = await GET(new NextRequest('http://localhost/api/stock/THYAO.IS?period=5y&interval=1wk'), { params: Promise.resolve({ symbol: 'THYAO.IS' }) });
+    const result = await response.json();
+    expect(result.ohlc.map((row: any) => row.date.slice(0, 10))).toEqual(['2022-01-01', '2026-09-15']);
+    const options = vi.mocked(cachedChart).mock.calls[0][1];
+    expect(options.interval).toBe('1wk');
+    expect(new Date(options.period1).getTime()).toBeLessThan(Date.parse('2021-09-16') - 1400 * 86400000);
   } finally { vi.useRealTimers(); }
 });

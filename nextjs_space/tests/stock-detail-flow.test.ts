@@ -18,11 +18,14 @@ vi.mock('recharts', () => {
     ReferenceLine: () => null, Cell: () => null,
   };
 });
+vi.mock('../components/chart-surface', () => ({ ChartSurface: ({ children, controls, full, onFullChange, footer }: any) => createElement('div', null, children, controls, createElement('button', { 'aria-label': full ? 'Grafiği kapat' : 'Grafiği tam ekran aç', onClick: () => onFullChange(!full) }, full ? 'Kapat' : 'Tam ekran'), full ? footer : null) }));
 vi.mock('../components/chart-drawing-tools', () => ({ ChartDrawingToolbar: () => null, ChartDrawingOverlay: () => null }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
 
 import StockDetailClient from '../app/stock/[symbol]/stock-detail-client';
-import { Tooltip } from 'recharts';
+import { Tooltip, Line } from 'recharts';
+import { ChartSurface } from '../components/chart-surface';
+import { StockAnalysisSheet } from '../components/stock-analysis-sheet';
 import { TradeModal } from '../components/trade-modal';
 import { tradeSchema } from '../lib/trading';
 
@@ -42,7 +45,7 @@ const fixture = (symbol: string) => ({
   indicators: { rsi: 50, ema20: 79000, ema50: 78000, ema200: 77000, avgVolume: 100000, macd: 1,
     macdSignal: 0, macdHistogram: 1, bbUpper: 81000, bbMiddle: 79000, bbLower: 77000 },
   supportResistance: { supports: [{ price: 75000, strength: 2 }], resistances: [{ price: 85000, strength: 2 }] },
-  ohlc: [{ time: 100, date: new Date().toISOString(), open: 79000, high: 80000, low: 78000, close: 79300, volume: 10, macd: 1, macdSignal: 0.5, macdHistogram: 0.5 }],
+  ohlc: [{ time: 100, date: new Date().toISOString(), open: 79000, high: 80000, low: 78000, close: 79300, volume: 10, macd: 1, macdSignal: 0.5, macdHistogram: 0.5, rsi: 48, sma20: 79000, sma50: 78000, sma200: 77000 }],
 });
 
 const textOf = (node: ReactTestInstance | string): string => typeof node === 'string' ? node : node.children.map(child => textOf(child)).join('');
@@ -255,29 +258,65 @@ it('dismisses price and volume information after 3 seconds, resets on interactio
   expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.315,50');
   await act(async () => move());
   expect(tips()[0].props.active).toBeUndefined();
+  await act(async () => renderer!.root.findByProps({ 'aria-label': 'Grafiği tam ekran aç' }).props.onClick());
   await act(async () => charts()[1].props.onMouseMove());
   expect(tips()[0].props.active).toBe(false);
   expect(tips()[1].props.active).toBeUndefined();
   await act(async () => { vi.advanceTimersByTime(3000); });
   expect(tips().every(tip => tip.props.active === false)).toBe(true);
-  await act(async () => button('MACD').props.onClick());
-  await act(async () => charts()[1].props.onMouseDown());
-  expect(tips()[1].props.active).toBeUndefined();
+  await act(async () => charts()[3].props.onMouseDown());
+  expect(tips()[3].props.active).toBeUndefined();
   await act(async () => { vi.advanceTimersByTime(3000); });
-  expect(tips()[1].props.active).toBe(false);
-  await act(async () => charts()[1].props.onMouseUp());
-  expect(tips()[1].props.active).toBeUndefined();
+  expect(tips()[3].props.active).toBe(false);
+  await act(async () => charts()[3].props.onMouseUp());
+  expect(tips()[3].props.active).toBeUndefined();
   await act(async () => button('1A').props.onClick());
   expect(tips().every(tip => tip.props.active === false)).toBe(true);
 });
 
-it('selects exactly one time control and explains missing EMA history', async () => {
+it('moves technical controls into full screen and distinguishes period from candle interval', async () => {
   await mount();
-  await act(async () => button('Görünüm: Sade').props.onClick());
+  expect(button('EMA')).toBeUndefined();
+  expect(renderer!.root.findAllByType(Line).some(line => line.props.dataKey === 'rsi')).toBe(false);
+  await act(async () => renderer!.root.findByProps({ 'aria-label': 'Grafiği tam ekran aç' }).props.onClick());
   expect(button('1G').props['aria-pressed']).toBe(true);
-  expect(button('5dk').props['aria-pressed']).toBe(false);
-  await act(async () => button('5dk').props.onClick());
+  expect(textOf(renderer!.root)).toContain('RSI(14)');
+  expect(textOf(renderer!.root)).toContain('MACD(12,26,9)');
+  const interval = renderer!.root.findByProps({ 'aria-label': 'Mum aralığı ve dönem' });
+  await act(async () => interval.props.onChange({ target: { value: '5m' } }));
   expect(button('1G').props['aria-pressed']).toBe(false);
-  expect(button('5dk').props['aria-pressed']).toBe(true);
+  expect(interval.props.value).toBe('5m');
   expect(textOf(renderer!.root)).toContain('EMA200: en az 200 mum geçmişi gerekli');
+  await act(async () => button('SMA').props.onClick());
+  expect(renderer!.root.findAllByType(Line).map(line => line.props.dataKey)).toContain('sma200');
+  expect(renderer!.root.findAllByType(Line).map(line => line.props.dataKey)).not.toContain('ema200');
+  await act(async () => button('Bollinger').props.onClick());
+  expect(renderer!.root.findAllByType(Line).map(line => line.props.dataKey)).toEqual(expect.arrayContaining(['sma200', 'bbUpper', 'rsi', 'macd']));
+  await act(async () => button('5Y').props.onClick());
+  expect(fetchMock).toHaveBeenCalledWith('/api/stock/BTC-USD?period=5y&interval=1wk');
+  await act(async () => button('Al').props.onClick());
+  expect(renderer!.root.findByType(ChartSurface).props.full).toBe(false);
+  expect(renderer!.root.findByType(TradeModal).props.isOpen).toBe(true);
+  expect(renderer!.root.findByType(TradeModal).props.price).toBe(79315.5);
+});
+
+it('generates analysis only on request, guards duplicate taps and exposes stream failures', async () => {
+  const fallback = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (url: string, options?: RequestInit) => url === '/api/stock-analysis'
+    ? new Response('data: {"status":"completed","result":{"genel_gorunum":"Test analizi","trend":"AŞAĞI"}}')
+    : fallback(url, options));
+  await mount();
+  await act(async () => { vi.advanceTimersByTime(1000); });
+  expect(fetchMock.mock.calls.some(([url]) => url === '/api/stock-analysis')).toBe(false);
+  const panel = () => renderer!.root.findByType(StockAnalysisSheet);
+  await act(async () => { await Promise.all([panel().props.onGenerate(), panel().props.onGenerate()]); });
+  expect(fetchMock.mock.calls.filter(([url]) => url === '/api/stock-analysis')).toHaveLength(1);
+  expect(panel().props.analysis).toMatchObject({ genel_gorunum: 'Test analizi' });
+  expect(panel().props.generatedAt).toBeTruthy();
+  fetchMock.mockImplementation(async (url: string, options?: RequestInit) => url === '/api/stock-analysis'
+    ? new Response('data: {"status":"error","message":"private provider error"}\n\n')
+    : fallback(url, options));
+  await act(async () => panel().props.onGenerate());
+  expect(panel().props.error).toContain('Analiz tamamlanamadı');
+  expect(panel().props.error).not.toContain('private');
 });

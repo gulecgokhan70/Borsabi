@@ -9,6 +9,14 @@ import { chatStreamResponse } from '../lib/ai-chat-stream';
 let renderer: ReactTestRenderer;
 const text = (node: ReactTestInstance | string): string => typeof node === 'string' ? node : node.children.map(text).join('');
 afterEach(async () => { await act(async () => renderer?.unmount()); vi.unstubAllGlobals(); });
+it('prefills the selected stock for deeper analysis without sending a paid request automatically', async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal('fetch', fetcher);
+  vi.stubGlobal('window', { location: { search: '?symbol=ONRYT.IS' } });
+  await act(async () => { renderer = create(createElement(AiAssistantClient)); });
+  expect(renderer.root.findByType('input').props.value).toContain('ONRYT.IS analizini derinleştir');
+  expect(fetcher).not.toHaveBeenCalled();
+});
 it('submits a manually typed question and renders sources received in the answer stream', async () => {
   const fetcher = vi.fn().mockResolvedValue(chatStreamResponse(
     new Response('data: {"choices":[{"delta":{"content":"Piyasa özeti"}}]}\n\ndata: [DONE]'),
