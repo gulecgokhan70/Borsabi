@@ -93,13 +93,17 @@ export function PortfolioClient() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Portföy Yönetimi</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Portföy</h1>
           <p className="text-sm text-muted-foreground">Pozisyonlarınızı yönetin ve performansınızı takip edin</p>
         </div>
         <button onClick={() => fetchPortfolio()} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      <nav aria-label="Portföy araçları" className="flex flex-wrap gap-2">
+        {[['/watchlist', 'İzleme Listesi'], ['/trade-log', 'İşlem Günlüğü'], ['/alerts', 'Alarmlar ve Radar']].map(([href, label]) => <Link key={href} href={href} className="inline-flex items-center min-h-[44px] px-3 glass-inner rounded-lg text-xs text-muted-foreground hover:text-foreground">{label}</Link>)}
+      </nav>
 
       {positions.some((p: any) => p.priceStale) && <p className="text-xs text-muted-foreground">Bazı varlıklarda son bilinen fiyat kullanılıyor.</p>}
       {positions.find((p: any) => p.fxAsOf) && <p className="text-xs text-muted-foreground">Kripto TL değerlemesinde kullanılan kur zamanı: {new Date(positions.find((p: any) => p.fxAsOf).fxAsOf).toLocaleString('tr-TR')}</p>}

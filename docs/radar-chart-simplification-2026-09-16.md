@@ -12,7 +12,7 @@
 - Tek zaman düğmesi seçilir. Eski isteğin geç gelen cevabı yeni seçimi ezmez. Son fiyat güncel zaman etiketiyle yapay mum olarak eklenmez; fiyat başlıkta kalır. Grafik ve çizim araçları aynı fiyat ölçeğini kullanır; aralık değişince eski çizimler temizlenir. Yatay gövdeli mumların fitilleri de fiyat ölçeğinden hesaplanır.
 - AI hata cevapları analiz gibi raporlanmaz veya sonraki isteğe asistan cevabı olarak eklenmez. Ağ/proxy hatalarında yeniden deneme bulunur. Boş, bozuk ve yarım kalan yanıtlar başarı sayılmaz. Sunucudaki gerçek sağlayıcı hatasının nedeni henüz doğrulanmadı.
 
-## Kullanıcıya sunulacak menü önerisi — henüz uygulanmadı
+## Kullanıcının onayladığı menü düzeni — uygulandı
 
 | Yer | Öneri |
 |---|---|
@@ -22,10 +22,12 @@
 | Gelişmiş araçlar | Backtest · Tarama · Strateji oluşturucu · Risk merkezi · Günlük/salınım araçları · Akşam analizi |
 | Ana menüden çıkarılacak bağlantılar | Sosyal · Sıralama · Rozetler · Aracı kurum karşılaştırması; özellikler silinmeden Diğer altında erişilebilir |
 
-Bu menü değişiklikleri kullanıcı onayından sonra uygulanacak. Bu pakette gezinme bağlantıları kaldırılmadı; kullanıcı talebindeki dashboard radar kartı kaldırıldı.
+Kullanıcı onayıyla beş eşit ana sekme uygulandı. Gelişmiş ve Diğer bölümleri başlangıçta kapalı; içlerindeki bir sayfaya gidildiğinde ilgili bölüm açılır. Portföy araçlarına portföy ekranından, Keşfet sayfasına Öğren ekranından da erişilir. Mevcut sayfa yolları korunur. Hisse ekranında alt sekmeler yerine mevcut Al/Sat çubuğu kalır.
 
 ## Doğrulama ve yayın
 
-Yerelde 57 test dosyasındaki 238 test geçti; TypeScript ve ESLint hatasız tamamlandı. Üretim derlemesi başarılı oldu. Radarın veritabanında eşzamanlı çalışma, geri alma ve tekrar önleme testi CI PostgreSQL paketine eklendi. Yerelde PostgreSQL bulunmadığından bu entegrasyon testinin çalıştığı ayrıca CI üzerinden doğrulanmalıdır. Gerçek telefon, canlı haber sağlayıcıları ve canlı AI hizmeti testi yapılmadı.
+Yerelde 58 test dosyasındaki 241 test geçti; TypeScript ve ESLint hatasız tamamlandı. Üretim derlemesi başarılı oldu. Radarın veritabanında eşzamanlı çalışma, geri alma ve tekrar önleme testi CI PostgreSQL paketine eklendi. Yerelde PostgreSQL bulunmadığından bu entegrasyon testinin çalıştığı ayrıca CI üzerinden doğrulanmalıdır. Gerçek telefon, canlı haber sağlayıcıları ve canlı AI hizmeti testi yapılmadı.
 
 Veritabanı şeması değişmedi. Mevcut `ScanCache` ve `AppNotification` tabloları kullanılır. `borsabi-automation` çalışanının da yeni sürümle başlaması gerekir; mevcut `scripts/deploy-platform.sh` bunu yapar. Yalnızca web servisini yeniden başlatmak radar çalışanını güncellemez.
+
+GitHub aktarımı için kullanıcı onayı alındı. Ancak bağlı GitHub uygulaması `Resource not accessible by integration` (403) döndürdüğünden uzak dal güncellenemedi. Yerel kod ve testler hazır; canlıya yayın yapılmadı.
