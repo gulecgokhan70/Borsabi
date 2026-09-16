@@ -1,4 +1,5 @@
 'use client';
+import { EventRadar } from '@/components/event-radar';
 import { ResumeCard } from '@/components/resume-card';
 import { FirstSteps } from '@/components/first-steps';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -212,6 +213,7 @@ export function DashboardClient() {
       <p className="text-xs text-muted-foreground">Son kontrol zamanı fiyatın gerçekleştiği zaman değildir. Fiyat zamanı ve kaynak bilgisi varlık detayında gösterilir.</p>
       {portfolio?.accountId && <ResumeCard key={`resume:${portfolio.accountId}`} accountId={portfolio.accountId} />}
       {portfolio?.accountId && <FirstSteps key={portfolio.accountId} accountId={portfolio.accountId} buyCount={portfolio.buyCount ?? 0} />}
+      <EventRadar />
       {bistOpen === false && !loading && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
           <span className="text-[#F59E0B] text-lg">🔔</span>
