@@ -1,4 +1,5 @@
 'use client';
+import { ResumeCard } from '@/components/resume-card';
 import { FirstSteps } from '@/components/first-steps';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisiblePoll } from '@/hooks/use-visible-poll';
@@ -209,6 +210,7 @@ export function DashboardClient() {
       </div>
 
       <p className="text-xs text-muted-foreground">Son kontrol zamanı fiyatın gerçekleştiği zaman değildir. Fiyat zamanı ve kaynak bilgisi varlık detayında gösterilir.</p>
+      {portfolio?.accountId && <ResumeCard key={`resume:${portfolio.accountId}`} accountId={portfolio.accountId} />}
       {portfolio?.accountId && <FirstSteps key={portfolio.accountId} accountId={portfolio.accountId} buyCount={portfolio.buyCount ?? 0} />}
       {bistOpen === false && !loading && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">

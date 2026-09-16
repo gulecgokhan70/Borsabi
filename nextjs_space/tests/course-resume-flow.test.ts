@@ -1,0 +1,34 @@
+import { createElement, type ReactNode } from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+let account = 'owner';
+vi.mock('next-auth/react', () => ({ useSession: () => ({ data: { user: { id: account } } }) }));
+vi.mock('next/link', () => ({ default: (props: any) => createElement('a', props) }));
+vi.mock('framer-motion', () => ({ motion: new Proxy({}, { get: (_, tag) => tag }), AnimatePresence: ({ children }: { children: ReactNode }) => children }));
+import { CourseDetailClient } from '../app/academy/[courseId]/course-detail-client';
+import { ResumeCard } from '../components/resume-card';
+import { courseProgressKey, readResume, updateResume } from '../lib/resume';
+let renderer: ReactTestRenderer;
+const values = new Map<string, string>();
+beforeEach(() => { account = 'owner'; values.clear(); vi.stubGlobal('window', new EventTarget()); vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) }); });
+afterEach(async () => { await act(async () => renderer?.unmount()); vi.unstubAllGlobals(); });
+it('restores a saved lesson without overwriting it and resets safely on account change', async () => {
+  const key = courseProgressKey('owner', 'borsa-temelleri');
+  values.set(key, JSON.stringify({ active: 2, completed: [0, 1] }));
+  await act(async () => { renderer = create(createElement(CourseDetailClient, { courseId: 'borsa-temelleri' })); });
+  expect(JSON.parse(values.get(key)!)).toEqual({ active: 2, completed: [0, 1] });
+  expect(readResume('owner').course?.href).toBe('/academy/borsa-temelleri');
+  account = 'other';
+  await act(async () => renderer.update(createElement(CourseDetailClient, { courseId: 'borsa-temelleri' })));
+  expect(JSON.parse(values.get(courseProgressKey('other', 'borsa-temelleri'))!)).toEqual({ active: 0, completed: [] });
+  expect(JSON.parse(values.get(key)!)).toEqual({ active: 2, completed: [0, 1] });
+});
+it('hides deleted courses and supports hiding and restoring the history card', async () => {
+  updateResume('owner', { stock: { href: '/stock/THYAO.IS', title: 'THYAO', at: 1000 }, course: { href: '/academy/deleted-course', title: 'Deleted', at: 1000 } });
+  await act(async () => { renderer = create(createElement(ResumeCard, { accountId: 'owner' })); });
+  expect(renderer.root.findAllByType('a').map(a => a.props.href)).toEqual(['/stock/THYAO.IS']);
+  await act(async () => renderer.root.findByType('button').props.onClick());
+  expect(renderer.root.findAllByType('a')).toHaveLength(0);
+  await act(async () => renderer.root.findByType('button').props.onClick());
+  expect(renderer.root.findAllByType('a')).toHaveLength(1);
+});

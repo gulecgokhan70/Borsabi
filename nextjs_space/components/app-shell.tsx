@@ -1,4 +1,5 @@
 'use client';
+import { updateResume } from '@/lib/resume';
 import { updateFirstSteps, validJourneySymbol } from '@/lib/first-steps';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
@@ -236,7 +237,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const encoded = pathname?.startsWith('/stock/') ? pathname.slice('/stock/'.length) : '';
     let symbol = '';
     try { symbol = decodeURIComponent(encoded); } catch { return; }
-    if (accountId && validJourneySymbol(symbol)) updateFirstSteps(accountId, { symbol });
+    if (accountId && validJourneySymbol(symbol)) {
+      updateFirstSteps(accountId, { symbol });
+      updateResume(accountId, { stock: { href: `/stock/${encodeURIComponent(symbol)}`, title: `Son varlık: ${symbol.replace('.IS', '')}`, at: Date.now() } });
+    }
   }, [pathname, accountId]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -289,15 +293,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Nav */}
           <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-none">
-            {NAV_ITEMS.map((item: any) => {
+            {[
+              { title: 'Temel işlemler', paths: ['/dashboard', '/piyasalar', '/portfolio', '/watchlist', '/trade-log', '/ai-assistant', '/alerts'] },
+              { title: 'Öğren ve keşfet', paths: ['/academy', '/kesfet', '/achievements', '/social', '/leaderboard', '/brokers'] },
+              { title: 'Gelişmiş araçlar', paths: ['/backtest', '/screening', '/algo-scan', '/strategy-builder', '/risk-center', '/day-trading', '/swing-trading', '/aksam-analizi'] },
+              { title: 'Hesap', paths: ['/profile'] },
+            ].map(group => <details key={group.title} open={group.title !== 'Gelişmiş araçlar' || group.paths.some(path => pathname === path || pathname?.startsWith(path + '/'))} className="mb-2"><summary className="min-h-[44px] px-3 py-3 text-xs font-semibold text-muted-foreground cursor-pointer">{group.title}</summary>
+            {NAV_ITEMS.filter(item => group.paths.includes(item.href)).map((item: any) => {
               const isActive = pathname === item?.href || pathname?.startsWith?.(item?.href + '/');
               const Icon = item?.icon;
               return (
                 <Link
                   key={item?.href}
                   href={item?.href ?? '#'}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-3 min-h-[44px] px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-[#3B82F6]/10 text-[#3B82F6] font-semibold'
                       : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
@@ -308,6 +319,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            </details>)}
           </nav>
 
           {/* Theme Toggle + User + Logout */}
