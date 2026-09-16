@@ -1,3 +1,5 @@
+import type { NewsSourceStatus } from './news-feed';
+
 /** Deterministic headline scenarios, not a calibrated return/probability model. */
 export type RadarNews = { title: string; url: string; date: string; dateVerified?: boolean };
 type Direction = 'olumlu' | 'olumsuz' | 'belirsiz';
@@ -8,14 +10,16 @@ export type RadarEvent = {
   sourceType: 'Birincil kaynak' | 'Haber kaynağı'; category: string;
   channels: Channel[]; symbols: string[];
 };
+export type RadarHeadline = { title: string; sourceUrl: string; sourceHost: string; publishedAt: string; older: boolean };
 export type RadarReport = {
   version: 'headline-scenarios-v1'; generatedAt: string; status: 'scenarios' | 'insufficient';
+  headlines: RadarHeadline[]; sources?: NewsSourceStatus[];
   events: RadarEvent[]; omitted: number; conflict: boolean; limitations: string[];
 };
 const normalize = (s: string) => s.toLocaleLowerCase('tr-TR').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ı/g, 'i');
 const SOURCES: Record<string, 'Birincil kaynak' | 'Haber kaynağı'> = {
   'kap.org.tr': 'Birincil kaynak', 'tcmb.gov.tr': 'Birincil kaynak', 'tuik.gov.tr': 'Birincil kaynak',
-  'bloomberght.com': 'Haber kaynağı', 'dunya.com': 'Haber kaynağı',
+  'bloomberght.com': 'Haber kaynağı', 'dunya.com': 'Haber kaynağı', 'trthaber.com': 'Haber kaynağı',
 };
 const COMPANY_NAMES: Record<string, string[]> = {
   THYAO: ['thy', 'turk hava yollari'], PGSUS: ['pegasus'], TUPRS: ['tupras'],
@@ -97,11 +101,26 @@ export function buildEventRadar(input: RadarNews[], now = Date.now()): RadarRepo
     const key = `${c.sector}:${e.symbols.join(',')}`;
     const current = signs.get(key) ?? new Set<Direction>(); current.add(c.direction); signs.set(key, current);
   }
-  return { version: 'headline-scenarios-v1', generatedAt: new Date(now).toISOString(),
+  // Keep readable news even when a title cannot safely produce an impact scenario.
+  const headlineKeys = new Set<string>();
+  const eventUrls = new Set(events.map(e => e.sourceUrl.split(/[?#]/)[0]));
+  const headlines: RadarHeadline[] = [];
+  for (const item of news) {
+    const published = Date.parse(item.date), origin = source(item.url);
+    if (!origin || item.dateVerified === false || !Number.isFinite(published) || published > now || now - published > 7 * 86400_000) continue;
+    const key = normalize(item.title).replace(/\s+/g, ' ').trim();
+    const url = origin.url.split(/[?#]/)[0];
+    if (!key || headlineKeys.has(key) || headlineKeys.has(url) || eventUrls.has(url)) continue;
+    headlineKeys.add(key); headlineKeys.add(url);
+    headlines.push({ title: item.title.slice(0, 500), sourceUrl: origin.url, sourceHost: origin.host,
+      publishedAt: new Date(published).toISOString(), older: now - published > 48 * 3600_000 });
+    if (headlines.length === 12) break;
+  }
+  return { headlines, version: 'headline-scenarios-v1', generatedAt: new Date(now).toISOString(),
     status: events.length ? 'scenarios' : 'insufficient', events, omitted: input.length - events.length,
     conflict: [...signs.values()].some(s => s.has('olumlu') && s.has('olumsuz')),
     limitations: ['Başlık temelli olası etki analizi; fiyat hedefi, getiri tahmini veya al/sat sinyali değildir.',
       'Tahmin başarısı ölçülmedi; olasılık veya güven yüzdesi hesaplanmıyor.',
-      'Son 48 saat ve sınırlı haber kaynakları taranır. Kaynak türü, içeriğin doğrulandığı anlamına gelmez.',
+      'Etki senaryoları son 48 saatten, haber listesi son 7 günden seçilir. Kaynak türü, içeriğin doğrulandığı anlamına gelmez.',
       'Beklenti-gerçekleşme farkı, piyasa tepkisi ve bilanço büyüklükleri henüz sayısal olarak bağlı değil.'] };
 }

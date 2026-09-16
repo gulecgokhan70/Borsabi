@@ -52,3 +52,15 @@ it('does not equate an empty feed with a neutral or low-risk market', () => {
   expect(buildEventRadar([], now)).toMatchObject({ status: 'insufficient', events: [], conflict: false });
   expect(buildEventRadar([], now)).not.toHaveProperty('riskLevel');
 });
+it('shows unmatched dated headlines without inventing a scenario; labels older news', () => {
+  const report = buildEventRadar([
+    news('Almanya yeni ekonomik önlem paketi hazırlığında'),
+    news('İhracat verileri yayımlandı', { url: 'https://www.trthaber.com/haber/ekonomi/a.html', date: '2026-09-13T10:00:00Z' }),
+    news('Tarihsiz', { dateVerified: false }),
+    news('Çok eski', { url: 'https://dunya.com/old', date: '2026-09-01T10:00:00Z' }),
+    news('Sahte kaynak', { url: 'https://evil.test/a' }),
+  ], now);
+  expect(report.events).toEqual([]);
+  expect(report.headlines).toHaveLength(2);
+  expect(report.headlines.map(n => n.older)).toEqual([false, true]);
+});

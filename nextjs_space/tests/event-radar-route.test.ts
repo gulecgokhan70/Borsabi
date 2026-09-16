@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
 vi.mock('../lib/auth', () => ({ authOptions: {} }));
-vi.mock('../lib/news-feed', () => ({ getAllNews: vi.fn() }));
+vi.mock('../lib/news-feed', () => ({ getAllNews: vi.fn(), newsSourceStatus: () => [] }));
 vi.mock('../lib/request-limit', () => ({ takeRequestSlot: vi.fn() }));
 import { getServerSession } from 'next-auth';
 import { getAllNews } from '../lib/news-feed';

@@ -1,8 +1,9 @@
 'use client';
+import dynamic from 'next/dynamic';
+import { useDashboardData } from '@/hooks/use-dashboard-data';
 import { ResumeCard } from '@/components/resume-card';
 import { FirstSteps } from '@/components/first-steps';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useVisiblePoll } from '@/hooks/use-visible-poll';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,9 +13,9 @@ import {
   Newspaper, AlertTriangle, ChevronRight, Moon, Sun as SunIcon, Shield, Flame,
   Download, X, Smartphone
 } from 'lucide-react';
-import { BIST_INDICES, BIST_TOP_STOCKS, CRYPTO_ASSETS, formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
-import { PriceChart, MiniSparkline } from '@/components/price-chart';
-import { TradeModal } from '@/components/trade-modal';
+import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
+const PriceChart = dynamic(() => import('@/components/price-chart').then(m => m.PriceChart), { ssr: false, loading: () => <div className="h-32" /> });
+const TradeModal = dynamic(() => import('@/components/trade-modal').then(m => m.TradeModal), { ssr: false });
 import { useHaptic } from '@/hooks/use-haptic';
 import { Onboarding } from '@/components/onboarding';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
@@ -34,22 +35,16 @@ export function DashboardClient() {
   const router = useRouter();
   const haptic = useHaptic();
   const { data: session } = useSession() || {};
-  const [indices, setIndices] = useState<any[]>([]);
-  const [stocks, setStocks] = useState<any[]>([]);
-  const [cryptos, setCryptos] = useState<any[]>([]);
-  const [portfolio, setPortfolio] = useState<any>(null);
-  const [bistOpen, setBistOpen] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { indices, stocks, cryptos, portfolio, bistOpen, pending, loading, lastUpdate, refreshError, fetchData } = useDashboardData();
   const [tradeModal, setTradeModal] = useState<any>(null);
   const [stockSort, setStockSort] = useState<'alpha' | 'change' | 'price'>('alpha');
 
-  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [, setTick] = useState(0);
   const [marketAlerts, setMarketAlerts] = useState<any[]>([]);
-  const [alertsLoading, setAlertsLoading] = useState(true);
+  const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsExpanded, setAlertsExpanded] = useState(false);
   const [newsImpact, setNewsImpact] = useState<any>(null);
-  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   // PWA Install prompt
   const deferredPromptRef = useRef<any>(null);
@@ -97,49 +92,19 @@ export function DashboardClient() {
     localStorage.setItem('pwa-banner-dismissed', 'true');
   };
 
-  const requestVersion = useRef(0);
-  const [refreshError, setRefreshError] = useState('');
-  const fetchData = useCallback(async (signal?: AbortSignal) => {
-    const version = ++requestVersion.current;
-    const get = async (url: string) => { const response = await fetch(url, { signal }); if (!response.ok) throw new Error('Veri alınamadı.'); return response.json(); };
-    setLoading(true);
-    try {
-      const [indRes, stockRes, cryptoRes, portRes] = await Promise.allSettled([
-        get(`/api/market?symbols=${BIST_INDICES.map((i: any) => i?.symbol).join(',')}`),
-        get(`/api/market?symbols=${BIST_TOP_STOCKS.slice(0, 20).map((s: any) => s?.symbol).join(',')}`),
-        get(`/api/market?symbols=${CRYPTO_ASSETS.map((c: any) => c?.symbol).join(',')}`),
-        get('/api/portfolio'),
-      ]);
-      if (signal?.aborted || version !== requestVersion.current) return;
-      if (indRes?.status === 'fulfilled') {
-        setIndices(indRes?.value?.data ?? []);
-        if (indRes?.value?.marketOpen !== undefined) setBistOpen(indRes.value.marketOpen);
-      }
-      if (stockRes?.status === 'fulfilled') setStocks(stockRes?.value?.data ?? []);
-      if (cryptoRes?.status === 'fulfilled') setCryptos(cryptoRes?.value?.data ?? []);
-      if (portRes?.status === 'fulfilled') setPortfolio(portRes?.value ?? null);
-      const complete = [indRes, stockRes, cryptoRes, portRes].every(result => result.status === 'fulfilled');
-      if (complete) { setLastUpdate(Date.now()); setRefreshError(''); }
-      else setRefreshError('Bazı veriler yenilenemedi. Önceki değerler gösteriliyor; bağlantınızı kontrol edin.');
-    } catch (e: any) {
-      console.error('Dashboard fetch error:', e);
-    } finally {
-      if (version === requestVersion.current) setLoading(false);
-    }
-  }, []);
-
-  useVisiblePoll(fetchData, 30_000);
-
-  useVisiblePoll(async signal => {
+  useEffect(() => {
+    if (!alertsExpanded) return;
+    const controller = new AbortController();
+    let active = true;
+    const timer = setTimeout(() => controller.abort(), 20_000);
     setAlertsLoading(true); setNewsLoading(true);
-    try {
-      const get = async (url: string) => { const response = await fetch(url, { signal }); if (!response.ok) throw new Error(); return response.json(); };
-      const [alertRes, newsRes] = await Promise.allSettled([get('/api/market-alerts'), get('/api/news-analysis')]);
-      if (signal.aborted) return;
-      if (alertRes.status === 'fulfilled') setMarketAlerts(alertRes.value?.alerts || []);
-      if (newsRes.status === 'fulfilled' && newsRes.value?.impact) setNewsImpact(newsRes.value.impact);
-    } finally { if (!signal.aborted) { setAlertsLoading(false); setNewsLoading(false); } }
-  }, 15 * 60_000);
+    const get = async (url: string) => { const r = await fetch(url, { signal: controller.signal }); if (!r.ok) throw new Error(); return r.json(); };
+    void Promise.allSettled([
+      get('/api/market-alerts').then(data => { if (!controller.signal.aborted) setMarketAlerts(data.alerts ?? []); }).finally(() => { if (active) setAlertsLoading(false); }),
+      get('/api/news-analysis').then(data => { if (!controller.signal.aborted && data.impact) setNewsImpact(data.impact); }).finally(() => { if (active) setNewsLoading(false); }),
+    ]).finally(() => clearTimeout(timer));
+    return () => { active = false; controller.abort(); clearTimeout(timer); };
+  }, [alertsExpanded]);
 
   // Tick every 30s to update relative time display
   useEffect(() => {
@@ -199,7 +164,7 @@ export function DashboardClient() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
             <span className={`w-2 h-2 rounded-full ${lastUpdate && (Date.now() - lastUpdate) > 120000 ? 'bg-[#F59E0B]' : 'bg-[#22C55E] animate-pulse'}`} />
-            <span>{lastUpdate ? `Son kontrol: ${formatTimeAgo(lastUpdate)}` : 'Yükleniyor...'}</span>
+            <span>{lastUpdate ? `Son veri kontrolü: ${formatTimeAgo(lastUpdate)}` : loading ? 'Yükleniyor…' : 'Veri alınamadı'}</span>
           </div>
           <button onClick={() => fetchData()} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -219,6 +184,7 @@ export function DashboardClient() {
 
       {refreshError && <p role="status" className="text-sm text-amber-500">{refreshError}</p>}
       {portfolio?.error ? <div role="alert" className="glass-card p-4 text-sm text-[#F59E0B]">{portfolio.error}</div> : <>
+      {!portfolio && <p role="status" className="text-xs text-muted-foreground">{pending.portfolio ? 'Portföy yükleniyor…' : 'Portföy alınamadı. Yenile düğmesiyle tekrar deneyebilirsin.'}</p>}
       {/* Portfolio summary cards */}
       <motion.div {...fadeIn} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
@@ -226,14 +192,14 @@ export function DashboardClient() {
             <Wallet className="w-4 h-4 text-[#3B82F6]" />
             <span className="text-xs text-muted-foreground">Bakiye</span>
           </div>
-          <p className="text-lg font-bold font-mono text-foreground">{formatCurrency(portfolio?.balance)}</p>
+          <p className="text-lg font-bold font-mono text-foreground">{portfolio ? formatCurrency(portfolio.balance) : '—'}</p>
         </div>
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
             <PieChart className="w-4 h-4 text-[#8B5CF6]" />
             <span className="text-xs text-muted-foreground">Yatırım</span>
           </div>
-          <p className="text-lg font-bold font-mono text-foreground">{formatCurrency(portfolio?.totalInvested)}</p>
+          <p className="text-lg font-bold font-mono text-foreground">{portfolio ? formatCurrency(portfolio.totalInvested) : '—'}</p>
         </div>
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
@@ -241,7 +207,7 @@ export function DashboardClient() {
             <span className="text-xs text-muted-foreground">Toplam K/Z</span>
           </div>
           <p className={`text-lg font-bold font-mono ${((portfolio?.unrealizedPnl ?? 0) + (portfolio?.realizedPnl ?? 0)) >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
-            {formatCurrency((portfolio?.unrealizedPnl ?? 0) + (portfolio?.realizedPnl ?? 0))}
+            {portfolio ? formatCurrency((portfolio.unrealizedPnl ?? 0) + (portfolio.realizedPnl ?? 0)) : '—'}
           </p>
         </div>
         <div className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
@@ -249,7 +215,7 @@ export function DashboardClient() {
             <Zap className="w-4 h-4 text-[#F59E0B]" />
             <span className="text-xs text-muted-foreground">Kazanç Oranı</span>
           </div>
-          <p className="text-lg font-bold font-mono text-foreground">{formatNumber(portfolio?.winRate, 1)}%</p>
+          <p className="text-lg font-bold font-mono text-foreground">{portfolio ? `${formatNumber(portfolio.winRate, 1)}%` : '—'}</p>
           {(portfolio?.totalTrades ?? 0) > 0 && (
             <p className="text-[10px] text-muted-foreground mt-1">
               {portfolio.totalTrades} işlemden {Math.round((portfolio.winRate / 100) * portfolio.totalTrades)} kârlı
@@ -488,7 +454,7 @@ export function DashboardClient() {
             </div>
           </div>
           <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
-            {loading ? (
+            {pending.stocks && !stocks.length ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#3B82F6]" /></div>
             ) : (
               [...(stocks ?? [])].sort((a: any, b: any) => {
@@ -535,7 +501,7 @@ export function DashboardClient() {
             <h2 className="text-sm font-semibold text-foreground">Kripto Piyasası</h2>
           </div>
           <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
-            {loading ? (
+            {pending.cryptos && !cryptos.length ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#F59E0B]" /></div>
             ) : (
               (cryptos ?? []).filter((c: any) => (c?.price ?? 0) > 0).slice(0, 8).map((c: any) => (

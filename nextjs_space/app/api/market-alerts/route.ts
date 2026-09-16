@@ -1,3 +1,4 @@
+import { getAllNews } from '@/lib/news-feed';
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
@@ -126,18 +127,7 @@ function newsToAlert(item: NewsItem, idx: number): MarketAlert {
 
 export async function GET(req: Request) {
   try {
-    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
-    // Fetch news from our own news API
-    const newsRes = await fetch(`${baseUrl}/api/news?limit=30`, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!newsRes.ok) {
-      return NextResponse.json({ alerts: [] });
-    }
-
-    const newsData = await newsRes.json();
-    const newsItems: NewsItem[] = newsData?.news ?? [];
+    const newsItems = (await getAllNews()).filter(n => n.dateVerified !== false && Date.parse(n.date) <= Date.now() && Date.now() - Date.parse(n.date) <= 48 * 3600_000);
 
     // Filter: importance >= 3 for alerts (meaningful news only)
     const significant = newsItems.filter(n => (n.importance ?? 0) >= 3);

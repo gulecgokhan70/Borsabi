@@ -76,11 +76,13 @@ function calculateImportance(item: NewsItem): number {
 }
 
 /* ── In-memory cache ── */
-type FeedState = { cache: { data: NewsItem[]; ts: number } | null; pending: Promise<NewsItem[]> | null };
+export type NewsSourceStatus = { source: string; state: 'ok' | 'empty' | 'error'; count: number; checkedAt: string; latestPublishedAt: string | null };
+type FeedState = { cache: { data: NewsItem[]; ts: number } | null; pending: Promise<NewsItem[]> | null; sources: NewsSourceStatus[] };
 const shared = globalThis as typeof globalThis & { borsabiNewsFeed?: FeedState };
-const feed = shared.borsabiNewsFeed ??= { cache: null, pending: null };
+const feed = shared.borsabiNewsFeed ??= { cache: null, pending: null, sources: [] };
 export function newsUpdatedAt() { return feed.cache ? new Date(feed.cache.ts).toISOString() : new Date().toISOString(); }
-const NEWS_TTL = 10 * 60 * 1000; // 10 min
+export function newsSourceStatus() { return feed.sources ?? []; }
+const NEWS_TTL = 10 * 60 * 1000;
 
 /* ── HTML entity decoder ── */
 function decodeHtmlEntities(str: string): string {
@@ -127,11 +129,11 @@ function parseRssItems(xml: string): { title: string; link: string; description:
 }
 
 /* ── Fetch RSS feed safely ── */
-async function fetchRss(url: string, timeout = 5000): Promise<string> {
+async function fetchRss(url: string, timeout = 12000): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.text();
   } finally {
@@ -139,124 +141,59 @@ async function fetchRss(url: string, timeout = 5000): Promise<string> {
   }
 }
 
-/* ── KAP bildirim sayfasından çek ── */
-async function fetchKapNews(): Promise<NewsItem[]> {
-  try {
-    const xml = await fetchRss('https://www.kap.org.tr/tr/rss/bildiriler');
-    const items = parseRssItems(xml).slice(0, 15);
-    return items.map(i => ({
-      title: i.title,
-      summary: i.description || i.title,
-      source: 'KAP',
-      url: i.link || 'https://www.kap.org.tr',
-      date: Number.isFinite(Date.parse(i.pubDate)) ? new Date(i.pubDate).toISOString() : new Date().toISOString(),
-      dateVerified: Number.isFinite(Date.parse(i.pubDate)),
-      category: 'kap' as const,
-      sentiment: 'neutral' as const,
-    }));
-  } catch (e) {
-    // KAP RSS may be unavailable - silent fallback
-    return [];
-  }
-}
+const PROVIDERS = [
+  { name: 'Bloomberg HT', url: 'https://www.bloomberght.com/rss', category: 'genel' },
+  { name: 'Dünya', url: 'https://www.dunya.com/rss', category: 'genel' },
+  { name: 'KAP', url: 'https://www.kap.org.tr/tr/rss/bildiriler', category: 'kap' },
+  { name: 'TRT Haber', url: 'https://www.trthaber.com/ekonomi_articles.rss', category: 'genel' },
+] as const;
 
-/* ── Bloomberg HT haberler ── */
-async function fetchBloombergHT(): Promise<NewsItem[]> {
-  try {
-    const xml = await fetchRss('https://www.bloomberght.com/rss');
-    const items = parseRssItems(xml).slice(0, 12);
-    return items.map(i => {
-      const titleLower = i.title.toLowerCase();
-      let category: NewsItem['category'] = 'genel';
-      let sentiment: NewsItem['sentiment'] = 'neutral';
-      if (titleLower.includes('bist') || titleLower.includes('borsa') || titleLower.includes('endeks')) category = 'bist';
-      else if (titleLower.includes('bitcoin') || titleLower.includes('kripto') || titleLower.includes('ethereum')) category = 'kripto';
-      else if (titleLower.includes('dolar') || titleLower.includes('euro') || titleLower.includes('faiz') || titleLower.includes('enflasyon')) category = 'dunya';
-      if (titleLower.includes('yüksel') || titleLower.includes('artı') || titleLower.includes('rekor') || titleLower.includes('ralli')) sentiment = 'positive';
-      else if (titleLower.includes('düşü') || titleLower.includes('kayıp') || titleLower.includes('geril') || titleLower.includes('çök')) sentiment = 'negative';
-      return {
-        title: i.title,
-        summary: i.description || i.title,
-        source: 'Bloomberg HT',
-        url: i.link || 'https://www.bloomberght.com',
-        date: Number.isFinite(Date.parse(i.pubDate)) ? new Date(i.pubDate).toISOString() : new Date().toISOString(),
-      dateVerified: Number.isFinite(Date.parse(i.pubDate)),
-        category,
-        sentiment,
-      };
-    });
-  } catch (e) {
-    console.error('BloombergHT RSS error:', e);
-    return [];
-  }
-}
-
-/* ── Dünya gazetesi ── */
-async function fetchDunya(): Promise<NewsItem[]> {
-  try {
-    const xml = await fetchRss('https://www.dunya.com/rss');
-    const items = parseRssItems(xml).slice(0, 8);
-    return items.map(i => {
-      const titleLower = i.title.toLowerCase();
-      let category: NewsItem['category'] = 'genel';
-      if (titleLower.includes('bist') || titleLower.includes('borsa')) category = 'bist';
-      else if (titleLower.includes('bitcoin') || titleLower.includes('kripto')) category = 'kripto';
-      return {
-        title: i.title,
-        summary: i.description || i.title,
-        source: 'Dünya',
-        url: i.link || 'https://www.dunya.com',
-        date: Number.isFinite(Date.parse(i.pubDate)) ? new Date(i.pubDate).toISOString() : new Date().toISOString(),
-      dateVerified: Number.isFinite(Date.parse(i.pubDate)),
-        category,
-        sentiment: 'neutral' as const,
-      };
-    });
-  } catch (e) {
-    console.error('Dunya RSS error:', e);
-    return [];
-  }
-}
-
-/* ── Tüm haberleri birleştir ── */
 export async function getAllNews(): Promise<NewsItem[]> {
-  if (feed.cache && Date.now() - feed.cache.ts < NEWS_TTL) return feed.cache.data;
+  // A failed/empty source gets a short retry window, not a ten-minute empty cache.
+  const ttl = feed.sources?.every(s => s.state === 'ok') ? NEWS_TTL : 60_000;
+  if (feed.cache && Date.now() - feed.cache.ts < ttl) return feed.cache.data;
   if (feed.pending) return feed.pending;
   feed.pending = fetchAllNews().finally(() => { feed.pending = null; });
   return feed.pending;
 }
 async function fetchAllNews(): Promise<NewsItem[]> {
-
-  const [bloomberg, dunya, kap] = await Promise.allSettled([
-    fetchBloombergHT(),
-    fetchDunya(),
-    fetchKapNews(),
-  ]);
-
-  const all: NewsItem[] = [
-    ...(bloomberg.status === 'fulfilled' ? bloomberg.value : []),
-    ...(dunya.status === 'fulfilled' ? dunya.value : []),
-    ...(kap.status === 'fulfilled' ? kap.value : []),
-  ];
-
-  // Sort by date desc
-  all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Remove exact repeated titles; preserve similar headlines with different outcomes.
+  const results = await Promise.all(PROVIDERS.map(async provider => {
+    let state: NewsSourceStatus['state'] = 'ok';
+    let data: NewsItem[] = [];
+    try {
+      const items = parseRssItems(await fetchRss(provider.url)).slice(0, 60);
+      data = items.filter(i => i.title && i.link).map(i => {
+        const title = i.title.toLocaleLowerCase('tr-TR');
+        const category: NewsItem['category'] = provider.category === 'kap' ? 'kap'
+          : /bist|borsa|endeks/.test(title) ? 'bist'
+          : /bitcoin|kripto|ethereum/.test(title) ? 'kripto'
+          : /dolar|euro|faiz|enflasyon/.test(title) ? 'dunya' : 'genel';
+        return { title: i.title, summary: i.description || i.title, source: provider.name, url: i.link,
+          // Missing dates stay missing; retrieval time is not publication time.
+          date: Number.isFinite(Date.parse(i.pubDate)) ? new Date(i.pubDate).toISOString() : '',
+          dateVerified: Number.isFinite(Date.parse(i.pubDate)), category,
+          sentiment: provider.name === 'Bloomberg HT' && /yüksel|artı|rekor|ralli/.test(title) ? 'positive' as const
+            : provider.name === 'Bloomberg HT' && /düşü|kayıp|geril|çök/.test(title) ? 'negative' as const : 'neutral' as const };
+      });
+      if (!data.length) state = 'empty';
+    } catch { state = 'error'; }
+    const dates = data.filter(n => n.dateVerified).map(n => n.date).sort();
+    const status: NewsSourceStatus = { source: provider.name, state, count: data.length,
+      checkedAt: new Date().toISOString(), latestPublishedAt: dates.at(-1) ?? null };
+    // Preserve previously fetched articles on provider failure, without changing dates.
+    if (state !== 'ok') data = (feed.cache?.data ?? []).filter(n => n.source === provider.name);
+    return { data, status };
+  }));
+  feed.sources = results.map(r => r.status);
+  const all = results.flatMap(r => r.data).filter(n => !n.dateVerified || Date.now() - Date.parse(n.date) <= 7 * 86400_000);
+  all.sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
   const seen = new Set<string>();
   const deduped = all.filter(n => {
     const key = n.title.toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ').trim();
     if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    seen.add(key); return true;
   });
-
-  // Calculate importance scores
-  for (const item of deduped) {
-    item.importance = calculateImportance(item);
-  }
-
+  for (const item of deduped) item.importance = calculateImportance(item);
   feed.cache = { data: deduped, ts: Date.now() };
   return deduped;
 }
-

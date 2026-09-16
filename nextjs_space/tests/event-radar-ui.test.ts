@@ -26,3 +26,13 @@ it('presents the source, mechanism and counter-scenario together without trading
   expect(renderer!.root.findByType('a').props.href).toBe('https://dunya.com/haber');
   expect(renderer!.root.findAllByType('button')).toHaveLength(1);
 });
+it('renders real unmatched headlines and source failures instead of an empty radar', async () => {
+  const report = buildEventRadar([{ title: 'Yeni ekonomik önlem paketi', url: 'https://dunya.com/ekonomi/paket', date: '2026-09-13T10:00:00Z' }], Date.parse('2026-09-16T12:00:00Z'));
+  report.sources = [{ source: 'Dünya', state: 'error', count: 0, checkedAt: '2026-09-16T12:00:00Z', latestPublishedAt: null }];
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(report)));
+  await act(async () => { renderer = create(createElement(EventRadar)); });
+  expect(text(renderer!.root)).toContain('Yeni ekonomik önlem paketi');
+  expect(text(renderer!.root)).toContain('48 saatten eski');
+  expect(text(renderer!.root)).toContain('Kaynağa ulaşılamadı');
+  expect(renderer!.root.findByType('a').props.href).toBe('https://dunya.com/ekonomi/paket');
+});
