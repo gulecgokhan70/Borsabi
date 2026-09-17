@@ -16,7 +16,7 @@ beforeEach(() => {
 it('reads only the authenticated user events; polling no longer evaluates or writes orders', async () => {
   const r = await GET();
   expect(r.status).toBe(200);
-  expect(prisma.appNotification.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner' } }));
+  expect(prisma.appNotification.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner', NOT: { eventKey: { startsWith: 'radar:' } } } }));
   expect((await r.json()).automation.active).toBe(false);
 });
 it('requires a user session before exposing notifications', async () => {

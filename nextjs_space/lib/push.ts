@@ -16,10 +16,10 @@ export function pushConfigured() { return !!(process.env.WEB_PUSH_PUBLIC_KEY && 
 export async function deliverNotifications(db: PrismaClient) {
   if (!pushConfigured()) return;
   const started = Date.now();
-  const queue = await db.appNotification.findMany({ where: { pushedAt: null, attempts: { lt: 5 } }, orderBy: { createdAt: 'asc' }, take: 30 });
+  const queue = await db.appNotification.findMany({ where: { NOT: { eventKey: { startsWith: 'radar:' } }, pushedAt: null, attempts: { lt: 5 } }, orderBy: { createdAt: 'asc' }, take: 30 });
   for (const event of queue) {
     if (Date.now() - started > 20_000) break;
-    if (event.eventKey.startsWith('radar:') && await db.scanCache.findUnique({ where: { id: `event-radar-disabled:${event.userId}` } })) {
+    if (event.eventKey.startsWith('radar:')) {
       await db.appNotification.update({ where: { id: event.id }, data: { pushedAt: new Date() } });
       continue;
     }

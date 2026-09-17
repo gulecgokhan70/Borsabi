@@ -13,7 +13,7 @@ const GROUPS = [
   { title: 'Portföy araçları', items: [
     { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
     { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
-    { href: '/alerts', label: 'Alarmlar ve Radar', icon: Bell },
+    { href: '/alerts', label: 'Fiyat Alarmları', icon: Bell },
   ] },
   { title: 'Öğren ve keşfet', items: [{ href: '/kesfet', label: 'Keşfet', icon: Compass }] },
   { title: 'Gelişmiş', items: [

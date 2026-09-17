@@ -9,6 +9,7 @@ import { Wallet, TrendingUp, TrendingDown, DollarSign, RefreshCw, Loader2, BarCh
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPie, Pie, Cell, Legend, Line, ComposedChart } from 'recharts';
 import { formatCurrency, formatPercent, formatNumber } from '@/lib/constants';
 import { commissionLabel } from '@/lib/commission';
+import { PositionOrderEditor } from '@/components/position-order-editor';
 import { AutoExitControl } from '@/components/auto-exit-control';
 import { NotificationSettings } from '@/components/notification-settings';
 import { TradeModal } from '@/components/trade-modal';
@@ -102,7 +103,7 @@ export function PortfolioClient() {
       </div>
 
       <nav aria-label="Portföy araçları" className="flex flex-wrap gap-2">
-        {[['/watchlist', 'İzleme Listesi'], ['/trade-log', 'İşlem Günlüğü'], ['/alerts', 'Alarmlar ve Radar']].map(([href, label]) => <Link key={href} href={href} className="inline-flex items-center min-h-[44px] px-3 glass-inner rounded-lg text-xs text-muted-foreground hover:text-foreground">{label}</Link>)}
+        {[['/watchlist', 'İzleme Listesi'], ['/trade-log', 'İşlem Günlüğü'], ['/alerts', 'Fiyat Alarmları']].map(([href, label]) => <Link key={href} href={href} className="inline-flex items-center min-h-[44px] px-3 glass-inner rounded-lg text-xs text-muted-foreground hover:text-foreground">{label}</Link>)}
       </nav>
 
       {positions.some((p: any) => p.priceStale) && <p className="text-xs text-muted-foreground">Bazı varlıklarda son bilinen fiyat kullanılıyor.</p>}
@@ -352,6 +353,7 @@ export function PortfolioClient() {
                     </p>
                   </details>}
                   <AutoExitControl position={p} onChange={fetchPortfolio} />
+                  <PositionOrderEditor position={p} onChange={fetchPortfolio} />
                   {/* Stop Loss / Take Profit / Trailing */}
                   {(p?.stopLoss || p?.takeProfit || p?.trailingStopPercent) && (
                     <div className="flex gap-2 mt-2 text-[10px] flex-wrap">

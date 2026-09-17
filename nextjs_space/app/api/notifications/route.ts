@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
-  const events = await prisma.appNotification.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: 'desc' }, take: 30 });
+  const events = await prisma.appNotification.findMany({ where: { userId: session.user.id, NOT: { eventKey: { startsWith: 'radar:' } } }, orderBy: { createdAt: 'desc' }, take: 30 });
   return NextResponse.json({ events, automation: await automationStatus(prisma), publicKey: pushConfigured() ? process.env.WEB_PUSH_PUBLIC_KEY : null }, { headers: { 'Cache-Control': 'no-store' } });
 }
 export async function POST(request: NextRequest) {
