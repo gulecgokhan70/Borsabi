@@ -36,6 +36,12 @@ export function AcademyClient() {
 
       <Link href="/kesfet" className="inline-flex items-center gap-2 min-h-[44px] text-sm text-blue-500">Keşfet: fikirler ve öğrenme içerikleri <ChevronRight className="w-4 h-4" /></Link>
 
+      <Link href="/baslangic-rehberi" className="block glass-card rounded-xl p-4 border border-[#3B82F6]/20">
+        <span className="block font-semibold text-foreground">Başlangıç rehberi</span>
+        <span className="block mt-1 text-sm text-muted-foreground">5 kısa adım: hisse keşfi, sanal işlem ve portföy. Başla veya kaldığın yerden devam et.</span>
+        <span className="inline-flex items-center min-h-[44px] text-sm text-[#3B82F6]">Rehberi aç <ChevronRight className="w-4 h-4" /></span>
+      </Link>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[

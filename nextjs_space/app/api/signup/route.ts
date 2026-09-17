@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import { guideKey } from '@/lib/onboarding';
 import { prisma } from '@/lib/db';
 import { signupSchema } from '@/lib/signup-validation';
 import { signupClientKey, takeRequestSlot } from '@/lib/request-limit';
@@ -24,8 +25,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bu email adresi zaten kayıtlı' }, { status: 400 });
     }
     const hashed = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: { email, password: hashed, name, balance: 100000, initialBalance: 100000 },
+    const user = await prisma.$transaction(async tx => {
+      const created = await tx.user.create({ data: { email, password: hashed, name, balance: 100000, initialBalance: 100000 } });
+      await tx.scanCache.create({ data: { id: guideKey(created.id), data: JSON.stringify({ step: 0, status: 'new' }) } });
+      return created;
     });
     return NextResponse.json({ id: user.id, email: user.email, name: user.name });
   } catch (error: any) {

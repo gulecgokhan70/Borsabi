@@ -23,12 +23,11 @@ it('restores a saved lesson without overwriting it and resets safely on account 
   expect(JSON.parse(values.get(courseProgressKey('other', 'borsa-temelleri'))!)).toEqual({ active: 0, completed: [] });
   expect(JSON.parse(values.get(key)!)).toEqual({ active: 2, completed: [0, 1] });
 });
-it('hides deleted courses and supports hiding and restoring the history card', async () => {
+it('hides deleted courses and removes the hidden history card without a restore link on the dashboard', async () => {
   updateResume('owner', { stock: { href: '/stock/THYAO.IS', title: 'THYAO', at: 1000 }, course: { href: '/academy/deleted-course', title: 'Deleted', at: 1000 } });
   await act(async () => { renderer = create(createElement(ResumeCard, { accountId: 'owner' })); });
   expect(renderer.root.findAllByType('a').map(a => a.props.href)).toEqual(['/stock/THYAO.IS']);
   await act(async () => renderer.root.findByType('button').props.onClick());
   expect(renderer.root.findAllByType('a')).toHaveLength(0);
-  await act(async () => renderer.root.findByType('button').props.onClick());
-  expect(renderer.root.findAllByType('a')).toHaveLength(1);
+  expect(renderer.toJSON()).toBeNull();
 });

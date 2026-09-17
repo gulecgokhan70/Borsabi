@@ -34,6 +34,7 @@ export const config = {
     '/swing-trading/:path*',
     '/risk-center/:path*',
     '/academy/:path*',
+    '/baslangic-rehberi/:path*',
     '/backtest/:path*',
     '/replay/:path*',
     '/algo-scan/:path*',

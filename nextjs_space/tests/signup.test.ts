@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, expect, it, vi } from 'vitest';
-vi.mock('../lib/db', () => ({ prisma: { user: { findUnique: vi.fn(), create: vi.fn() } } }));
+vi.mock('../lib/db', () => ({ prisma: { user: { findUnique: vi.fn(), create: vi.fn() }, scanCache: { create: vi.fn() }, $transaction: vi.fn() } }));
 vi.mock('bcryptjs', () => ({ default: { hash: vi.fn() } }));
 vi.mock('../lib/request-limit', () => ({ signupClientKey: () => 'test-ip', takeRequestSlot: vi.fn() }));
 import { prisma } from '../lib/db';
@@ -13,6 +13,7 @@ const request = (body: unknown) => new NextRequest('http://localhost/api/signup'
 });
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.$transaction).mockImplementation(async (fn: any) => fn(prisma));
   vi.mocked(takeRequestSlot).mockReturnValue({ allowed: true, retryAfter: 0 });
   vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
   vi.mocked(bcrypt.hash).mockResolvedValue('hashed-password' as never);
@@ -38,6 +39,7 @@ it('normalizes allowed fields, hashes the password and ignores client balance or
   expect(prisma.user.create).toHaveBeenCalledWith({ data: {
     email: valid.email, password: 'hashed-password', name: 'Trader', balance: 100000, initialBalance: 100000,
   } });
+  expect(prisma.scanCache.create).toHaveBeenCalledWith({ data: { id: 'beginner-guide-v1:test-id', data: JSON.stringify({ step: 0, status: 'new' }) } });
   expect(await response.json()).not.toHaveProperty('password');
 });
 

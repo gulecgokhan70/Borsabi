@@ -3,7 +3,6 @@ import dynamic from 'next/dynamic';
 import { useDashboardData } from '@/hooks/use-dashboard-data';
 import { MarketAlertsPanel } from '@/components/market-alerts-panel';
 import { ResumeCard } from '@/components/resume-card';
-import { FirstSteps } from '@/components/first-steps';
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -100,7 +99,7 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       <PullRefreshIndicator pullDistance={pullDistance} refreshing={pullRefreshing} />
-      <Onboarding />
+      {session?.user?.id && <Onboarding key={session.user.id} accountId={session.user.id} />}
       {/* Ana Ekrana Ekle Bildirimi */}
       <AnimatePresence>
         {showInstallBanner && (
@@ -154,7 +153,6 @@ export function DashboardClient() {
 
       <p className="text-xs text-muted-foreground">Son kontrol zamanı fiyatın gerçekleştiği zaman değildir. Fiyat zamanı ve kaynak bilgisi varlık detayında gösterilir.</p>
       {portfolio?.accountId && <ResumeCard key={`resume:${portfolio.accountId}`} accountId={portfolio.accountId} />}
-      {portfolio?.accountId && <FirstSteps key={portfolio.accountId} accountId={portfolio.accountId} buyCount={portfolio.buyCount ?? 0} />}
       {bistOpen === false && !loading && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
           <span className="text-[#F59E0B] text-lg">🔔</span>
