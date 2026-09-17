@@ -7,7 +7,7 @@ it('keeps the editing snapshot across refreshes, sends cleared thresholds as nul
   const position = { id: 'p', symbol: 'THYAO', type: 'BIST', updatedAt: '2026-09-17T10:00:00.000Z', stopLoss: 90, takeProfit: 120, trailingStopPercent: null, autoExit: false };
   const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ error: 'Pozisyon değişti' }, { status: 409 })).mockResolvedValueOnce(Response.json({ success: true }));
   vi.stubGlobal('fetch', fetcher); const onChange = vi.fn();
-  let view: ReturnType<typeof create>;
+  let view!: ReturnType<typeof create>;
   act(() => { view = create(createElement(PositionOrderEditor, { position, onChange })); });
   act(() => { view.root.findByType('button').props.onClick(); });
   act(() => { view.root.findAllByType('input')[0].props.onChange({ target: { value: '' } }); });
