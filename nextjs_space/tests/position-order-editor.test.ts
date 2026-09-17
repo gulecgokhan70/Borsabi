@@ -1,0 +1,20 @@
+import { createElement } from 'react';
+import { act, create } from 'react-test-renderer';
+import { expect, it, vi, afterEach } from 'vitest';
+import { PositionOrderEditor } from '../components/position-order-editor';
+afterEach(() => vi.unstubAllGlobals());
+it('keeps the editing snapshot across refreshes, sends cleared thresholds as null and preserves errors for retry', async () => {
+  const position = { id: 'p', symbol: 'THYAO', type: 'BIST', updatedAt: '2026-09-17T10:00:00.000Z', stopLoss: 90, takeProfit: 120, trailingStopPercent: null, autoExit: false };
+  const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ error: 'Pozisyon değişti' }, { status: 409 })).mockResolvedValueOnce(Response.json({ success: true }));
+  vi.stubGlobal('fetch', fetcher); const onChange = vi.fn();
+  let view!: ReturnType<typeof create>;
+  act(() => { view = create(createElement(PositionOrderEditor, { position, onChange })); });
+  act(() => { view.root.findByType('button').props.onClick(); });
+  act(() => { view.root.findAllByType('input')[0].props.onChange({ target: { value: '' } }); });
+  act(() => { view.update(createElement(PositionOrderEditor, { position: { ...position, updatedAt: '2026-09-17T10:01:00.000Z' }, onChange })); });
+  await act(async () => { await view.root.findByType('form').props.onSubmit({ preventDefault() {} }); });
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ updatedAt: position.updatedAt, stopLoss: null });
+  expect(view.root.findByProps({ role: 'alert' }).children).toEqual(['Pozisyon değişti']);
+  expect(onChange).not.toHaveBeenCalled();
+  act(() => view.unmount());
+});

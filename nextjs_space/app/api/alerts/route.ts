@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
+import { z } from 'zod';
+import { normalizeMarketSymbol } from '@/lib/market-quotes';
+
+const alertSchema = z.object({
+  symbol: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9.^=-]+$/),
+  name: z.string().trim().min(1).max(160),
+  condition: z.enum(['above', 'below']),
+  targetPrice: z.number().finite().positive(),
+});
 
 export async function GET() {
   try {
@@ -32,33 +42,19 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    const body = await req.json();
-    const { symbol, name, condition, targetPrice } = body;
-
-    if (!symbol || !name || !condition || !targetPrice) {
-      return NextResponse.json({ error: 'Eksik alanlar' }, { status: 400 });
-    }
-
-    // Limit: free=5, pro=20, elite=50
-    const activeCount = await prisma.priceAlert.count({ where: { userId: user.id, active: true } });
-    const limits: Record<string, number> = { free: 5, pro: 20, elite: 50 };
-    const max = limits[user.tier] || 5;
-    if (activeCount >= max) {
-      return NextResponse.json({ error: `Maksimum ${max} aktif alarm limiti. Paketinizi yükseltin.` }, { status: 400 });
-    }
-
-    const alert = await prisma.priceAlert.create({
-      data: {
-        userId: user.id,
-        symbol,
-        name,
-        condition,
-        targetPrice,
-      },
-    });
+    const parsed = alertSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: 'Geçersiz alarm bilgileri' }, { status: 400 });
+    const max = ['pro', 'elite'].includes(user.tier) ? 50 : 5;
+    const alert = await prisma.$transaction(async tx => {
+      const count = await tx.priceAlert.count({ where: { userId: user.id, active: true, triggered: false } });
+      if (count >= max) return null;
+      return tx.priceAlert.create({ data: { ...parsed.data, symbol: normalizeMarketSymbol(parsed.data.symbol), userId: user.id } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (!alert) return NextResponse.json({ error: `Maksimum ${max} aktif alarm limiti. Paketinizi yükseltin.` }, { status: 400 });
 
     return NextResponse.json({ alert });
   } catch (err: any) {
+    if (err?.code === 'P2034') return NextResponse.json({ error: 'Eşzamanlı alarm güncellemesi. Lütfen tekrar deneyin.' }, { status: 409 });
     console.error('Alerts POST error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

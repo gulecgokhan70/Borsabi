@@ -1,16 +1,18 @@
 'use client';
+import { useAlertNotifications } from '@/hooks/use-alert-notifications';
+import { updateResume } from '@/lib/resume';
+import { updateFirstSteps, validJourneySymbol } from '@/lib/first-steps';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { SidebarNavigation, MobileNavigation } from '@/components/app-navigation';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutDashboard, Briefcase, Bot, Search, ScrollText, Eye, LogOut, Menu, X, Shield, Zap, Waves, GraduationCap, FlaskConical,
-  User, Users, ScanSearch, Wrench, Trophy, Bell, Award, Moon, Sun, Home, BarChart3, Brain, Compass, Globe, ArrowLeft, Building2
-} from 'lucide-react';
+import { Search, LogOut, Menu, X, Moon, Sun, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/page-transition';
 import { useTheme } from 'next-themes';
 import { BreakingNewsBanner } from '@/components/breaking-news';
+import { matchesSymbol } from '@/lib/symbol-search';
 import { BorsaBiLogoFull, BorsaBiLogo } from './logo';
 
 const AVATAR_MAP: Record<string, string> = {
@@ -66,7 +68,7 @@ function GlobalSearch() {
 
   const term = q.toLowerCase().trim();
   const results = term.length >= 1
-    ? allItems.filter(i => i.shortName.toLowerCase().includes(term) || i.name.toLowerCase().includes(term)).slice(0, 12)
+    ? allItems.filter(i => matchesSymbol(i, q)).slice(0, 12)
     : [];
 
   const go = (sym: string) => { router.push(`/stock/${sym}`); setOpen(false); setQ(''); };
@@ -201,34 +203,21 @@ function GlobalSearch() {
   );
 }
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Ana Sayfa', icon: Home },
-  { href: '/piyasalar', label: 'Piyasalar', icon: Globe },
-  { href: '/portfolio', label: 'Portföy', icon: Briefcase },
-  { href: '/day-trading', label: 'Day Trading', icon: Zap },
-  { href: '/swing-trading', label: 'Swing Trading', icon: Waves },
-  { href: '/ai-assistant', label: 'BorsaBi AI', icon: Bot },
-  { href: '/screening', label: 'Tarama', icon: Search },
-  { href: '/kesfet', label: 'Keşfet', icon: Compass },
-  { href: '/risk-center', label: 'Risk Merkezi', icon: Shield },
-  { href: '/brokers', label: 'Aracı Kurumlar', icon: Building2 },
-  { href: '/trade-log', label: 'İşlem Günlüğü', icon: ScrollText },
-  { href: '/watchlist', label: 'İzleme Listesi', icon: Eye },
-  { href: '/aksam-analizi', label: 'Akşam Analizi', icon: Moon },
-  { href: '/academy', label: 'Akademi', icon: GraduationCap },
-  { href: '/backtest', label: 'Backtest', icon: FlaskConical },
-  { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
-  { href: '/strategy-builder', label: 'Strateji', icon: Wrench },
-  { href: '/social', label: 'Sosyal Trading', icon: Users },
-  { href: '/leaderboard', label: 'Liderlik', icon: Trophy },
-  { href: '/alerts', label: 'Alarmlar', icon: Bell },
-  { href: '/achievements', label: 'Rozetler', icon: Award },
-  { href: '/profile', label: 'Profil', icon: User },
-];
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession() || {};
+  useAlertNotifications(!!session?.user, session?.user?.id);
   const pathname = usePathname();
+  const stockPage = pathname?.startsWith('/stock/');
+  const accountId = session?.user?.id;
+  useEffect(() => {
+    const encoded = pathname?.startsWith('/stock/') ? pathname.slice('/stock/'.length) : '';
+    let symbol = '';
+    try { symbol = decodeURIComponent(encoded); } catch { return; }
+    if (accountId && validJourneySymbol(symbol)) {
+      updateFirstSteps(accountId, { symbol });
+      updateResume(accountId, { stock: { href: `/stock/${encodeURIComponent(symbol)}`, title: `Son varlık: ${symbol.replace('.IS', '')}`, at: Date.now() } });
+    }
+  }, [pathname, accountId]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -278,28 +267,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto scrollbar-none">
-            {NAV_ITEMS.map((item: any) => {
-              const isActive = pathname === item?.href || pathname?.startsWith?.(item?.href + '/');
-              const Icon = item?.icon;
-              return (
-                <Link
-                  key={item?.href}
-                  href={item?.href ?? '#'}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-                    isActive
-                      ? 'bg-[#3B82F6]/10 text-[#3B82F6] font-semibold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
-                  }`}
-                >
-                  {Icon && <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? '' : 'opacity-70'}`} />}
-                  {item?.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <SidebarNavigation pathname={pathname || ''} onNavigate={() => setSidebarOpen(false)} />
 
           {/* Theme Toggle + User + Logout */}
           <div className="px-4 py-4 border-t border-black/[0.06] dark:border-white/[0.06] space-y-3">
@@ -337,7 +305,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className={`flex-1 min-w-0 overflow-y-auto ${stockPage ? 'bg-background' : ''}`}>
         {/* Desktop top bar */}
         <div className="hidden lg:flex sticky top-0 z-30 items-center gap-4 px-6 py-3 glass-nav">
           <Link href="/dashboard" className="flex items-center gap-2 shrink-0 hover:opacity-80 transition-opacity">
@@ -357,7 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
         </div>
         {/* Mobile header */}
-        <div className="sticky top-0 z-30 flex items-center gap-2 px-3 py-2.5 glass-nav lg:hidden">
+        <div className={`${stockPage ? 'hidden' : 'flex'} sticky top-0 z-30 items-center gap-2 px-3 py-2.5 glass-nav lg:hidden`}>
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
             <Menu className="w-5 h-5" />
           </button>
@@ -382,66 +350,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
         </div>
-        <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto">
-          <PageTransition>{children}</PageTransition>
+        <div className={stockPage ? "max-w-[1400px] mx-auto pb-24" : "p-4 lg:p-6 pb-24 lg:pb-6 max-w-[1400px] mx-auto"}>
+          {!stockPage && <BreakingNewsBanner />}
+          {stockPage ? children : <PageTransition>{children}</PageTransition>}
           {/* Global Footer */}
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground pt-6 pb-2">
             <Link href="/destek" className="hover:text-[#3B82F6] transition-colors">Destek</Link>
+            <span>·</span>
+            <Link href="/hesap-silme" className="hover:text-[#3B82F6] transition-colors">Hesap silme</Link>
             <span>·</span>
             <Link href="/aydinlatma-metni" className="hover:text-[#3B82F6] transition-colors">Aydınlatma Metni</Link>
           </div>
         </div>
       </main>
 
-      {/* Breaking News Popup */}
-      <BreakingNewsBanner />
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
-        <div className="glass-nav border-t border-black/[0.06] dark:border-white/[0.06] px-2 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-          <div className="flex items-end justify-around">
-            {[
-              { href: '/dashboard', label: 'Ana Sayfa', icon: Home },
-              { href: '/piyasalar', label: 'Piyasalar', icon: BarChart3 },
-              { href: '/ai-assistant', label: 'AI Asistan', icon: Brain, center: true },
-              { href: '/portfolio', label: 'Portföyüm', icon: Briefcase },
-              { href: '/kesfet', label: 'Keşfet', icon: Compass },
-            ].map((item) => {
-              const isActive = pathname === item.href || pathname?.startsWith?.(item.href + '/');
-              const Icon = item.icon;
-              if (item.center) {
-                return (
-                  <Link key={item.href} href={item.href} className="flex flex-col items-center -mt-5 relative">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 ${
-                      isActive
-                        ? 'bg-gradient-to-br from-[#8B5CF6] to-[#3B82F6] shadow-[#8B5CF6]/30'
-                        : 'bg-gradient-to-br from-[#6D28D9] to-[#3B82F6] shadow-[#3B82F6]/20'
-                    }`}>
-                      <Icon className="w-6 h-6 text-white" />
-                    </div>
-                    <span className={`text-[10px] mt-1 font-medium ${
-                      isActive ? 'text-[#8B5CF6]' : 'text-muted-foreground'
-                    }`}>{item.label}</span>
-                  </Link>
-                );
-              }
-              return (
-                <Link key={item.href} href={item.href} className="flex flex-col items-center py-1.5 min-w-[56px]">
-                  <Icon className={`w-5 h-5 transition-colors duration-200 ${
-                    isActive ? 'text-[#3B82F6]' : 'text-muted-foreground'
-                  }`} />
-                  <span className={`text-[10px] mt-1 font-medium transition-colors duration-200 ${
-                    isActive ? 'text-[#3B82F6]' : 'text-muted-foreground'
-                  }`}>{item.label}</span>
-                  {isActive && (
-                    <div className="w-1 h-1 rounded-full bg-[#3B82F6] mt-0.5" />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </nav>
+
+      <MobileNavigation pathname={pathname || ''} />
     </div>
   );
 }

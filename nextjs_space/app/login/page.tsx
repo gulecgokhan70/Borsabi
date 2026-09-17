@@ -21,7 +21,8 @@ export default function LoginPage() {
     try {
       const res = await signIn('credentials', { email, password, redirect: false });
       if (res?.error) { toast.error('Email veya şifre hatalı'); return; }
-      router.replace('/dashboard');
+      const callback = new URLSearchParams(window.location.search).get('callbackUrl');
+      router.replace(callback === '/hesap-silme' ? callback : '/dashboard');
     } catch (e: any) {
       toast.error('Giriş hatası');
       console.error(e);
@@ -66,7 +67,7 @@ export default function LoginPage() {
                 placeholder="••••••••" required
                 className="w-full pl-10 pr-10 py-2.5 glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg text-foreground text-sm focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none"
               />
-              <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <button type="button" aria-label={showPw ? "Şifreyi gizle" : "Şifreyi göster"} aria-pressed={showPw} onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                 {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>

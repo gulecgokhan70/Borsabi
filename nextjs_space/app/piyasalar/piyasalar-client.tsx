@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useMarketTab } from '@/hooks/use-market-tab';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -50,33 +51,13 @@ type SortKey = 'name' | 'price' | 'change';
 
 export function PiyasalarClient() {
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('doviz');
-  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+  const { data, loading, error, lastUpdate, fetchData, group } = useMarketTab(tab);
   const [, setTick] = useState(0);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('change');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const res = await fetch('/api/piyasalar');
-      const json = await res.json();
-      setData(json);
-      setLastUpdate(Date.now());
-    } catch (e) {
-      console.error('Piyasalar fetch error:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => {
-    const iv = setInterval(fetchData, 30000);
-    return () => clearInterval(iv);
-  }, [fetchData]);
   useEffect(() => {
     const t = setInterval(() => setTick(v => v + 1), 15000);
     return () => clearInterval(t);
@@ -90,13 +71,14 @@ export function PiyasalarClient() {
   /* Market summary stats */
   const stats = useMemo(() => {
     if (!data) return null;
-    const all = [...(data.currencies ?? []), ...(data.crypto ?? []), ...(data.commodities ?? []), ...(data.bistStocks ?? [])];
+    const all = data[group] ?? [];
+    if (!all.length) return null;
     const gainers = all.filter((x: any) => (x.changePercent ?? 0) > 0).length;
     const losers = all.filter((x: any) => (x.changePercent ?? 0) < 0).length;
     const bestPerformer = all.reduce((best: any, cur: any) => (!best || (cur.changePercent ?? 0) > (best.changePercent ?? 0)) ? cur : best, null);
     const worstPerformer = all.reduce((worst: any, cur: any) => (!worst || (cur.changePercent ?? 0) < (worst.changePercent ?? 0)) ? cur : worst, null);
     return { gainers, losers, total: all.length, bestPerformer, worstPerformer };
-  }, [data]);
+  }, [data, group]);
 
   const tabs: { key: Tab; label: string; icon: any; count?: number }[] = [
     { key: 'doviz', label: 'Döviz', icon: DollarSign, count: data?.currencies?.length },
@@ -106,13 +88,6 @@ export function PiyasalarClient() {
     { key: 'bist', label: 'BIST', icon: TrendingUp, count: data?.bistStocks?.length },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#3B82F6]" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-5">
@@ -127,17 +102,19 @@ export function PiyasalarClient() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className={`w-2 h-2 rounded-full ${lastUpdate && (Date.now() - lastUpdate) > 120000 ? 'bg-[#F59E0B]' : 'bg-[#22C55E] animate-pulse'}`} />
-            <span className="hidden sm:inline">{lastUpdate ? `${formatTimeAgo(lastUpdate)} güncellendi` : 'Yükleniyor...'}</span>
+            <span className="hidden sm:inline">{lastUpdate ? `Son kontrol: ${formatTimeAgo(lastUpdate)}` : loading ? 'Yükleniyor…' : 'Veri alınamadı'}</span>
           </div>
-          <button onClick={() => { setLoading(true); fetchData(); }} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => void fetchData()} disabled={loading} aria-label="Piyasa verilerini yenile" className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
+      {error && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
       {/* Market Summary Strip */}
       {stats && (
         <motion.div {...fadeIn} className="glass-card rounded-2xl p-4">
+          <p className="text-xs text-muted-foreground mb-3">Seçili sekmedeki varlıkların özeti</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Yükselenler</p>
@@ -162,7 +139,7 @@ export function PiyasalarClient() {
       )}
 
       {/* Index Summary Cards */}
-      {data?.indices && (
+      {tab !== 'endeks' && data?.indices?.length > 0 && (
         <motion.div {...fadeIn} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {data.indices.map((idx: any) => (
             <div key={idx.symbol} className="glass-card rounded-2xl p-4">
@@ -253,8 +230,9 @@ export function PiyasalarClient() {
         </div>
       </div>
 
+      {loading && !data[group] && <div role="status" className="flex items-center gap-2 p-6 text-sm text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" />Seçili piyasa yükleniyor…</div>}
       {/* Content */}
-      <AnimatePresence mode="wait">
+      {data[group] && <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>
           {tab === 'doviz' && <CurrencySection data={data?.currencies ?? []} search={search} sortKey={sortKey} sortAsc={sortAsc} />}
           {tab === 'kripto' && <CryptoSection data={data?.crypto ?? []} search={search} sortKey={sortKey} sortAsc={sortAsc} />}
@@ -262,7 +240,7 @@ export function PiyasalarClient() {
           {tab === 'endeks' && <IndexSection data={data?.indices ?? []} search={search} sortKey={sortKey} sortAsc={sortAsc} />}
           {tab === 'bist' && <BistSection data={data?.bistStocks ?? []} search={search} sortKey={sortKey} sortAsc={sortAsc} />}
         </motion.div>
-      </AnimatePresence>
+      </AnimatePresence>}
 
       {/* Disclaimer */}
       <p className="text-center text-[10px] text-muted-foreground pt-4">

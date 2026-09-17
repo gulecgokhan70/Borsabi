@@ -6,16 +6,21 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Test account
-  const hashedPassword = await bcrypt.hash('johndoe123', 12);
+  const email = process.env.SEED_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_PASSWORD;
+  if (process.env.NODE_ENV === 'production') throw new Error('Seed is disabled in production.');
+  if (!email || !password || password.length < 12) {
+    throw new Error('Set SEED_EMAIL and a unique SEED_PASSWORD of at least 12 characters.');
+  }
+  const hashedPassword = await bcrypt.hash(password, 12);
   await prisma.user.upsert({
-    where: { email: 'john@doe.com' },
+    where: { email },
     update: {},
     create: {
-      email: 'john@doe.com',
+      email,
       name: 'Trader',
       password: hashedPassword,
-      role: 'admin',
+      role: 'user',
       balance: 100000,
       initialBalance: 100000,
     },

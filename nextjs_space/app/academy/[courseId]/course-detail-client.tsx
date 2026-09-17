@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { courseProgressKey, parseCourseProgress, updateResume } from '@/lib/resume';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, BookOpen, Clock, ChevronRight, CheckCircle2,
@@ -222,6 +224,24 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
   const [completedLessons, setCompletedLessons] = useState<Set<number>>(new Set());
   const [showQuiz, setShowQuiz] = useState(false);
 
+  const { data: session } = useSession() || {};
+  const accountId = session?.user?.id;
+  const [loadedKey, setLoadedKey] = useState('');
+  const storageKey = accountId ? courseProgressKey(accountId, courseId) : '';
+  useEffect(() => {
+    setLoadedKey(''); setShowQuiz(false);
+    let saved = { active: 0, completed: [] as number[] };
+    if (storageKey && course) {
+      try { saved = parseCourseProgress(localStorage.getItem(storageKey), course.lessons.length); } catch {}
+    }
+    setActiveLesson(saved.active); setCompletedLessons(new Set(saved.completed)); setLoadedKey(storageKey);
+  }, [storageKey, course]);
+  useEffect(() => {
+    if (!accountId || !course || !storageKey || loadedKey !== storageKey) return;
+    try { localStorage.setItem(storageKey, JSON.stringify({ active: activeLesson, completed: [...completedLessons] })); } catch {}
+    updateResume(accountId, { course: { href: `/academy/${courseId}`, title: `${course.title} · ${course.lessons[activeLesson]?.title || 'Ders'}`.slice(0, 160), at: Date.now() } });
+  }, [accountId, course, courseId, storageKey, loadedKey, activeLesson, completedLessons]);
+
   if (!course) {
     return (
       <div className="text-center py-20">
@@ -232,7 +252,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
     );
   }
 
-  const lesson = course.lessons[activeLesson];
+  const lesson = course.lessons[activeLesson] || course.lessons[0];
   const progress = Math.round((completedLessons.size / course.totalLessons) * 100);
 
   const handleCompleteLesson = () => {
@@ -347,7 +367,7 @@ export function CourseDetailClient({ courseId }: { courseId: string }) {
                       className="flex items-center gap-2 px-4 py-2.5 bg-[#F59E0B] hover:bg-[#D97706] text-black rounded-lg text-sm font-medium transition-colors"
                     >
                       <HelpCircle className="w-4 h-4" />
-                      Quiz'e Başla
+                      Quiz&#39;e Başla
                     </button>
                   ) : (
                     <button
