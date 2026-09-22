@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import {
@@ -7,22 +7,13 @@ import {
   BarChart3, Clock, Shield, AlertTriangle, Activity
 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
+import { commissionLabel } from '@/lib/commission';
 import { SymbolSearch } from '@/components/symbol-search';
 
 const EquityChart = dynamic(() => import('./equity-chart'), { ssr: false });
 
-const STRATEGIES = [
-  { id: 'ema-crossover', name: 'EMA Kesişim', desc: 'EMA20 EMA50\'yi yukarı kestiğinde al, aşağı kestiğinde sat' },
-  { id: 'rsi-reversal', name: 'RSI Dönüş', desc: 'RSI 30 altından yukarı çıkınca al, 70 üzerinde sat' },
-  { id: 'macd-crossover', name: 'MACD Kesişim', desc: 'MACD sinyal çizgisini yukarı kestiğinde al, aşağı kestiğinde sat' },
-  { id: 'trend-following', name: 'Trend Takip', desc: 'Güçlü yükseliş trendinde EMA dizilimi uygunsa al' },
-  { id: 'breakout', name: 'Kırılım', desc: '20 günlük zirveyi geçince al, EMA20 altına düşünce sat' },
-  { id: 'bollinger-bounce', name: 'Bollinger Sıçraması', desc: 'Fiyat alt banttan dönüş yaptığında al, üst bantta sat' },
-  { id: 'stochastic-cross', name: 'Stochastic Kesişim', desc: 'Stochastic K çizgisi D\'yi aşağıdan keserse al, aşırı alımda sat' },
-  { id: 'adx-trend', name: 'ADX Trend Gücü', desc: 'ADX 25 üzerinde ve +DI > -DI olduğunda al, trend zayıflayınca sat' },
-  { id: 'mean-reversion', name: 'Ortalamaya Dönüş', desc: 'Bollinger sıkışması sonrası genişleme yönünde al' },
-  { id: 'double-bottom', name: 'Çift Dip', desc: 'Çift dip formasyonu oluştuğunda ve EMA20 üzerinde kapandığında al' },
-];
+import { STRATEGIES } from '@/lib/backtest-strategies';
+
 
 const PERIODS = [
   { id: '1d', name: 'Günlük' },
@@ -37,8 +28,10 @@ const PERIODS = [
 ];
 
 interface BacktestResult {
+  commissionRate: number;
   summary: {
     totalTrades: number;
+    totalCommission: number;
     winningTrades: number;
     losingTrades: number;
     winRate: number;
@@ -46,7 +39,8 @@ interface BacktestResult {
     totalReturn: number;
     avgWin: number;
     avgLoss: number;
-    profitFactor: number;
+    profitFactor: number | null;
+    profitFactorStatus: "finite" | "no-losses" | "no-results";
     maxDrawdown: number;
     avgHoldingDays: number;
     finalCapital: number;
@@ -79,6 +73,8 @@ export function BacktestClient() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState('');
+  const [profileRate, setProfileRate] = useState<number | null>(null);
+  useEffect(() => { fetch('/api/profile', { cache: 'no-store' }).then(async r => { if (r.ok) setProfileRate((await r.json()).commissionRate); }).catch(() => {}); }, []);
 
   const runBacktest = async () => {
     setLoading(true);
@@ -107,12 +103,12 @@ export function BacktestClient() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
             <FlaskConical className="w-5 h-5 text-[#8B5CF6]" />
           </div>
-          Backtest Motoru
-        </h1>
+          Strateji testi
+        </h2>
         <p className="text-muted-foreground text-sm mt-1">Stratejilerinizi geçmiş verilerle test edin</p>
       </div>
 
@@ -183,7 +179,7 @@ export function BacktestClient() {
           <div className="flex items-end">
             <button
               onClick={runBacktest}
-              disabled={loading || !selectedStrategy}
+              disabled={loading || !selectedStrategy || !symbol}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#8B5CF6] hover:bg-[#7C3AED] text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
               <Play className={`w-4 h-4 ${loading ? 'animate-pulse' : ''}`} />
@@ -192,6 +188,7 @@ export function BacktestClient() {
           </div>
         </div>
 
+        <p className="mt-3 text-xs text-muted-foreground">{profileRate != null ? `Profil komisyonunuz: alış ve satışta ${commissionLabel(profileRate)}. Test başlatıldığında güncel profil oranı kullanılır.` : 'Testte profilinizde kayıtlı komisyon oranı kullanılır.'}</p>
         {selectedStrategy && (
           <div className="mt-3 p-3 glass-inner rounded-lg">
             <p className="text-xs text-muted-foreground">
@@ -212,6 +209,7 @@ export function BacktestClient() {
       {/* Results */}
       {result && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <p className="text-sm text-muted-foreground">Bu testte kullanılan profil komisyonu: {commissionLabel(result.commissionRate)} (alış ve satış). Önceki test sonuçları geriye dönük değiştirilmez.</p>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
@@ -219,7 +217,7 @@ export function BacktestClient() {
               { label: 'Toplam K/Z', value: formatCurrency(result.summary.totalPnL), color: result.summary.totalPnL >= 0 ? '#22C55E' : '#EF4444', icon: Activity },
               { label: 'İşlem Sayısı', value: result.summary.totalTrades.toString(), color: '#3B82F6', icon: BarChart3 },
               { label: 'Kazanç Oranı', value: `%${formatNumber(result.summary.winRate, 1)}`, color: result.summary.winRate >= 50 ? '#22C55E' : '#EF4444', icon: Target },
-              { label: 'Kâr Faktörü', value: formatNumber(result.summary.profitFactor, 2), color: result.summary.profitFactor >= 1.5 ? '#22C55E' : '#F59E0B', icon: Shield },
+              { label: 'Kâr Faktörü', value: result.summary.profitFactor === null ? (result.summary.profitFactorStatus === 'no-losses' ? 'Kayıp yok' : 'Hesaplanamadı') : formatNumber(result.summary.profitFactor, 2), color: (result.summary.profitFactor ?? 0) >= 1.5 ? '#22C55E' : '#F59E0B', icon: Shield },
               { label: 'Max Düşüş', value: `%${formatNumber(result.summary.maxDrawdown, 1)}`, color: '#EF4444', icon: TrendingDown },
             ].map((stat, idx) => (
               <div key={idx} className="glass-card rounded-xl p-4 border border-black/[0.08] dark:border-white/[0.08]">
@@ -265,17 +263,18 @@ export function BacktestClient() {
 
             <div className="glass-card rounded-xl p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3">Strateji Değerlendirmesi</h3>
+              {result.summary.totalTrades < 10 && <p className="text-xs text-muted-foreground mb-3">Az sayıda işlem var ({result.summary.totalTrades}). Bu örnek stratejinin güvenilirliğini değerlendirmek için yeterli değildir.</p>}
               <div className="space-y-3">
                 {[
                   { label: 'Kârlılık', score: result.summary.totalReturn > 10 ? 'Mükemmel' : result.summary.totalReturn > 0 ? 'İyi' : 'Zayıf', ok: result.summary.totalReturn > 0 },
                   { label: 'Kazanç Oranı', score: result.summary.winRate > 55 ? 'Yüksek' : result.summary.winRate > 40 ? 'Kabul Edilebilir' : 'Düşük', ok: result.summary.winRate > 40 },
                   { label: 'Risk Yönetimi', score: result.summary.maxDrawdown < 10 ? 'Güçlü' : result.summary.maxDrawdown < 20 ? 'Orta' : 'Zayıf', ok: result.summary.maxDrawdown < 20 },
-                  { label: 'Kâr Faktörü', score: result.summary.profitFactor > 1.5 ? 'Güçlü' : result.summary.profitFactor > 1 ? 'Kabul Edilebilir' : 'Zayıf', ok: result.summary.profitFactor > 1 },
+                  { label: 'Kâr Faktörü', score: result.summary.profitFactor === null ? (result.summary.profitFactorStatus === 'no-losses' ? 'Kayıp işlem yok; oran hesaplanamaz' : 'Değerlendirme için sonuç yok') : (result.summary.profitFactor ?? 0) > 1.5 ? 'Güçlü' : (result.summary.profitFactor ?? 0) > 1 ? 'Kabul Edilebilir' : 'Zayıf', ok: (result.summary.profitFactor ?? 0) > 1 },
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center justify-between glass-inner rounded-lg px-3 py-2.5">
                     <span className="text-xs text-muted-foreground">{item.label}</span>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${item.ok ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#EF4444]/10 text-[#EF4444]'}`}>
-                      {item.score}
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${result.summary.totalTrades < 10 || (item.label === 'Kâr Faktörü' && result.summary.profitFactor === null) ? 'bg-foreground/5 text-muted-foreground' : item.ok ? 'bg-[#22C55E]/10 text-[#22C55E]'  : 'bg-[#EF4444]/10 text-[#EF4444]'}`}>
+                      {result.summary.totalTrades === 0 ? 'İşlem yok' : result.summary.totalTrades < 10 && item.label !== 'Kâr Faktörü' ? 'Yetersiz işlem örneği' : item.score}
                     </span>
                   </div>
                 ))}

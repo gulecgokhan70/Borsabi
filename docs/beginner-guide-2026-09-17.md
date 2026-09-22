@@ -1,0 +1,11 @@
+# Optional new-member guide
+
+New registrations atomically create the account and a `beginner-guide-v1:<accountId>` preference in ScanCache. Only this `new` marker causes the dashboard to offer the guide. Existing accounts without it are not interrupted; they can open it from Öğren → Başlangıç rehberi. There is no schema migration or balance change.
+
+The old five-slide promotional modal has been replaced with an inline invitation with **Rehbere başla** and **Şimdilik atla**. Choosing skip removes the invitation immediately and persists `skipped`, with an account-scoped browser fallback if optional preference storage fails. The application remains usable while preferences load or fail. The legacy browser-global onboarding flag is no longer used.
+
+The authenticated `/baslangic-rehberi` route contains five concise lessons: simulation basics, finding an asset and checking price timing, understanding the buy form, reviewing positions and exit settings, and continuing with lessons. The buy-form chapter has a local-only arithmetic example (100 TRY example price, zero assumed commission); it never calls trading endpoints. Steps can be revisited. The final completion is an explicit action, distinct from skipping and from actual trade completion. Progress is stored by the authenticated account, so saved progress can be resumed on another device. Failed saves do not advance the displayed step; skip remains available, including during loading. Failed initial reads cannot overwrite unknown progress.
+
+On the dashboard, the old first-trade block and its dismissed-state link are removed. A hidden resume card now renders nothing, eliminating “Devam kartını göster”. Its historical browser state and the underlying course/first-trade records are retained.
+
+The new preference is cleaned up when an account is deleted. Existing accounting, order thresholds and execution are unchanged. Validation covers signup initialization, authenticated preference scoping, valid transitions, skip vs completion, local fallback isolation, resumption, arithmetic input validation, save failure, load failure and removal of the hidden-card link. Existing application tests and the production build are checked; live-device visual review remains a deployment follow-up.

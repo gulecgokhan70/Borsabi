@@ -1,10 +1,26 @@
-import { withAuth } from 'next-auth/middleware';
+import { withAuth, type NextRequestWithAuth } from 'next-auth/middleware';
+import type { NextFetchEvent } from 'next/server';
 
-export default withAuth({
+const authenticate = withAuth({
   pages: {
     signIn: '/login',
   },
 });
+
+// A reverse proxy can expose its internal localhost origin to Next.js.
+// Authentication still runs first; only its redirect origin is normalized.
+export default async function middleware(request: NextRequestWithAuth, event: NextFetchEvent) {
+  const response = await authenticate(request, event);
+  const location = response?.headers.get('location');
+  if (response && process.env.NODE_ENV === 'production' && location) {
+    const target = new URL(location, 'https://borsabi.com');
+    target.protocol = 'https:';
+    target.host = 'borsabi.com';
+    target.port = '';
+    response.headers.set('location', target.toString());
+  }
+  return response;
+}
 
 export const config = {
   matcher: [
@@ -18,7 +34,9 @@ export const config = {
     '/swing-trading/:path*',
     '/risk-center/:path*',
     '/academy/:path*',
+    '/baslangic-rehberi/:path*',
     '/backtest/:path*',
+    '/replay/:path*',
     '/algo-scan/:path*',
     '/strategy-builder/:path*',
     '/leaderboard/:path*',

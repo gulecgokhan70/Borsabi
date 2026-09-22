@@ -1,0 +1,55 @@
+import { createElement } from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { afterEach, expect, it, vi } from 'vitest';
+import { MarketAlertsPanel } from '../components/market-alerts-panel';
+import { buildMarketAlerts } from '../lib/market-alerts';
+const report = buildMarketAlerts(Array.from({ length: 5 }, (_, i) => ({ title: i ? `Şirket bilanço ${i}` : 'Fed faiz artıracak mı?', summary: '', date: '2026-09-17T08:00:00Z', url: `https://dunya.com/${i}`, source: 'Dünya', category: 'bist' as const, importance: 8 })), [], Date.parse('2026-09-17T09:00:00Z'));
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+it('does not fetch at page opening; shows three source-linked stories, expands and filters without new requests', async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json(report)); vi.stubGlobal('fetch', fetcher);
+  let view!: ReactTestRenderer; act(() => { view = create(createElement(MarketAlertsPanel)); });
+  expect(fetcher).not.toHaveBeenCalled();
+  await act(async () => { view.root.findByProps({ 'aria-controls': 'market-alerts-content' }).props.onClick(); });
+  expect(fetcher).toHaveBeenCalledTimes(1); expect(fetcher.mock.calls[0][0]).toBe('/api/market-alerts');
+  expect(view.root.findAllByType('article')).toHaveLength(3);
+  expect(view.root.findAllByType('a')[0].props.href).toBe('https://dunya.com/0');
+  act(() => view.root.findAllByType('button').find(b => b.children.join('').startsWith('Tümünü göster'))!.props.onClick());
+  expect(view.root.findAllByType('article')).toHaveLength(5);
+  act(() => view.root.findAllByType('button').find(b => b.children.join('') === 'Para politikası')!.props.onClick());
+  expect(view.root.findAllByType('article')).toHaveLength(1);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  act(() => view.unmount());
+});
+it('shows a persistent retryable error without claiming that no risk exists', async () => {
+  const fetcher = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(Response.json(report)); vi.stubGlobal('fetch', fetcher);
+  let view!: ReactTestRenderer; act(() => { view = create(createElement(MarketAlertsPanel)); });
+  await act(async () => { view.root.findByProps({ 'aria-controls': 'market-alerts-content' }).props.onClick(); });
+  expect(view.root.findByProps({ role: 'alert' }).children.join('')).toContain('offline');
+  expect(view.root.findAllByType('article')).toHaveLength(0);
+  await act(async () => { view.root.findAllByType('button').find(b => b.children.includes('Yenile'))!.props.onClick(); });
+  expect(view.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+  expect(view.root.findAllByType('article')).toHaveLength(3);
+  act(() => view.unmount());
+});
+it('aborts requests when collapsed and ignores their late responses', async () => {
+  let resolve!: (r: Response) => void;
+  const fetcher = vi.fn(() => new Promise<Response>(r => { resolve = r; })); vi.stubGlobal('fetch', fetcher);
+  let view!: ReactTestRenderer; act(() => { view = create(createElement(MarketAlertsPanel)); });
+  await act(async () => { view.root.findByProps({ 'aria-controls': 'market-alerts-content' }).props.onClick(); });
+  const signal = (fetcher.mock.calls as any)[0][1].signal;
+  act(() => view.root.findByProps({ 'aria-controls': 'market-alerts-content' }).props.onClick());
+  expect(signal.aborted).toBe(true);
+  await act(async () => resolve(Response.json(report)));
+  expect(view.root.findAllByType('article')).toHaveLength(0);
+  act(() => view.unmount());
+});
+it('ends a stalled load with an actionable timeout', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('fetch', vi.fn((_url, options) => new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(new Error('aborted'))))));
+  let view!: ReactTestRenderer; act(() => { view = create(createElement(MarketAlertsPanel)); });
+  await act(async () => { view.root.findByProps({ 'aria-controls': 'market-alerts-content' }).props.onClick(); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+  expect(view.root.findByProps({ role: 'alert' }).children.join('')).toContain('zaman aşımı');
+  expect(view.root.findAllByType('button').find(b => b.children.includes('Yenile'))!.props.disabled).toBe(false);
+  act(() => view.unmount());
+});

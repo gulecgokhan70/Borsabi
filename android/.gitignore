@@ -1,0 +1,9 @@
+generated/
+*.jks
+*.keystore
+*.p12
+*.aab
+*.apk
+local.properties
+key.properties
+.gradle/

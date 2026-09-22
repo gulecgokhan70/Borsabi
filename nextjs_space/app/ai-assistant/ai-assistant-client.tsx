@@ -1,5 +1,9 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useAIConversation, type ChatMsg } from '@/hooks/use-ai-conversation';
+import { AIMarkdown } from '@/components/ai-markdown';
+import { useRef, useEffect } from 'react';
+import { ReportAIResponse } from '@/components/report-ai-response';
+import { CHAT_MESSAGE_LIMIT } from '@/lib/chat-context';
 import { motion } from 'framer-motion';
 import { Bot, Send, Loader2, Sparkles, MessageSquare, Trash2 } from 'lucide-react';
 
@@ -22,86 +26,18 @@ const SUGGESTIONS = [
   'Bugün için açılış öncesi piyasa analizi yap',
 ];
 
-interface ChatMsg {
-  role: string;
-  content: string;
-}
-
 export function AiAssistantClient() {
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { messages, input, setInput, loading, inputError, sendMessage, stop, clear } = useAIConversation();
   const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const symbol = new URLSearchParams(window.location.search).get('symbol');
+    if (symbol && /^[A-Z0-9.^=-]{1,24}$/.test(symbol)) setInput(`${symbol} analizini derinleştir. Fiyat hareketi, haberler ve riskleri kaynak zamanlarıyla açıkla.`);
+  }, [setInput]);
 
   useEffect(() => {
     scrollRef?.current?.scrollTo?.({ top: scrollRef?.current?.scrollHeight ?? 0, behavior: 'smooth' });
   }, [messages]);
-
-  const sendMessage = async (text?: string) => {
-    const msg = (text ?? input)?.trim?.();
-    if (!msg || loading) return;
-    const userMsg: ChatMsg = { role: 'user', content: msg };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput('');
-    setLoading(true);
-
-    try {
-      const res = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: err?.error ?? 'Bir hata oluştu. Lütfen tekrar deneyin.' }]);
-        return;
-      }
-
-      const reader = res?.body?.getReader?.();
-      if (!reader) return;
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-      let partialRead = '';
-
-      setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        partialRead += decoder.decode(value, { stream: true });
-        const lines = partialRead.split('\n');
-        partialRead = lines.pop() ?? '';
-
-        for (const line of lines) {
-          if (line?.startsWith?.('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed?.choices?.[0]?.delta?.content ?? '';
-              if (delta) {
-                assistantContent += delta;
-                setMessages((prev: ChatMsg[]) => {
-                  const updated = [...prev];
-                  if ((updated?.length ?? 0) > 0) {
-                    updated[(updated?.length ?? 1) - 1] = { role: 'assistant', content: assistantContent };
-                  }
-                  return updated;
-                });
-              }
-            } catch (e: any) { /* skip */ }
-          }
-        }
-      }
-    } catch (e: any) {
-      console.error('AI chat error:', e);
-      setMessages((prev: ChatMsg[]) => [...prev, { role: 'assistant', content: 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.' }]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)]">
@@ -117,7 +53,7 @@ export function AiAssistantClient() {
           </div>
         </div>
         {(messages?.length ?? 0) > 0 && (
-          <button onClick={() => setMessages([])} className="p-2 rounded-lg text-muted-foreground hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sohbeti temizle">
+          <button disabled={loading} onClick={clear} className="p-2 rounded-lg text-muted-foreground hover:text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" title="Sohbeti temizle" aria-label="Sohbeti temizle">
             <Trash2 className="w-4 h-4" />
           </button>
         )}
@@ -144,7 +80,7 @@ export function AiAssistantClient() {
         ) : (
           messages.map((msg: ChatMsg, i: number) => (
             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg?.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-xl ${
+              <div className={`min-w-0 max-w-[85%] lg:max-w-[70%] px-4 py-3 rounded-xl ${
                 msg?.role === 'user'
                   ? 'bg-[#3B82F6] text-white'
                   : 'glass-card text-foreground'
@@ -155,7 +91,11 @@ export function AiAssistantClient() {
                     <span className="text-[10px] font-semibold text-[#3B82F6]">BorsaBi AI</span>
                   </div>
                 )}
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>
+                {msg.role === 'assistant' && msg.content ? <AIMarkdown content={msg.content} /> : <div className="text-sm whitespace-pre-wrap leading-relaxed">{msg?.content || (loading && i === (messages?.length ?? 1) - 1 ? <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#3B82F6]" /><span className="text-xs text-muted-foreground">Piyasa verileri analiz ediliyor...</span></span> : '')}</div>}
+                {msg.error && <p role="alert" className="mt-2 text-sm text-amber-600 dark:text-amber-400">{msg.content && 'Bu yanıt yarım kaldı. '}{msg.error}</p>}
+                {msg.role === 'assistant' && !msg.error && !(loading && i === messages.length - 1) && <ReportAIResponse content={msg.content} source="ai-assistant" />}
+                {msg.error && i === messages.length - 1 && <button disabled={loading} onClick={() => sendMessage(msg.retry, i)} className="min-h-[44px] text-sm text-blue-500 underline">Tekrar dene</button>}
+                {!!msg.sources?.length && <details className="mt-3 text-xs border-t border-white/10 pt-2"><summary className="min-h-[44px] cursor-pointer">Kullanılan veri kaynakları</summary>{msg.sources.map((source, index) => <div key={index} className="py-2"><a href={source.url} target="_blank" rel="noopener noreferrer" className="text-[#3B82F6] underline">{source.label}</a><p>{source.asOf ? new Date(source.asOf).toLocaleString('tr-TR') : 'Kaynak zamanı bilinmiyor'}</p><p>{source.status}</p></div>)}</details>}
               </div>
             </motion.div>
           ))
@@ -169,19 +109,23 @@ export function AiAssistantClient() {
             type="text"
             value={input}
             onChange={(e: any) => setInput(e?.target?.value ?? '')}
-            onKeyDown={(e: any) => { if (e?.key === 'Enter' && !e?.shiftKey) { e?.preventDefault?.(); sendMessage(); } }}
+            onKeyDown={(e: any) => { if (e?.key === 'Enter' && !e?.shiftKey && !e.nativeEvent?.isComposing) { e?.preventDefault?.(); sendMessage(); } }}
             placeholder="Bir soru sorun... Örn: THYAO teknik analizi"
-            disabled={loading}
-            className="flex-1 px-4 py-3 glass-card rounded-xl text-foreground text-sm placeholder-[#64748B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none disabled:opacity-50"
+            aria-label="AI asistanına sorunuz"
+            maxLength={CHAT_MESSAGE_LIMIT}
+            aria-describedby={inputError ? "chat-input-error" : undefined}
+            className="min-w-0 flex-1 px-4 py-3 glass-card rounded-xl text-foreground text-sm placeholder-[#64748B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent outline-none disabled:opacity-50"
           />
           <button
-            onClick={() => sendMessage()}
-            disabled={loading || !(input?.trim?.())}
+            onClick={() => loading ? stop() : sendMessage()}
+            aria-label={loading ? "Yanıtı durdur" : "Soruyu gönder"}
+            disabled={!loading && !(input?.trim?.())}
             className="p-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-xl transition-colors disabled:opacity-50 disabled:hover:bg-[#3B82F6]"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {loading ? <span className="text-xs">Durdur</span> : <Send className="w-5 h-5" />}
           </button>
         </div>
+        {inputError && <p id="chat-input-error" role="alert" className="text-sm text-amber-600">{inputError}</p>}
         <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 text-center">⚠️ Bu analiz yatırım tavsiyesi değildir. Eğitim ve simülasyon amaçlıdır.</p>
       </div>
     </div>
