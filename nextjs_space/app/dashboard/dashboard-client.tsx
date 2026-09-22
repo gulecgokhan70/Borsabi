@@ -34,7 +34,7 @@ export function DashboardClient() {
   const router = useRouter();
   const haptic = useHaptic();
   const { data: session } = useSession() || {};
-  const { indices, stocks, cryptos, portfolio, bistOpen, pending, loading, lastUpdate, refreshError, fetchData } = useDashboardData();
+  const { indices, stocks, cryptos, portfolio, bistOpen, hasPreview, pending, loading, lastUpdate, refreshError, fetchData } = useDashboardData();
   const [tradeModal, setTradeModal] = useState<any>(null);
   const [stockSort, setStockSort] = useState<'alpha' | 'change' | 'price'>('alpha');
 
@@ -152,6 +152,7 @@ export function DashboardClient() {
       </div>
 
       <p className="text-xs text-muted-foreground">Son kontrol zamanı fiyatın gerçekleştiği zaman değildir. Fiyat zamanı ve kaynak bilgisi varlık detayında gösterilir.</p>
+      {hasPreview && <p role="status" className="text-xs text-muted-foreground">Önceki kontrolden kalan piyasa fiyatları gösteriliyor{loading ? '; güncelleniyor' : ''}.</p>}
       {portfolio?.accountId && <ResumeCard key={`resume:${portfolio.accountId}`} accountId={portfolio.accountId} />}
       {bistOpen === false && !loading && (
         <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">

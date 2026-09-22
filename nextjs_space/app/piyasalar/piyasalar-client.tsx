@@ -52,7 +52,7 @@ type SortKey = 'name' | 'price' | 'change';
 export function PiyasalarClient() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('doviz');
-  const { data, loading, error, lastUpdate, fetchData, group } = useMarketTab(tab);
+  const { data, preview, loading, error, lastUpdate, fetchData, group } = useMarketTab(tab);
   const [, setTick] = useState(0);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('change');
@@ -110,6 +110,7 @@ export function PiyasalarClient() {
         </div>
       </div>
 
+      {preview && <p role="status" className="text-xs text-muted-foreground">Önceki kontrolden kalan fiyatlar gösteriliyor{loading ? '; güncelleniyor' : ''}. Son kontrol: {lastUpdate ? new Date(lastUpdate).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' }) : 'bilinmiyor'} (Türkiye saati). Kontrol zamanı fiyat zamanı değildir.</p>}
       {error && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
       {/* Market Summary Strip */}
       {stats && (

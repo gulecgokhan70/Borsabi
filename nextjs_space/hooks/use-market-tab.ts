@@ -1,9 +1,11 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { readMarketPreview, saveMarketPreview } from '@/lib/market-preview';
 import { useVisiblePoll } from './use-visible-poll';
 export const marketGroups = { doviz: 'currencies', kripto: 'crypto', emtia: 'commodities', endeks: 'indices', bist: 'bistStocks' } as const;
 export function useMarketTab(tab: keyof typeof marketGroups) {
   const [data, setData] = useState<Record<string, any[]>>({});
+  const [preview, setPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
@@ -30,7 +32,8 @@ export function useMarketTab(tab: keyof typeof marketGroups) {
       setData(previous => ({ ...previous, [group]: result[group] }));
       const checkedAt = Date.parse(result.checkedAt);
       times.current[group] = Number.isFinite(checkedAt) ? checkedAt : Date.now();
-      setLastUpdate(times.current[group]); setLoading(false);
+      setLastUpdate(times.current[group]); setLoading(false); setPreview(false);
+      saveMarketPreview(group, result[group], times.current[group]);
       if (result.unavailable) setError('Bazı varlıkların fiyatları alınamadı. Mevcut fiyatlar gösteriliyor.');
       // Optional sparklines follow prices and never delay the list becoming usable.
       if (group === 'indices') {
@@ -51,7 +54,17 @@ export function useMarketTab(tab: keyof typeof marketGroups) {
     }
   }, [group]);
   const cancelRequests = useCallback(() => { version.current++; active.current?.abort(); }, []);
-  useEffect(() => { void fetchData(); return cancelRequests; }, [fetchData, cancelRequests]);
+  useEffect(() => {
+    const saved = readMarketPreview(group);
+    setPreview(!!saved);
+    if (saved) {
+      times.current[group] = saved.checkedAt;
+      setData(previous => ({ ...previous, [group]: saved.rows }));
+      setLastUpdate(saved.checkedAt);
+    }
+    void fetchData();
+    return cancelRequests;
+  }, [group, fetchData, cancelRequests]);
   useVisiblePoll(fetchData, 30_000, 30_000);
-  return { data, loading, error, lastUpdate, fetchData, group };
+  return { data, preview, loading, error, lastUpdate, fetchData, group };
 }

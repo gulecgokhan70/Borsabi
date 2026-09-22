@@ -12,6 +12,7 @@ export function parseStreamSources(value: unknown): EvidenceSource[] {
 
 export function aiHttpError(status: number) {
   if (status === 401) return 'Oturumunuz sona ermiş. Yeniden giriş yapın.';
+  if (status === 413) return 'Mesaj ve analiz verileri çok uzun. Sorunu kısaltıp tekrar deneyebilirsin.';
   if (status === 429) return 'AI hizmeti şu anda yoğun. Biraz bekleyip tekrar deneyin.';
   if (status === 504 || status === 408) return 'Yanıt zamanında alınamadı. Tekrar deneyebilirsiniz.';
   if (status >= 500) return 'AI hizmetine şu anda ulaşılamıyor. Biraz sonra tekrar deneyin.';
@@ -31,16 +32,19 @@ export async function readAIStream(response: Response, onText: (text: string) =>
     try { data = JSON.parse(raw); } catch { throw new Error('invalid-stream'); }
     if (data.error) throw new Error('provider-stream');
     if (data.type === 'sources') { onSources?.(parseStreamSources(data.sources)); return; }
-    if (data.choices?.[0]?.finish_reason) complete = true;
+    const finish = data.choices?.[0]?.finish_reason;
     const delta = data.choices?.[0]?.delta?.content;
     if (typeof delta === 'string') { content += delta; onText(content); }
+    if (finish === 'stop') complete = true;
+    else if (finish) throw new Error('incomplete-stream');
   }
   try {
     while (true) {
       const { done, value } = await reader.read();
       buffer += decoder.decode(value, { stream: !done });
       const lines = buffer.split('\n'); buffer = lines.pop() || '';
-      for (const item of lines) line(item);
+      for (const item of lines) { line(item); if (complete) break; }
+      if (complete) break;
       if (done) { if (buffer.trim()) line(buffer); break; }
     }
     if (!content.trim() || !complete) throw new Error('incomplete-stream');

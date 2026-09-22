@@ -11,7 +11,7 @@ it('reveals portfolio and stock data while a slow crypto request is still pendin
   let crypto!: (r: Response) => void;
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.includes('BTC-USD')) return new Promise<Response>(resolve => { crypto = resolve; });
-    return Response.json(url === '/api/portfolio' ? { balance: 123, accountId: 'u' } : { data: [{ price: 10 }], marketOpen: null });
+    return Response.json(url === '/api/portfolio?summary=1' ? { balance: 123, accountId: 'u' } : { data: [{ price: 10 }], marketOpen: null });
   }));
   await act(async () => { renderer = create(createElement(Harness)); });
   let request!: Promise<void>;
@@ -39,8 +39,8 @@ it('ignores an obsolete response after a newer refresh completes', async () => {
   let finish!: (r: Response) => void;
   let calls = 0;
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    if (url === '/api/portfolio' && ++calls === 1) return new Promise<Response>(resolve => { finish = resolve; });
-    return Response.json(url === '/api/portfolio' ? { balance: 999 } : { data: [] });
+    if (url === '/api/portfolio?summary=1' && ++calls === 1) return new Promise<Response>(resolve => { finish = resolve; });
+    return Response.json(url === '/api/portfolio?summary=1' ? { balance: 999 } : { data: [] });
   }));
   await act(async () => { renderer = create(createElement(Harness)); });
   let old!: Promise<void>;

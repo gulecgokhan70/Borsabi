@@ -1,4 +1,5 @@
 'use client';
+import { PortfolioExplanation } from '@/components/portfolio-explanation';
 import Link from 'next/link';
 import { updateFirstSteps, readFirstSteps } from '@/lib/first-steps';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -125,6 +126,8 @@ export function PortfolioClient() {
           <p className={`text-xs font-mono font-semibold ${totalReturn >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>{formatPercent(totalReturnPct)}</p>
         </motion.div>
       </div>
+
+      {portfolio?.explanation && <PortfolioExplanation data={portfolio.explanation} />}
 
       {/* Grafik bölümü */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

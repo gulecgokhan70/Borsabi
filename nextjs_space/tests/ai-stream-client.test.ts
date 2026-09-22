@@ -46,3 +46,18 @@ it('propagates provider stream failures instead of returning a completed answer'
   await expect(readAIStream(chatStreamResponse(upstream, []), vi.fn())).rejects.toThrow('upstream disconnected');
   expect(upstream.body!.locked).toBe(false);
 });
+
+it('finishes at the terminal event even if the server keeps the connection open', async () => {
+  const cancel = vi.fn();
+  const response = new Response(new ReadableStream({
+    start(c) { c.enqueue(new TextEncoder().encode(chunk('Bitti') + 'data: [DONE]\n\n')); }, cancel,
+  }));
+  expect(await readAIStream(response, vi.fn())).toBe('Bitti');
+  expect(cancel).toHaveBeenCalled();
+});
+it('marks token-limited answers as incomplete, retaining text already received', async () => {
+  const onText = vi.fn();
+  const response = new Response(chunk('Kısmi') + 'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n');
+  await expect(readAIStream(response, onText)).rejects.toThrow('incomplete');
+  expect(onText).toHaveBeenLastCalledWith('Kısmi');
+});
