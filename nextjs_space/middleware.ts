@@ -36,6 +36,7 @@ export const config = {
     '/academy/:path*',
     '/baslangic-rehberi/:path*',
     '/backtest/:path*',
+    '/bot-lab/:path*',
     '/replay/:path*',
     '/algo-scan/:path*',
     '/strategy-builder/:path*',

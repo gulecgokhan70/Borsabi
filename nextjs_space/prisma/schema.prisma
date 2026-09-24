@@ -22,6 +22,7 @@ model User {
   commissionRate Float         @default(0.002) // kullanıcı özel komisyon oranı
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  bots           PaperBot[]
   positions      Position[]
   transactions   Transaction[]
   watchlist      Watchlist[]
@@ -236,4 +237,35 @@ model ReplaySession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([userId, createdAt])
+}
+
+// Isolated simulation accounts. Optimistic version guards concurrent workers and stop commands.
+model PaperBot {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market    String
+  symbol    String
+  running   Boolean  @default(false)
+  config    Json
+  state     Json
+  version   Int      @default(0)
+  checkedAt DateTime?
+  message   String   @default("Henüz başlatılmadı.")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    PaperBotEvent[]
+
+  @@unique([userId, market])
+  @@index([running])
+}
+
+model PaperBotEvent {
+  id        String   @id @default(cuid())
+  botId     String
+  bot       PaperBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@index([botId, createdAt])
 }

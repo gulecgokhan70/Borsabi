@@ -17,6 +17,7 @@ const GROUPS = [
   ] },
   { title: 'Öğren ve keşfet', items: [{ href: '/kesfet', label: 'Keşfet', icon: Compass }] },
   { title: 'Gelişmiş', items: [
+    { href: '/bot-lab', label: 'Bot Laboratuvarı', icon: Bot },
     { href: '/backtest', label: 'Backtest', icon: FlaskConical },
     { href: '/screening', label: 'Tarama', icon: Search },
     { href: '/algo-scan', label: 'Algo Tarama', icon: ScanSearch },
