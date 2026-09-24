@@ -62,6 +62,13 @@ backup=$(mktemp -d /root/borsabi-currency-backup.XXXXXX)
 worker_unit=/etc/systemd/system/borsabi-automation.service
 worker_was_active=0
 systemctl is-active --quiet borsabi-automation && worker_was_active=1
+paper_unit=/etc/systemd/system/borsabi-paper-bot.service
+paper_was_active=0
+systemctl is-active --quiet borsabi-paper-bot && paper_was_active=1
+paper_was_enabled=0
+systemctl is-enabled --quiet borsabi-paper-bot && paper_was_enabled=1
+had_paper=0
+if test -f "$paper_unit"; then cp -a "$paper_unit" "$backup/paper.service"; had_paper=1; fi
 had_worker=0
 if test -f "$worker_unit"; then cp -a "$worker_unit" "$backup/worker.service"; had_worker=1; fi
 had_override=0
@@ -75,16 +82,21 @@ rollback() {
   report_error "$failure_code"
   echo 'Yayin tamamlanamadi; onceki uygulama surumune donuluyor.'
   if test "$had_override" = 1; then cp -a "$backup/previous.conf" "$override_file"; else rm -f "$override_file"; fi
+  systemctl stop borsabi-paper-bot || true
+  if test "$had_paper" = 1; then cp -a "$backup/paper.service" "$paper_unit"; else systemctl disable borsabi-paper-bot || true; rm -f "$paper_unit"; fi
   systemctl stop borsabi-automation || true
   if test "$had_worker" = 1; then cp -a "$backup/worker.service" "$worker_unit"; else systemctl disable borsabi-automation || true; rm -f "$worker_unit"; fi
   systemctl daemon-reload
   systemctl restart borsabi
   if test "$worker_was_active" = 1; then systemctl start borsabi-automation; fi
+  if test "$paper_was_enabled" = 1; then systemctl enable borsabi-paper-bot; else systemctl disable borsabi-paper-bot 2>/dev/null || true; fi
+  if test "$paper_was_active" = 1; then systemctl start borsabi-paper-bot; fi
   # Added nullable columns are backward compatible. Never restore a DB over newer trades.
   exit 1
 }
 trap rollback ERR INT TERM
 stage='Servisin gecis icin durdurulmasi'
+systemctl stop borsabi-paper-bot 2>/dev/null || true
 systemctl stop borsabi-automation 2>/dev/null || true
 systemctl stop borsabi
 # Audit again with the old writer stopped; refuse to invent historical exchange rates.
@@ -98,16 +110,20 @@ stage='Para birimi semasinin uygulanmasi'
 runuser -u borsabi -- node --require dotenv/config node_modules/tsx/dist/cli.mjs scripts/currency-migration.ts --apply
 stage='Platform semasinin uygulanmasi'
 runuser -u borsabi -- node --require dotenv/config node_modules/tsx/dist/cli.mjs scripts/platform-migration.ts
+stage='Sanal bot semasinin uygulanmasi'
+runuser -u borsabi -- node --require dotenv/config node_modules/tsx/dist/cli.mjs scripts/bot-migration.ts
 stage='Yeni surumun baslatilmasi'
 install -d -m 755 "$override_dir"
 printf '%s\n' '[Service]' 'EnvironmentFile=/etc/borsabi-push.env' "WorkingDirectory=$app" 'ExecStart=' \
   "ExecStart=/usr/bin/env NEXT_DIST_DIR=.next /usr/bin/node $app/node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000" > "$override_file"
 install -d -o borsabi -g borsabi -m 700 /var/lib/borsabi
 printf '%s\n' '[Unit]' 'Description=BorsaBi simulation automation' 'After=network.target postgresql.service' '[Service]' 'User=borsabi' 'Group=borsabi' "WorkingDirectory=$app" 'EnvironmentFile=/etc/borsabi.env' 'EnvironmentFile=/etc/borsabi-push.env' "ExecStart=/usr/bin/flock --nonblock /var/lib/borsabi/automation.lock /usr/bin/node $app/node_modules/tsx/dist/cli.mjs $app/scripts/automation-worker.ts" 'Restart=on-failure' 'RestartSec=10' 'TimeoutStopSec=45' '[Install]' 'WantedBy=multi-user.target' > "$worker_unit"
+printf '%s\n' '[Unit]' 'Description=BorsaBi paper bot worker' 'After=network.target postgresql.service' '[Service]' 'User=borsabi' 'Group=borsabi' "WorkingDirectory=$app" 'EnvironmentFile=/etc/borsabi.env' "ExecStart=/usr/bin/flock --nonblock /var/lib/borsabi/paper-bot.lock /usr/bin/node $app/node_modules/tsx/dist/cli.mjs $app/scripts/bot-worker.ts" 'Restart=on-failure' 'RestartSec=10' 'TimeoutStopSec=90' 'NoNewPrivileges=true' 'PrivateTmp=true' '[Install]' 'WantedBy=multi-user.target' > "$paper_unit"
 systemctl daemon-reload
 systemctl restart borsabi
 worker_start=$(date +%s)
 systemctl enable --now borsabi-automation
+systemctl enable --now borsabi-paper-bot
 stage='Yeni surumun HTTP kontrolu'
 ready=0
 for attempt in $(seq 1 30); do
@@ -118,6 +134,8 @@ test "$ready" = 1
 test "$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/fx)" = 401
 systemctl is-active --quiet borsabi
 systemctl is-active --quiet borsabi-automation
+test "$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/bot-lab)" = 401
+systemctl is-active --quiet borsabi-paper-bot
 stage='Otomasyonun ilk dongusunun kontrolu'
 worker_ready=0
 for attempt in $(seq 1 20); do
@@ -125,5 +143,12 @@ for attempt in $(seq 1 20); do
   sleep 2
 done
 test "$worker_ready" = 1
+stage='Sanal bot servisinin ilk kontrolu'
+paper_ready=0
+for attempt in $(seq 1 30); do
+  if runuser -u borsabi -- node --require dotenv/config node_modules/tsx/dist/cli.mjs scripts/check-paper-bot.ts "$worker_start"; then paper_ready=1; break; fi
+  sleep 2
+done
+test "$paper_ready" = 1
 trap - ERR INT TERM
 printf 'SURUM YAYINDA: %s. Veritabani yedegi: %s\n' "$sha" "$backup"

@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "bot:worker": "node --import tsx scripts/bot-worker.ts",
+    "test:bot": "vitest run tests/bot-auto.test.ts tests/bot-lab.test.ts tests/bot-api.test.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/safe-seed.ts"

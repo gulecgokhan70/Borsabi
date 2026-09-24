@@ -16,8 +16,8 @@ it('keeps five main destinations and highlights the parent section on nested pag
 it('preserves every existing destination and starts with secondary groups collapsed', () => {
   const view = create(createElement(SidebarNavigation, { pathname: '/dashboard', onNavigate: vi.fn() }));
   const paths = view.root.findAllByType('a').map(a => a.props.href);
-  expect(paths).toHaveLength(22); expect(new Set(paths).size).toBe(22);
-  for (const path of ['/watchlist', '/trade-log', '/alerts', '/kesfet', '/backtest', '/screening', '/algo-scan', '/strategy-builder', '/risk-center', '/day-trading', '/swing-trading', '/aksam-analizi', '/social', '/leaderboard', '/achievements', '/brokers', '/profile']) expect(paths).toContain(path);
+  expect(paths).toHaveLength(23); expect(new Set(paths).size).toBe(23);
+  for (const path of ['/bot-lab', '/watchlist', '/trade-log', '/alerts', '/kesfet', '/backtest', '/screening', '/algo-scan', '/strategy-builder', '/risk-center', '/day-trading', '/swing-trading', '/aksam-analizi', '/social', '/leaderboard', '/achievements', '/brokers', '/profile']) expect(paths).toContain(path);
   expect(view.root.findAllByType('details').every(d => d.props.open === false)).toBe(true); view.unmount();
 });
 it('opens the active secondary group and closes the mobile drawer when following a link', () => {
