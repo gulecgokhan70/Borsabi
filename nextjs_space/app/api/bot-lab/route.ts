@@ -56,7 +56,7 @@ export async function PATCH(req: NextRequest) {
     if (auto && action === 'start' && (bot.state as unknown as AutoState).closeRequested) return NextResponse.json({ error: 'Kapatma tamamlanana kadar bekleyin.' }, { status: 409 });
     const expand = action === 'scan-all';
     const prior = bot.state as unknown as AutoState;
-    const state = expand ? { ...prior, lastBars: {}, candidates: [], scan: undefined, pending: Object.fromEntries(Object.entries(prior.pending).filter(([, order]) => order.side === 'SELL')) } : auto ? controlAuto(prior, action as 'start' | 'stop' | 'close') : { ...(bot.state as unknown as State), pending: null, lastBar: 0 };
+    const state = expand ? { ...prior, lastBars: {}, candidates: [], scan: undefined, focus: undefined, pending: Object.fromEntries(Object.entries(prior.pending).filter(([, order]) => order.side === 'SELL')) } : auto ? controlAuto(prior, action as 'start' | 'stop' | 'close') : { ...(bot.state as unknown as State), pending: null, lastBar: 0 };
     const changed = await prisma.$transaction(async tx => {
       const result = await tx.paperBot.updateMany({ where: { id, userId: u.id, version: bot.version }, data: {
         ...(expand ? { config: json({ ...(bot.config as unknown as AutoConfig), scope: 'all', symbols: [] }) } : {}),

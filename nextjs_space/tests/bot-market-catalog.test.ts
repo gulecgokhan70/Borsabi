@@ -38,3 +38,10 @@ it('shares native observations across accounts and revalidates FX without multip
     : previous(symbol));
   await expect(autoObservations(crypto, autoInitial())).rejects.toThrow('USD/TL');
 });
+it('uses the priority chart cache for selected/shortlist observations and preserves source price time', async () => {
+  const { autoObservations } = await import('../lib/bot-lab/auto-market');
+  vi.mocked(cachedQuote).mockResolvedValue({ currency: 'TRY', regularMarketTime: new Date(now - 15 * 60000), regularMarketPrice: 90, marketState: 'REGULAR' });
+  const result = await autoObservations({ ...config, scope: 'selected', symbols: ['THYAO.IS'] });
+  expect(botChart).toHaveBeenCalledWith('THYAO.IS', true);
+  expect(result.observations[0]).toMatchObject({ source: 'Yahoo Finance', observedAt: now, tick: { time: now - 15 * 60000 } });
+});

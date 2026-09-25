@@ -5,6 +5,7 @@ import { AutoConfig, AutoState, AutoEvent, autoStep } from './auto-engine';
 import { autoObservations } from './auto-market';
 import { persistBot } from './persistence';
 import { botCatalog } from './catalog';
+import { prioritySymbols } from './priority';
 export async function runBots() {
   let cursor: string | undefined;
   let processed = 0;
@@ -26,11 +27,22 @@ export async function runBots() {
             if (watch.length || current.paused) {
               const protective = watch.length ? await autoObservations({ ...c, scope: 'selected', symbols: watch }, current) : { observations: [] };
               const result = autoStep(current, { ...c, symbols: [...new Set([...botCatalog[c.market], ...watch])] }, protective.observations, Date.now());
+              if (result.state.paused) result.state.focus = { symbols: [], checkedAt: Date.now() };
               const saved = await persistBot(prisma, bot.id, version, result.state, result.message, result.events);
               if (!saved) { processed++; continue; } // User changed controls during provider fetch.
               state = result.state; version++;
               if (result.state.paused) { processed++; continue; }
             }
+            // Protect first, then persist refreshed short-list decisions before slow catalogue work.
+            const focus = prioritySymbols(c, state as AutoState, Date.now());
+            if (focus.length) {
+              const priority = await autoObservations({ ...c, scope: 'selected', symbols: focus }, state as AutoState);
+              const result = autoStep(state as AutoState, { ...c, symbols: [...new Set([...botCatalog[c.market], ...priority.config.symbols])] }, priority.observations, Date.now());
+              result.state.focus = { symbols: focus, checkedAt: Date.now() };
+              const saved = await persistBot(prisma, bot.id, version, result.state, result.message, result.events);
+              if (!saved) { processed++; continue; }
+              state = result.state; version++;
+            } else state = { ...state, focus: { symbols: [], checkedAt: Date.now() } } as AutoState;
           }
           const batch = await autoObservations(c, state as AutoState);
           const result = autoStep(state as AutoState, batch.config, batch.observations, Date.now());

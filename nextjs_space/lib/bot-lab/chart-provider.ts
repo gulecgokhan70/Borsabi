@@ -3,10 +3,11 @@ import { SharedFetchCache } from '@/lib/shared-fetch-cache';
 
 // Only used by the worker. Catalogue scanning never shares the web chart queue.
 const history = new SharedFetchCache<any>(1024, 240000);
+const priorityHistory = new SharedFetchCache<any>(256, 60000);
 let active = 0;
 const waiting: (() => void)[] = [];
-export function botChart(symbol: string) {
-  return history.get(symbol, async () => {
+export function botChart(symbol: string, priority = false) {
+  return (priority ? priorityHistory : history).get(symbol, async () => {
     if (active >= 3) await new Promise<void>(resolve => waiting.push(resolve));
     else active++;
     const controller = new AbortController();
