@@ -2,14 +2,16 @@ import { NextRequest } from 'next/server';
 import { beforeEach, expect, it, vi } from 'vitest';
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
 vi.mock('../lib/auth', () => ({ authOptions: {} }));
-vi.mock('../lib/db', () => ({ prisma: { user: { findUnique: vi.fn() }, position: { findMany: vi.fn() }, transaction: { aggregate: vi.fn(), count: vi.fn(), findMany: vi.fn() } } }));
+vi.mock('../lib/db', () => ({ prisma: { $transaction: vi.fn(), user: { findUnique: vi.fn() }, position: { findMany: vi.fn() }, transaction: { aggregate: vi.fn(), count: vi.fn(), findMany: vi.fn() } } }));
 vi.mock('../lib/position-valuation', () => ({ valuePositions: vi.fn() }));
 import { getServerSession } from 'next-auth';
 import { prisma } from '../lib/db';
 import { valuePositions } from '../lib/position-valuation';
+vi.mock('../lib/bot-lab/portfolio-view', () => ({ readBotPortfolio: vi.fn(async () => ({ positions: [], ledger: [], bots: [], capitalChanges: [] })) }));
 import { GET } from '../app/api/portfolio/route';
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.clearAllMocks();
+  vi.mocked(prisma.$transaction).mockImplementation(async (fn: any) => fn(prisma));
   vi.mocked(getServerSession).mockResolvedValue({ user: { id: 'owner' } });
   vi.mocked(prisma.user.findUnique).mockResolvedValue({ balance: 99998.8, initialBalance: 100000, commissionRate: 0 } as any);
   vi.mocked(prisma.position.findMany).mockResolvedValue([]);

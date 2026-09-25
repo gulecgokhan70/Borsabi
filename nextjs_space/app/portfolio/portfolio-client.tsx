@@ -1,4 +1,6 @@
 'use client';
+import { BotBudget } from '@/components/bot-budget';
+import { BotPortfolio } from '@/components/bot-portfolio';
 import { PortfolioExplanation } from '@/components/portfolio-explanation';
 import Link from 'next/link';
 import { updateFirstSteps, readFirstSteps } from '@/lib/first-steps';
@@ -41,6 +43,7 @@ export function PortfolioClient() {
 
   // BIST 100 vs Portföy karşılaştırma verisi
   useEffect(() => {
+    if (portfolio?.hasCapitalChanges) { setBistComparison([]); return; }
     if (!portfolio?.equityCurve || portfolio.equityCurve.length < 2) return;
     const fetchBist = async () => {
       try {
@@ -69,7 +72,7 @@ export function PortfolioClient() {
       } catch (e) { console.error('BIST comparison fetch error:', e); }
     };
     fetchBist();
-  }, [portfolio?.equityCurve]);
+  }, [portfolio?.equityCurve, portfolio?.hasCapitalChanges]);
 
 
 
@@ -96,7 +99,7 @@ export function PortfolioClient() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Portföy</h1>
-          <p className="text-sm text-muted-foreground">Pozisyonlarınızı yönetin ve performansınızı takip edin</p>
+          <p className="text-sm text-muted-foreground">Manuel ve bot işlemleriniz, tek sanal portföyde</p>
         </div>
         <button onClick={() => fetchPortfolio()} disabled={loading} className="p-2.5 rounded-lg glass-card text-muted-foreground hover:text-foreground transition-colors">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -127,6 +130,9 @@ export function PortfolioClient() {
         </motion.div>
       </div>
 
+      <BotBudget onSaved={() => { void fetchPortfolio(); }} />
+      <BotPortfolio bots={portfolio?.botAccounts ?? []} />
+      {portfolio?.hasCapitalChanges && <p className="text-xs text-muted-foreground">Sermaye ekleme/çekme hareketleri değer grafiğine dahildir; yatırım getirisi değildir. Net sonuç, güncel toplam sermayeden hesaplanır.</p>}
       {portfolio?.explanation && <PortfolioExplanation data={portfolio.explanation} />}
 
       {/* Grafik bölümü */}
@@ -280,11 +286,11 @@ export function PortfolioClient() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card rounded-xl">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-black/[0.08] dark:border-white/[0.08]">
           <BarChart3 className="w-4 h-4 text-[#3B82F6]" />
-          <h2 className="text-sm font-semibold text-foreground">Açık Pozisyonlar</h2>
+          <h2 className="text-sm font-semibold text-foreground">Manuel · Açık Pozisyonlar</h2>
         </div>
         {(positions?.length ?? 0) === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-muted-foreground">Şu anda açık pozisyonunuz yok</p>
+            <p className="text-sm text-muted-foreground">Şu anda açık manuel pozisyonunuz yok</p>
             <Link href="/piyasalar" className="inline-flex items-center min-h-[44px] text-blue-500 underline">{(portfolio?.buyCount ?? 0) > 0 ? 'Piyasaları keşfet' : 'İlk sanal işlemine başla'}</Link>
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Piyasalardan bir varlık seçip komisyonu görerek sanal işlem yapabilirsiniz</p>
           </div>

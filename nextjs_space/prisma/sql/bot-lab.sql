@@ -15,3 +15,11 @@ CREATE TABLE IF NOT EXISTS "PaperBotEvent" (
 );
 CREATE INDEX IF NOT EXISTS "PaperBotEvent_botId_createdAt_idx" ON "PaperBotEvent"("botId", "createdAt");
 COMMIT;
+
+CREATE TABLE IF NOT EXISTS "PortfolioBotBudget" (
+  "userId" TEXT PRIMARY KEY REFERENCES "User"("id") ON DELETE CASCADE,
+  "allocationPercent" DOUBLE PRECISION NOT NULL,
+  "perTradePercent" DOUBLE PRECISION NOT NULL,
+  "capitalChanges" JSONB NOT NULL DEFAULT '[]',
+  "version" INTEGER NOT NULL DEFAULT 1
+);

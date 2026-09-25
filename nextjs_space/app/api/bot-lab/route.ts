@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { initialState, State } from '@/lib/bot-lab/engine';
+import { State } from '@/lib/bot-lab/engine';
 import { createBot, createAutoBot, controlBot } from '@/lib/bot-lab/validation';
+import { serial, budgetView } from '@/lib/bot-lab/shared-portfolio';
 import { autoInitial, AutoConfig, AutoState, controlAuto } from '@/lib/bot-lab/auto-engine';
 import { readMutationJson, RequestError } from '@/lib/request-json';
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,13 @@ export async function POST(req: NextRequest) {
     const config = parsed.data;
     if (config.market === 'BIST') config.commission = u.commissionRate;
     if (!schema.safeParse(config).success) return NextResponse.json({ error: 'Profil komisyonunu kontrol edin.' }, { status: 400 });
-    const bot = await prisma.paperBot.create({ data: { userId: u.id, market: config.market, symbol: 'mode' in config ? 'AUTO' : config.symbol, config: json(config), state: json('mode' in config ? autoInitial() : initialState()) } });
+    if (!('mode' in config)) return NextResponse.json({ error: 'Yeni botlar ortak portföy üzerinden oluşturulur.' }, { status: 400 });
+    const bot = await serial(prisma, async tx => {
+      const budget = await budgetView(tx, u.id);
+      if (!budget.configured) return null;
+      return tx.paperBot.create({ data: { userId: u.id, market: config.market, symbol: 'AUTO', config: json({ ...config, funding: 'portfolio' }), state: json(autoInitial(budget.available)) } });
+    });
+    if (!bot) return NextResponse.json({ error: 'Önce ortak portföy sermayesini ve bot bütçesini kaydedin.' }, { status: 409 });
     return NextResponse.json({ id: bot.id }, { status: 201 });
   } catch (error) {
     if (error instanceof RequestError) return NextResponse.json({ error: error.message }, { status: error.status });

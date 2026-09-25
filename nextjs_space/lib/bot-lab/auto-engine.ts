@@ -16,7 +16,7 @@ export const universe: Record<Market, { symbol: string; group: string }[]> = {
   ],
 };
 export type AutoConfig = {
-  mode: 'auto-v2'; market: Market; scope?: 'selected' | 'all'; symbols: string[]; commission: number; friction: number;
+  mode: 'auto-v2'; funding?: 'portfolio'; market: Market; scope?: 'selected' | 'all'; symbols: string[]; commission: number; friction: number;
   orderFraction: number; dailyLoss: number; stopLoss: number; takeProfit: number; maxPositions: number;
 };
 export type Candle = { time: number; close: number; volume: number };
@@ -31,10 +31,11 @@ export type AutoState = {
   lastBars: Record<string, number>; lastQuotes: Record<string, number>; candidates: Candidate[]; valuedAt: number;
 };
 export type AutoEvent = { time: number; action: 'BUY' | 'SELL' | 'WAIT' | 'HALT'; reason: string; symbol?: string; price?: number; quantity?: number; fee?: number; pnl?: number;
-  quoteTime?: number; observedAt?: number; signalAt?: number; signalBarTime?: number; source?: string };
-export function autoInitial(): AutoState {
-  return { mode: 'auto-v2', paused: true, closeRequested: false, closeAfter: 0, cash: INITIAL, equity: INITIAL, peak: INITIAL,
-    drawdown: 0, fees: 0, frictionCost: 0, realized: 0, day: '', dayEquity: INITIAL, haltedDay: null,
+  portfolio?: boolean; transfer?: boolean; quoteTime?: number; observedAt?: number; signalAt?: number; signalBarTime?: number; source?: string };
+export function autoInitial(initialCapital = INITIAL): AutoState {
+  if (!Number.isFinite(initialCapital) || initialCapital < 0) throw new Error('Geçersiz başlangıç sermayesi.');
+  return { mode: 'auto-v2', paused: true, closeRequested: false, closeAfter: 0, cash: initialCapital, equity: initialCapital, peak: initialCapital,
+    drawdown: 0, fees: 0, frictionCost: 0, realized: 0, day: '', dayEquity: initialCapital, haltedDay: null,
     holdings: {}, pending: {}, lastBars: {}, lastQuotes: {}, candidates: [], valuedAt: 0 };
 }
 export function fresh(tick: Tick, market: Market, now: number) {
@@ -103,7 +104,7 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
   for (const o of observations) if (c.symbols.includes(o.symbol) && !o.error && fresh(o.tick, c.market, now)) valid.set(o.symbol, o);
   const mark = () => {
     s.equity = s.cash + Object.values(s.holdings).reduce((sum, h) => sum + h.quantity * h.mark, 0);
-    s.peak = Math.max(s.peak, s.equity); s.drawdown = Math.max(s.drawdown, (s.peak - s.equity) / s.peak * 100);
+    s.peak = Math.max(s.peak, s.equity); s.drawdown = Math.max(s.drawdown, s.peak > 0 ? (s.peak - s.equity) / s.peak * 100 : 0);
   };
   const day = dayKey(now);
   if (s.day !== day) { s.day = day; s.dayEquity = s.equity; s.haltedDay = null; }
@@ -113,7 +114,7 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
   }
   mark();
   const halt = () => {
-    if (s.equity <= s.dayEquity * (1 - c.dailyLoss)) {
+    if (s.dayEquity > 0 && s.equity <= s.dayEquity * (1 - c.dailyLoss)) {
       if (s.haltedDay !== day) events.push({ time: now, action: 'HALT', reason: 'Günlük zarar sınırı; yeni alımlar durdu, açık pozisyonların çıkış kontrolleri devam ediyor.' });
       s.haltedDay = day;
     }

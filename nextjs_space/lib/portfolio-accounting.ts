@@ -1,4 +1,4 @@
-type LedgerEntry = { type: string; symbol: string; quantity: number; total: number; commission: number; pnl: number | null; createdAt: Date };
+type LedgerEntry = { holdingKey?: string; type: string; symbol: string; quantity: number; total: number; commission: number; pnl: number | null; createdAt: Date };
 
 export function summarizeSales(entries: { type: string; pnl: number | null }[]) {
   const sales = entries.filter(t => t.type === 'SELL' && t.pnl !== null);
@@ -16,9 +16,11 @@ export function buildEquityCurve(initialBalance: number, entries: LedgerEntry[])
   const label = (date: Date) => date.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const curve = [{ date: label(entries[0]?.createdAt ?? new Date()), balance: initialBalance }];
   for (const entry of entries) {
-    const symbol = entry.symbol.replace(/\.IS$/, '');
+    const symbol = entry.holdingKey ?? entry.symbol.replace(/\.IS$/, '');
     const holding = holdings.get(symbol) ?? { quantity: 0, cost: 0 };
-    if (entry.type === 'BUY') {
+    if (entry.type === 'CAPITAL') {
+      cash += entry.total;
+    } else if (entry.type === 'BUY') {
       cash -= entry.total + entry.commission;
       holding.quantity += entry.quantity;
       holding.cost += entry.total;

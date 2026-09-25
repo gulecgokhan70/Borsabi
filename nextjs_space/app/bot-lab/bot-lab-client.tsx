@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { botCatalog, assetHref, assetLabel } from '@/lib/bot-lab/catalog';
 import { Bot, Pause, Play } from 'lucide-react';
+import { BotBudget } from '@/components/bot-budget';
 import { PositionSummary } from './position-summary';
 import { INITIAL, Market } from '@/lib/bot-lab/engine';
 import { AutoConfig, AutoState, AutoEvent, universe } from '@/lib/bot-lab/auto-engine';
@@ -17,7 +18,7 @@ export function BotLabClient() {
   const [scope, setScope] = useState<'all' | 'selected'>('all');
   const [selected, setSelected] = useState(universe.BIST.map(v => v.symbol));
   const [commission, setCommission] = useState(0.1), [profileCommission, setProfileCommission] = useState(0);
-  const [order, setOrder] = useState(5), [daily, setDaily] = useState(2), [stop, setStop] = useState(2), [target, setTarget] = useState(4);
+  const [order] = useState(5), [daily, setDaily] = useState(2), [stop, setStop] = useState(2), [target, setTarget] = useState(4);
   const [friction, setFriction] = useState(0.1), [maxPositions, setMaxPositions] = useState(3);
   const [online, setOnline] = useState(false), [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [clock, setClock] = useState(0);
@@ -45,7 +46,6 @@ export function BotLabClient() {
     finally { setBusy(false); }
   }
   const fields = [
-    { title: 'İşlem başına portföy (%)', value: order, set: setOrder, min: 1, max: 10, step: 1 },
     { title: 'Günlük zarar sınırı (%)', value: daily, set: setDaily, min: 0.5, max: 5, step: 0.5 },
     { title: 'Pozisyon zarar sınırı (%)', value: stop, set: setStop, min: 0.5, max: 10, step: 0.5 },
     { title: 'Kâr hedefi (%)', value: target, set: setTarget, min: 1, max: 20, step: 0.5 },
@@ -54,12 +54,13 @@ export function BotLabClient() {
   ];
   return <main className="space-y-6 text-foreground max-w-5xl mx-auto pb-8">
     <header className="rounded-2xl glass-card p-5 space-y-3"><div className="flex items-center gap-3"><Bot className="text-blue-500" /><h1 className="text-2xl font-bold">Bot Laboratuvarı</h1></div>
-      <p>Bot tarasın, seçsin, sanal işlemleri yönetsin.</p><p className="text-sm text-muted-foreground">Her piyasa için ayrı 100.000 sanal TL. Normal portföyünüz etkilenmez. Gerçek emir gönderilmez.</p>
+      <p>Bot tarasın, seçsin, sanal işlemleri yönetsin.</p><p className="text-sm text-muted-foreground">Botlar ana sanal portföyünüze bağlanabilir. Hisse ve kripto botları ortak kullanım sınırını paylaşır. Gerçek emir gönderilmez.</p>
       <p className="text-sm text-muted-foreground">Gecikmeli verilerle sanal deneme. Kontrol sıklığı, fiyatın güncelliği değildir.</p>
       <p role="status" className="text-sm">{online ? '● Arka plan servisi çalışıyor' : '○ Arka plan servisi doğrulanamadı; otomatik işlemler henüz çalışmıyor olabilir.'}</p>
     </header>
     {error && <div role="alert" className="p-4 rounded-xl border border-red-400 text-red-600">{error}<button className={`${button} ml-2`} onClick={() => { setError(''); load(); }}>Tekrar dene</button></div>}
     {loading ? <p role="status">Botlar yükleniyor…</p> : <>
+      <BotBudget onSaved={load} />
       {bots.length < 2 && <form className="glass-card rounded-2xl p-5 space-y-4" onSubmit={e => { e.preventDefault(); request('POST', { mode: 'auto-v2', market, scope, symbols: scope === 'all' ? [] : selected, commission: (market === 'BIST' ? profileCommission : commission) / 100, friction: friction / 100, orderFraction: order / 100, dailyLoss: daily / 100, stopLoss: stop / 100, takeProfit: target / 100, maxPositions }); }}>
         <h2 className="font-semibold text-xl">Otomatik seçimli sanal bot</h2>
         <label className="block">Piyasa<select className={`${input} mt-2`} value={market} onChange={e => { const m = e.target.value as Market; setMarket(m); setSelected(universe[m].map(v => v.symbol)); }}><option value="BIST">Borsa İstanbul</option><option value="CRYPTO">Kripto</option></select></label>
@@ -69,7 +70,7 @@ export function BotLabClient() {
         <details className="rounded-xl border p-3"><summary className="cursor-pointer font-medium">Risk ve masraf ayarları</summary><div className="grid sm:grid-cols-2 gap-4 mt-4">{fields.map(f => <label key={f.title} className="text-sm">{f.title}<input className={`${input} mt-1`} required type="number" min={f.min} max={f.max} step={f.step} value={f.value} onChange={e => f.set(e.target.valueAsNumber)} /></label>)}
           <label className="text-sm">Komisyon / işlem (%) {market === 'BIST' ? '— profilinden' : '— simülasyon varsayımı'}<input className={`${input} mt-1`} type="number" required min="0" max="1" step="0.001" disabled={market === 'BIST'} value={market === 'BIST' ? profileCommission : commission} onChange={e => setCommission(e.target.valueAsNumber)} /></label>
         </div><p className="text-xs text-muted-foreground mt-3">Masraflar alış ve satışta uygulanır. Fiyat kayması, beklenen ve gerçekleşen fiyatın farkıdır. Ayarlar oluşturma anında sabitlenir.</p></details>
-        <p className="text-sm">Başlangıç: %{order} işlem bütçesi · %{daily} günlük zarar sınırı · %{stop} zarar / %{target} kâr hedefi.</p>
+        <p className="text-sm">Ortak bütçedeki işlem sınırı uygulanır · %{daily} günlük zarar sınırı · %{stop} zarar / %{target} kâr hedefi.</p>
         <button className={`${button} bg-blue-600 text-white`} disabled={busy || (scope === 'selected' && !selected.length) || bots.some(b => b.market === market)}>{bots.some(b => b.market === market) ? 'Bu piyasanın botu mevcut' : 'Sanal botu oluştur'}</button>
       </form>}
       {bots.map(b => {
@@ -79,7 +80,7 @@ export function BotLabClient() {
           <div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-bold text-xl">{b.market === 'BIST' ? 'Hisse botu' : 'Kripto botu'}</h2><p className="text-sm text-muted-foreground">{auto ? 'Otomatik seçim · EMA20/50' : `Eski tek varlık botu · ${b.symbol}`} · {active ? 'Alım taraması açık' : 'Yeni alımlar kapalı'}</p></div>
             <button className={`${button} flex items-center gap-2`} disabled={busy || (auto && b.state.closeRequested)} onClick={() => request('PATCH', { id: b.id, action: active ? 'stop' : 'start' })}>{active ? <Pause size={16} /> : <Play size={16} />}{active ? 'Duraklat' : 'Başlat'}</button></div>
           <p role="status" className="rounded-xl bg-blue-500/10 p-3 text-sm">{b.message}</p>
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">{[['Son bilinen hesap değeri', money(b.state.equity)], ['Net sonuç', money(b.state.equity - INITIAL)], ['Nakit', money(b.state.cash)], ['Komisyon toplamı', money(b.state.fees)], ['En büyük düşüş', `%${b.state.drawdown.toFixed(2)}`], ['Fiyat kayması toplamı', money(b.state.frictionCost)]].map(([title, value]) => <div key={title} className="rounded-xl glass-inner p-3"><dt className="text-xs text-muted-foreground">{title}</dt><dd className="mt-1 font-semibold break-words">{value}</dd></div>)}</dl>
+          {b.config.funding === 'portfolio' ? <p className="text-sm">Bu bot ana portföy nakdini kullanır. <Link href="/portfolio" className="text-blue-600 underline">Ortak portföyü ve işlemleri aç</Link></p> : <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">{[['Başlangıç sermayesi', money(INITIAL)], ['Son bilinen hesap değeri', money(b.state.equity)], ['Net sonuç', money(b.state.equity - (INITIAL))], ['Nakit', money(b.state.cash)], ['Komisyon toplamı', money(b.state.fees)], ['En büyük düşüş', `%${b.state.drawdown.toFixed(2)}`], ['Fiyat kayması toplamı', money(b.state.frictionCost)]].map(([title, value]) => <div key={title} className="rounded-xl glass-inner p-3"><dt className="text-xs text-muted-foreground">{title}</dt><dd className="mt-1 font-semibold break-words">{value}</dd></div>)}</dl>}
           <p className="text-xs text-muted-foreground">Son kontrol: {date(b.checkedAt)} (Türkiye saati). Değerleme son bilinen fiyatları kullanır; henüz yapılmamış satışın masrafları dahil değildir.</p>
           {auto && <>
             <details className="rounded-xl border p-3 text-sm"><summary className="cursor-pointer font-medium">Veri zamanı ve tarama sıklığı</summary><div className="mt-2 space-y-2 text-muted-foreground">
@@ -87,7 +88,7 @@ export function BotLabClient() {
               <p>15 dakikalık kapanmış mumlar kullanılır. Her kontrol turunun ardından 60 saniye beklenir; veri çekme süresi buna eklenir. Mum kapanışını ve kaynak verisini beklemek ek gecikme oluşturur.</p>
               <p>Alım sinyalinin görüldüğü zamandan sonraya ait fiyat gelmeden sanal alım yapılmaz. Gecikmeli veride bu bekleme uzayabilir. Zarar/kâr çıkışları gözlenen fiyatla modellenir; kayıt saati ile fiyat saati farklı olabilir. Sonuçlar canlı işlem başarısını göstermez.</p>
             </div></details>
-            <p className="text-sm text-muted-foreground">İşlem bütçesi %{b.config.orderFraction * 100} · En fazla {b.config.maxPositions} pozisyon · Komisyon %{(b.config.commission * 100).toFixed(3)} · Günlük sınır %{b.config.dailyLoss * 100}</p>
+            <p className="text-sm text-muted-foreground">{b.config.funding === 'portfolio' ? 'Ortak sermaye ve işlem sınırı' : `Eski ayrı hesap · işlem bütçesi %${b.config.orderFraction * 100}`} · En fazla {b.config.maxPositions} pozisyon · Komisyon %{(b.config.commission * 100).toFixed(3)} · Günlük sınır %{b.config.dailyLoss * 100}</p>
             <div className="rounded-xl border p-3 space-y-2 text-sm">
               <p className="font-semibold">{b.config.scope === 'all' ? `Tüm desteklenen varlıklar · ${botCatalog[b.market].length}` : `Seçili liste · ${b.config.symbols.length} varlık`}</p>
               {b.config.scope !== 'all' && <p className="flex flex-wrap gap-3">{b.config.symbols.map(symbol => <Link key={symbol} href={assetHref(symbol)} prefetch={false} className="text-blue-600 underline">{assetLabel(symbol)}</Link>)}</p>}

@@ -1,5 +1,5 @@
 type PositionValue = {
-  symbol: string; totalValue: number; pnl: number; priceStale?: boolean;
+  breakdownKnown?: boolean; symbol: string; totalValue: number; pnl: number; priceStale?: boolean;
   breakdown: { pricePnlTry: number; fxPnlTry: number };
 };
 type Entry = {
@@ -20,6 +20,7 @@ export function explainPortfolio(initialBalance: number, cash: number, positions
   let realizedNet = 0, missingBreakdowns = 0;
   for (const p of positions) {
     const item = row(p.symbol);
+    if (p.breakdownKnown === false) { item.incomplete = true; missingBreakdowns++; }
     item.price += p.breakdown.pricePnlTry;
     item.fx += p.breakdown.fxPnlTry;
   }
