@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { cachedQuoteBatch, cachedChart } from '@/lib/yahoo-finance';
 import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
 import { getMidasStockMap } from '@/lib/midas-api';
+import { quoteMarketOpen, quoteTimestamp } from '@/lib/quote-metadata';
 
 const INDEX_SYMBOLS = ['XU100.IS', 'XU030.IS', 'XU050.IS'];
 
@@ -165,6 +166,8 @@ export async function GET(request: Request) {
       const q: any = indexData.get(sym) || {};
       const name = sym === 'XU100.IS' ? 'BIST 100' : sym === 'XU030.IS' ? 'BIST 30' : 'BIST 50';
       return {
+        priceAsOf: quoteTimestamp(q.regularMarketTime), priceSource: 'Yahoo Finance',
+        marketOpen: quoteMarketOpen(q.marketState), checkedAt: new Date().toISOString(),
         symbol: sym,
         name,
         price: q.regularMarketPrice ?? 0,
@@ -186,6 +189,8 @@ export async function GET(request: Request) {
       const changePercent = m.DailyChangePercent || (prevClose > 0 && price > 0 ? ((price - prevClose) / prevClose) * 100 : 0);
       return {
         symbol: s.symbol,
+        priceAsOf: m.Last === price ? quoteTimestamp(m.DateTime) : null, priceSource: 'Midas',
+        marketOpen: null, checkedAt: new Date().toISOString(),
         name: s.name,
         shortName: s.shortName,
         price,

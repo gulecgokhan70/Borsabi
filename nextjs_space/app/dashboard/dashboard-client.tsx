@@ -1,5 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
+import { BistDataNotice, QuoteTime } from '@/components/market-data-status';
 import { useDashboardData } from '@/hooks/use-dashboard-data';
 import { MarketAlertsPanel } from '@/components/market-alerts-panel';
 import { ResumeCard } from '@/components/resume-card';
@@ -34,7 +35,7 @@ export function DashboardClient() {
   const router = useRouter();
   const haptic = useHaptic();
   const { data: session } = useSession() || {};
-  const { indices, stocks, cryptos, portfolio, bistOpen, hasPreview, pending, loading, lastUpdate, refreshError, fetchData } = useDashboardData();
+  const { indices, stocks, cryptos, portfolio, hasPreview, pending, loading, lastUpdate, refreshError, fetchData } = useDashboardData();
   const [tradeModal, setTradeModal] = useState<any>(null);
   const [stockSort, setStockSort] = useState<'alpha' | 'change' | 'price'>('alpha');
 
@@ -151,15 +152,10 @@ export function DashboardClient() {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">Son kontrol zamanı fiyatın gerçekleştiği zaman değildir. Fiyat zamanı ve kaynak bilgisi varlık detayında gösterilir.</p>
+      <BistDataNotice rows={[...(indices ?? []), ...(stocks ?? [])]} />
       {hasPreview && <p role="status" className="text-xs text-muted-foreground">Önceki kontrolden kalan piyasa fiyatları gösteriliyor{loading ? '; güncelleniyor' : ''}.</p>}
       {portfolio?.accountId && <ResumeCard key={`resume:${portfolio.accountId}`} accountId={portfolio.accountId} />}
-      {bistOpen === false && !loading && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/30">
-          <span className="text-[#F59E0B] text-lg">🔔</span>
-          <p className="text-[#F59E0B] text-sm font-medium">Kaynak BIST seansını kapalı bildiriyor. Fiyatın zamanını varlık detayından kontrol edin.</p>
-        </div>
-      )}
+
 
       {refreshError && <p role="status" className="text-sm text-amber-500">{refreshError}</p>}
       {portfolio?.error ? <div role="alert" className="glass-card p-4 text-sm text-[#F59E0B]">{portfolio.error}</div> : <>
@@ -223,16 +219,10 @@ export function DashboardClient() {
                 </p>
               </div>
             </div>
-            <PriceChart symbol={idx?.symbol} height="h-32" />
+            <QuoteTime info={idx} className="mb-2" /><PriceChart symbol={idx?.symbol} height="h-32" />
           </div>
         ))}
       </motion.div>
-
-      {/* Gecikme uyarısı */}
-      <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-[#F59E0B]/10 border border-[#F59E0B]/20 mx-auto w-fit">
-        <span className="text-[#F59E0B] text-xs">⏱</span>
-        <p className="text-[11px] font-medium text-[#F59E0B]">BİST verileri 15 dakika gecikmeli gelmektedir.</p>
-      </div>
 
       {/* BIST stocks & Crypto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -267,7 +257,7 @@ export function DashboardClient() {
                     </div>
                     <div className="text-left min-w-0">
                       <p className="text-sm font-medium text-foreground">{s?.symbol?.replace?.('.IS', '') ?? s?.symbol}</p>
-                      <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">{s?.name}</p>
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">{s?.name}</p><QuoteTime info={s} />
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -278,7 +268,7 @@ export function DashboardClient() {
                       </p>
                     </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); setTradeModal({ symbol: s?.symbol, name: s?.name, price: s?.price ?? 0, marketType: 'BIST' }); }}
+                      onClick={(e) => { e.stopPropagation(); setTradeModal({ symbol: s?.symbol, name: s?.name, price: s?.price ?? 0, marketType: 'BIST', quoteInfo: s }); }}
                       className="px-2 py-1.5 text-[10px] font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors whitespace-nowrap"
                     >
                       İşlem
@@ -397,6 +387,7 @@ export function DashboardClient() {
           name={tradeModal?.name}
           price={tradeModal?.price}
           marketType={tradeModal?.marketType}
+          quoteInfo={tradeModal?.quoteInfo}
           onSuccess={fetchData}
         />
       )}

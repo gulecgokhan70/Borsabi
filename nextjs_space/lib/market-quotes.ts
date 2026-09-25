@@ -1,4 +1,4 @@
-import { quoteMarketOpen } from './quote-metadata';
+import { quoteMarketOpen, quoteTimestamp } from './quote-metadata';
 import { cachedQuoteBatch } from './yahoo-finance';
 import { getMidasStockMap, type MidasStock } from './midas-api';
 import { BIST_ALL_ASSETS, isIndexSymbol } from './constants';
@@ -68,6 +68,8 @@ export async function getMarketQuotes(symbols: string[]) {
           currency: 'TRY',
           marketOpen: null,
           source: 'midas',
+          priceSource: 'Midas', priceAsOf: midas.Last === price ? quoteTimestamp(midas.DateTime) : null,
+          checkedAt: new Date().toISOString(),
         };
       }
 
@@ -91,6 +93,8 @@ export async function getMarketQuotes(symbols: string[]) {
         currency: q?.currency ?? 'TRY',
         marketOpen: quoteMarketOpen(q?.marketState),
         source: 'yahoo',
+        priceSource: 'Yahoo Finance', priceAsOf: price === rawPrice ? quoteTimestamp(q?.regularMarketTime) : null,
+        checkedAt: new Date().toISOString(),
         error: price <= 0,
       };
     });

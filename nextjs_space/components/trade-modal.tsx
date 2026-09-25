@@ -1,4 +1,6 @@
 'use client';
+import { BistDataNotice, QuoteTime } from '@/components/market-data-status';
+import type { QuoteInfo } from '@/lib/market-data-status';
 import { tradeScenario } from '@/lib/trade-scenario';
 import { tradeQuantityError } from '@/lib/ux-metrics';
 import { useState, useEffect, useRef } from 'react';
@@ -18,6 +20,7 @@ interface TradeModalProps {
   symbol: string;
   name: string;
   price: number;
+  quoteInfo?: QuoteInfo;
   marketType: TradeMarketType;
   side?: 'BUY' | 'SELL';
   maxQuantity?: number;
@@ -28,7 +31,7 @@ interface TradeModalProps {
 
 type OrderType = 'market' | 'limit' | 'stop-limit';
 
-export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, side = 'BUY', maxQuantity, onSuccess, initialStopLoss, initialTakeProfit }: TradeModalProps) {
+export function TradeModal({ isOpen, onClose, symbol, name, price, quoteInfo, marketType, side = 'BUY', maxQuantity, onSuccess, initialStopLoss, initialTakeProfit }: TradeModalProps) {
   const haptic = useHaptic();
   const confetti = useConfetti();
   const [type, setType] = useState<'BUY' | 'SELL'>(side);
@@ -236,6 +239,7 @@ export function TradeModal({ isOpen, onClose, symbol, name, price, marketType, s
           </div>
 
           <div className="p-4 pt-3 space-y-3 sm:space-y-4">
+            {marketType === 'BIST' && <><BistDataNotice info={quoteInfo} /><QuoteTime info={quoteInfo} /></>}
             {pending && <div role="alert" className="p-3 glass-inner rounded-lg text-sm">
               Son emrin sonucu henüz doğrulanmadı. Yeni emir vermeden önce aynı isteği güvenle kontrol edin.
               <button disabled={loading} onClick={handleTrade} className="block min-h-[44px] text-[#3B82F6]">Son emrin sonucunu kontrol et</button>
