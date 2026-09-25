@@ -1,4 +1,5 @@
 'use client';
+import { BistDataNotice, QuoteTime } from '@/components/market-data-status';
 import { readStockAnalysis } from '@/lib/stock-analysis-stream';
 import { aiHttpError } from '@/lib/ai-stream-client';
 import { formatQuoteTime } from '@/lib/quote-metadata';
@@ -484,6 +485,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         <Link href="/alerts" aria-label="Fiyat alarmları" className="min-h-[44px] min-w-[44px] grid place-items-center"><Bell className="w-5 h-5" /></Link>
         <button onClick={shareStock} aria-label="Hisseyi paylaş" className="min-h-[44px] min-w-[44px] grid place-items-center"><Share2 className="w-5 h-5" /></button>
       </header>
+      {data && symbol.endsWith('.IS') && <BistDataNotice info={data} />}
       {data ? <section aria-label="Hisse fiyatı" className="space-y-3">
         <h1 className="text-lg font-normal leading-snug">{data.name}</h1>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -642,10 +644,12 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
       {data && <StockAnalysisSheet symbol={data.symbol} name={data.shortName} analysis={analysis} generatedAt={analysisTime} loading={analysisLoading} error={analysisError} onGenerate={fetchAnalysis} formatPrice={fp} />}
 
-      {data && <details className="text-xs text-muted-foreground border-b border-black/10 dark:border-white/10 pb-4">
+      {data && <>
+      <QuoteTime info={data} />
+      <details className="text-xs text-muted-foreground border-b border-black/10 dark:border-white/10 pb-4">
         <summary className="min-h-[44px] cursor-pointer">Fiyat zamanı: {formatQuoteTime(data.priceAsOf)} · Veri bilgisi</summary>
-        <div className="space-y-2 pt-2"><p>Son fiyat kaynağı: {data.priceSource || 'Bilinmiyor'} · {data.priceTimeKind === 'candle' ? 'Mum zamanı' : 'Fiyat zamanı'}: {formatQuoteTime(data.priceAsOf)}</p><p>Son kontrol: {formatQuoteTime(data.checkedAt)}</p><p>Seans: {data.marketOpen === true ? 'Kaynağa göre açık' : data.marketOpen === false ? 'Kaynağa göre kapalı' : 'Doğrulanmadı'}. Veriler gecikmeli olabilir. Kontrol saati fiyatın zamanı değildir.</p>{activePoint && <p>Üstteki fiyat grafikte seçilen muma aittir.</p>}</div>
-      </details>}
+        <div className="space-y-2 pt-2"><p>Son fiyat kaynağı: {data.priceSource || 'Bilinmiyor'} · {data.priceTimeKind === 'candle' ? 'Mum zamanı' : 'Fiyat zamanı'}: {formatQuoteTime(data.priceAsOf)}</p><p>Son kontrol: {formatQuoteTime(data.checkedAt)}</p><p>Veriler gecikmeli olabilir. Kontrol saati fiyatın zamanı değildir.</p>{activePoint && <p>Üstteki fiyat grafikte seçilen muma aittir.</p>}</div>
+      </details></>}
       {tradeActions && !fullChart && <div role="region" aria-label="Sanal işlem" className="fixed bottom-0 left-0 right-0 lg:left-64 z-40 bg-white/95 dark:bg-[#0d0d0d]/95 backdrop-blur px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{tradeActions}</div>}
       {/* ===== QUICK STATS ROW ===== */}
       {data && (
@@ -1037,6 +1041,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             name={data.name}
             price={data.price}
             marketType={marketType}
+            quoteInfo={data}
             side={tradeSide}
             initialStopLoss={autoSL}
             initialTakeProfit={autoTP}

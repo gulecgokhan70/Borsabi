@@ -1,4 +1,5 @@
 'use client';
+import { BistDataNotice, QuoteTime } from '@/components/market-data-status';
 import { useMarketTab } from '@/hooks/use-market-tab';
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -110,6 +111,7 @@ export function PiyasalarClient() {
         </div>
       </div>
 
+      {(tab === 'bist' || tab === 'endeks') && <BistDataNotice rows={[...(data.bistStocks ?? []), ...(data.indices ?? [])]} />}
       {preview && <p role="status" className="text-xs text-muted-foreground">Önceki kontrolden kalan fiyatlar gösteriliyor{loading ? '; güncelleniyor' : ''}. Son kontrol: {lastUpdate ? new Date(lastUpdate).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' }) : 'bilinmiyor'} (Türkiye saati). Kontrol zamanı fiyat zamanı değildir.</p>}
       {error && <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">{error}</p>}
       {/* Market Summary Strip */}
@@ -152,7 +154,7 @@ export function PiyasalarClient() {
               </div>
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-xl font-bold text-foreground">{formatNumber(idx.price, 0)}</p>
+                  <p className="text-xl font-bold text-foreground">{formatNumber(idx.price, 0)}</p><QuoteTime info={idx} />
                   <p className={`text-xs ${idx.change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
                     {idx.change >= 0 ? '+' : ''}{formatNumber(idx.change, 0)}
                   </p>
@@ -421,7 +423,7 @@ function IndexSection({ data, search, sortKey, sortAsc }: SectionProps) {
               {formatPercent(idx.changePercent)}
             </span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{formatNumber(idx.price, 0)}</p>
+          <p className="text-2xl font-bold text-foreground">{formatNumber(idx.price, 0)}</p><QuoteTime info={idx} />
           <div className="flex items-center justify-between mt-3">
             <div className="flex gap-3 text-xs text-muted-foreground">
               <span>Y: {formatNumber(idx.high, 0)}</span>
@@ -466,7 +468,7 @@ function BistSection({ data, search, sortKey, sortAsc }: SectionProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground">{s.shortName}</p>
-                <p className="text-xs text-muted-foreground truncate">{s.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{s.name}</p><QuoteTime info={s} />
               </div>
               <div className="hidden sm:block flex-shrink-0">
                 <MiniSparkSvg data={s.sparkline} positive={(s.changePercent ?? 0) >= 0} />
