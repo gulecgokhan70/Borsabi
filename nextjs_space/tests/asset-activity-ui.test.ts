@@ -1,0 +1,33 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+vi.mock('next/link', () => ({ default: (props: any) => createElement('a', props) }));
+vi.mock('next-auth/react', () => ({ useSession: () => ({ status: 'authenticated', data: { user: { id: 'owner' } } }) }));
+import { AssetActivity, AssetActivityContent } from '../components/asset-activity';
+import type { AssetActivityData } from '../lib/asset-activity';
+const empty: AssetActivityData = { open: [], closed: [], trades: [], moreClosed: false, moreTrades: false, valuationUnavailable: false };
+let renderer: ReactTestRenderer;
+beforeEach(() => { vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' })); });
+afterEach(async () => { await act(async () => renderer?.unmount()); vi.unstubAllGlobals(); });
+it('labels transfers separately from market buys and shows fees plus actual cash spent', () => {
+  const row = { id: '1', origin: 'Bot' as const, action: 'BUY' as const, time: '2026-09-25T10:00:00Z', quantity: 2, price: 200, currency: 'TRY', total: 400, fee: 4, pnl: null };
+  const html = renderToStaticMarkup(createElement(AssetActivityContent, { data: { ...empty, trades: [row, { ...row, id: '2', action: 'TRANSFER' }] }, view: 'trades' }));
+  expect(html).toContain('₺404,00'); expect(html).toContain('Pozisyon aktarımı'); expect(html).toContain('yeni bir piyasa alımı değildir');
+  expect(html.match(/Toplam ödeme/g)).toHaveLength(1);
+});
+it('ignores a late response for a previous asset and refetches after a trade revision', async () => {
+  const pending: { resolve: (value: unknown) => void; signal: AbortSignal }[] = [];
+  const fetcher = vi.fn((_url, options) => new Promise(resolve => pending.push({ resolve, signal: options.signal })));
+  vi.stubGlobal('fetch', fetcher);
+  await act(async () => { renderer = create(createElement(AssetActivity, { symbol: 'THYAO.IS' })); });
+  await act(async () => { renderer.update(createElement(AssetActivity, { symbol: 'BTC-USD' })); });
+  expect(pending[0].signal.aborted).toBe(true);
+  await act(async () => { pending[1].resolve({ ok: true, json: async () => empty }); });
+  await act(async () => { pending[0].resolve({ ok: false, json: async () => ({ error: 'WRONG_ASSET' }) }); });
+  expect(JSON.stringify(renderer.toJSON())).not.toContain('WRONG_ASSET');
+  expect(JSON.stringify(renderer.toJSON())).toContain('açık pozisyonunuz yok');
+  await act(async () => { renderer.update(createElement(AssetActivity, { symbol: 'BTC-USD', revision: 1 })); });
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  expect(fetcher.mock.calls[2][0]).toBe('/api/stock/BTC-USD/activity');
+});

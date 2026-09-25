@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // Keep React state, effects, the detail page and TradeModal real. Only replace
 // navigation, chart drawing and animation, which need a browser layout engine.
 vi.mock('next/navigation', () => ({ useRouter: () => ({ back: vi.fn(), push: vi.fn() }) }));
+vi.mock('next-auth/react', () => ({ useSession: () => ({ status: 'authenticated', data: { user: { id: 'test-user' } } }) }));
+vi.mock('react-dom', async original => ({ ...await original<any>(), createPortal: (children: ReactNode) => children }));
 vi.mock('next/link', () => ({ default: ({ children, ...props }: any) => createElement('a', props, children) }));
 vi.mock('framer-motion', () => ({
   motion: { div: 'div' }, AnimatePresence: ({ children }: { children: ReactNode }) => children,
@@ -56,9 +58,11 @@ const mount = async (symbol = 'BTC-USD') => {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }));
   fxUnavailable = false; heldQuantity = 0; orderBody = undefined; loseReply = false; sessionValues.clear();
   vi.stubGlobal('sessionStorage', { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => sessionValues.set(key, value), removeItem: (key: string) => sessionValues.delete(key) });
   fetchMock.mockReset().mockImplementation(async (input: string, options?: RequestInit) => {
+    if (input.endsWith('/activity')) return Response.json({ open: [], closed: [], trades: [], moreClosed: false, moreTrades: false, valuationUnavailable: false });
     if (input.startsWith('/api/stock/')) return Response.json(fixture(decodeURIComponent(input.split('/')[3].split('?')[0])));
     if (input === '/api/watchlist') return Response.json(options?.method === 'POST' ? { added: true } : { data: [] });
     if (input.startsWith('/api/news')) return Response.json({ news: [] });
@@ -232,9 +236,10 @@ it('uses one-day data for 1G and submits a watchlist toggle once for rapid taps'
 });
 
 it('disables trades when the detail response has no usable price', async () => {
-  fetchMock.mockImplementation(async (url: string) => url.startsWith('/api/stock/')
+  const fallback = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (url: string, options?: RequestInit) => url.startsWith('/api/stock/') && !url.endsWith('/activity')
     ? Response.json({ ...fixture('THYAO.IS'), price: 0 })
-    : Response.json({ data: [], news: [] }));
+    : fallback(url, options));
   await mount('THYAO.IS');
   expect(button('Al').props.disabled).toBe(true);
   expect(button('Sat').props.disabled).toBe(true);
@@ -324,7 +329,7 @@ it('generates analysis only on request, guards duplicate taps and exposes stream
 
 it('uses previous close for the daily colour and switches both percentage and colour with the period', async () => {
   const fallback = fetchMock.getMockImplementation()!;
-  fetchMock.mockImplementation(async (url: string, options?: RequestInit) => url.startsWith('/api/stock/')
+  fetchMock.mockImplementation(async (url: string, options?: RequestInit) => url.startsWith('/api/stock/') && !url.endsWith('/activity')
     ? Response.json({ ...fixture('AKCNS.IS'), price: 211.7, prevClose: 209, chartPreviousClose: 209, change: 2.7, changePercent: 1.29,
       ohlc: [230, 211.7].map(close => ({ ...fixture('AKCNS.IS').ohlc[0], open: close, high: close, low: close, close })) })
     : fallback(url, options));

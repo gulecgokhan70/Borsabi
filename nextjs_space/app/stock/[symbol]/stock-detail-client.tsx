@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { formatCurrency, formatNumber, formatPercent, isIndexSymbol } from '@/lib/constants';
 import { assetCurrency, tradableMarketType } from '@/lib/asset-display';
 import { TradeModal } from '@/components/trade-modal';
+import { AssetActivity } from '@/components/asset-activity';
 import { useHaptic } from '@/hooks/use-haptic';
 import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -177,6 +178,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
   const [chartDimensions, setChartDimensions] = useState({ width: 0, height: 380 });
   const [showFundamentals, setShowFundamentals] = useState(true);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [activityRevision, setActivityRevision] = useState(0);
   const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [news, setNews] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<any>(null);
@@ -642,6 +644,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
       </ChartSurface>
 
+      {marketType && <AssetActivity key={assetSymbol} symbol={assetSymbol} revision={activityRevision} />}
+
       {data && <StockAnalysisSheet symbol={data.symbol} name={data.shortName} analysis={analysis} generatedAt={analysisTime} loading={analysisLoading} error={analysisError} onGenerate={fetchAnalysis} formatPrice={fp} />}
 
       {data && <>
@@ -1045,7 +1049,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
             side={tradeSide}
             initialStopLoss={autoSL}
             initialTakeProfit={autoTP}
-            onSuccess={() => fetchData()}
+            onSuccess={() => { setActivityRevision(n => n + 1); void fetchData(); }}
           />
         );
       })()}
