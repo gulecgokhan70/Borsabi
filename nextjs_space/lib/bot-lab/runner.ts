@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db';
 import { Config, State, Decision, step } from './engine';
 import { getObservation } from './market';
-import { AutoConfig, AutoState, AutoEvent, autoStep } from './auto-engine';
+import { AutoConfig, AutoState, AutoEvent } from './auto-engine';
 import { autoObservations } from './auto-market';
+import { sharedStep } from './shared-portfolio';
 import { persistBot } from './persistence';
 import { botCatalog } from './catalog';
 import { prioritySymbols } from './priority';
@@ -26,7 +27,7 @@ export async function runBots() {
             const watch = [...new Set([...Object.keys(current.holdings), ...Object.keys(current.pending)])];
             if (watch.length || current.paused) {
               const protective = watch.length ? await autoObservations({ ...c, scope: 'selected', symbols: watch }, current) : { observations: [] };
-              const result = autoStep(current, { ...c, symbols: [...new Set([...botCatalog[c.market], ...watch])] }, protective.observations, Date.now());
+              const result = await sharedStep(prisma, bot.userId, current, { ...c, symbols: [...new Set([...botCatalog[c.market], ...watch])] }, protective.observations, Date.now());
               if (result.state.paused) result.state.focus = { symbols: [], checkedAt: Date.now() };
               const saved = await persistBot(prisma, bot.id, version, result.state, result.message, result.events);
               if (!saved) { processed++; continue; } // User changed controls during provider fetch.
@@ -37,7 +38,7 @@ export async function runBots() {
             const focus = prioritySymbols(c, state as AutoState, Date.now());
             if (focus.length) {
               const priority = await autoObservations({ ...c, scope: 'selected', symbols: focus }, state as AutoState);
-              const result = autoStep(state as AutoState, { ...c, symbols: [...new Set([...botCatalog[c.market], ...priority.config.symbols])] }, priority.observations, Date.now());
+              const result = await sharedStep(prisma, bot.userId, state as AutoState, { ...c, symbols: [...new Set([...botCatalog[c.market], ...priority.config.symbols])] }, priority.observations, Date.now());
               result.state.focus = { symbols: focus, checkedAt: Date.now() };
               const saved = await persistBot(prisma, bot.id, version, result.state, result.message, result.events);
               if (!saved) { processed++; continue; }
@@ -45,7 +46,7 @@ export async function runBots() {
             } else state = { ...state, focus: { symbols: [], checkedAt: Date.now() } } as AutoState;
           }
           const batch = await autoObservations(c, state as AutoState);
-          const result = autoStep(state as AutoState, batch.config, batch.observations, Date.now());
+          const result = await sharedStep(prisma, bot.userId, state as AutoState, batch.config, batch.observations, Date.now());
           if (batch.progress) result.state.scan = batch.progress;
           state = result.state; events = result.events; message = result.message;
         } else {

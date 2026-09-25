@@ -4,6 +4,7 @@ vi.mock('../lib/auth', () => ({ authOptions: {} }));
 vi.mock('../lib/db', () => ({ prisma: { user: { findUnique: vi.fn() }, paperBot: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() }, paperBotEvent: { create: vi.fn() }, scanCache: { findUnique: vi.fn() }, $transaction: vi.fn() } }));
 import { getServerSession } from 'next-auth';
 import { prisma } from '../lib/db';
+vi.mock('../lib/bot-lab/shared-portfolio', () => ({ serial: async (db: any, fn: any) => db.$transaction(fn), budgetView: vi.fn(async () => ({ configured: true, available: 30000 })) }));
 import { GET, POST, PATCH } from '../app/api/bot-lab/route';
 import { NextRequest } from 'next/server';
 import { autoInitial } from '../lib/bot-lab/auto-engine';
@@ -32,9 +33,9 @@ it('scopes reads to current user and does not pretend missing worker is online',
   expect((await res.json()).workerOnline).toBe(false);
   expect(prisma.paperBot.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'owner' } }));
 });
-it('creates separate paused account and takes even zero commission from server profile', async () => {
+it('creates portfolio-backed paused bot and takes even zero commission from server profile', async () => {
   expect((await POST(req('POST', settings))).status).toBe(201);
-  expect(prisma.paperBot.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: 'owner', symbol: 'AUTO', config: { ...settings, commission: 0 }, state: expect.objectContaining({ cash: 100000, paused: true, holdings: {} }) }) });
+  expect(prisma.paperBot.create).toHaveBeenCalledWith({ data: expect.objectContaining({ userId: 'owner', symbol: 'AUTO', config: { ...settings, funding: 'portfolio', commission: 0 }, state: expect.objectContaining({ cash: 30000, paused: true, holdings: {} }) }) });
 });
 it('rejects injected cash and unsupported symbols before creating accounts', async () => {
   for (const body of [{ ...settings, cash: 999999 }, { ...settings, symbols: ['FAKE'] }, { ...settings, maxPositions: 999 }]) expect((await POST(req('POST', body))).status).toBe(400);

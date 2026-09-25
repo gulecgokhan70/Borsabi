@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, expect, it, vi } from 'vitest';
 vi.mock('next/link', () => ({ default: ({ children, prefetch: _prefetch, ...props }: any) => createElement('a', props, children) }));
+vi.mock('../components/bot-budget', () => ({ BotBudget: () => null }));
 import { BotLabClient } from '../app/bot-lab/bot-lab-client';
 import { autoInitial } from '../lib/bot-lab/auto-engine';
 let renderer: ReactTestRenderer;

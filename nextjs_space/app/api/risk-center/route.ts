@@ -1,3 +1,4 @@
+import { readBotPortfolio } from '@/lib/bot-lab/portfolio-view';
 import { valuePositions } from '@/lib/position-valuation';
 import { CurrencyError } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
       where: { id: session.user.id },
       include: {
         positions: { where: { status: 'OPEN' } },
+        bots: { where: { config: { path: ['funding'], equals: 'portfolio' } }, select: { id: true } },
         transactions: {
           orderBy: { createdAt: 'desc' },
           take: 100,
@@ -32,9 +34,10 @@ export async function GET(request: NextRequest) {
     const balance = user.balance;
     const initialBalance = user.initialBalance;
     const rawPositions = user.positions ?? [];
-    const transactions = user.transactions ?? [];
+    const botData = user.bots?.length ? await readBotPortfolio(prisma, session.user.id) : { positions: [], ledger: [] };
+    const transactions = [...(user.transactions ?? []), ...botData.ledger];
 
-    const openPositions = await valuePositions(rawPositions);
+    const openPositions = [...await valuePositions(rawPositions), ...botData.positions];
 
     // Toplam portföy değeri
     const totalPositionValue = openPositions.reduce((sum: number, p: any) => sum + p.totalValue, 0);

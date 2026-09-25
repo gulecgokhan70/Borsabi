@@ -1,3 +1,4 @@
+import { readBotPortfolio } from '@/lib/bot-lab/portfolio-view';
 import { priceSource, safeSourceUrl, sourceTime, type EvidenceSource } from '@/lib/evidence';
 import { valuePositions } from '@/lib/position-valuation';
 export const dynamic = 'force-dynamic';
@@ -264,7 +265,7 @@ async function fetchStockData(asset: DetectedAsset, sources: EvidenceSource[]): 
 
 async function fetchPortfolioData(userId: string): Promise<string> {
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { balance: true, initialBalance: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { balance: true, initialBalance: true, bots: { where: { config: { path: ['funding'], equals: 'portfolio' } }, select: { id: true } } } });
     const positions = await prisma.position.findMany({ where: { userId, status: 'OPEN' }, orderBy: { openedAt: 'desc' } });
     const closedCount = await prisma.position.count({ where: { userId, status: 'CLOSED' } });
 
@@ -273,7 +274,8 @@ async function fetchPortfolioData(userId: string): Promise<string> {
     const balance = user.balance as number;
     const initialBalance = user.initialBalance as number;
     const valuedPositions = await valuePositions(positions);
-    const totalPnl = balance + valuedPositions.reduce((sum, p) => sum + p.totalValue, 0) - initialBalance;
+    const botData = user.bots?.length ? await readBotPortfolio(prisma, userId) : { positions: [] };
+    const totalPnl = balance + [...valuedPositions, ...botData.positions].reduce((sum, p) => sum + p.totalValue, 0) - initialBalance;
     const totalPnlPercent = initialBalance > 0 ? ((totalPnl / initialBalance) * 100) : 0;
 
     const lines: string[] = [
@@ -281,7 +283,7 @@ async function fetchPortfolioData(userId: string): Promise<string> {
       `Bakiye: ${balance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL`,
       `Başlangıç: ${initialBalance.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL`,
       `Toplam Kar/Zarar: ${totalPnl >= 0 ? '+' : ''}${totalPnl.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL (%${totalPnlPercent.toFixed(2)})`,
-      `Açık Pozisyon: ${positions.length} | Kapatılmış: ${closedCount}`,
+      `Açık Pozisyon: ${positions.length + botData.positions.length} | Kapatılmış: ${closedCount}`,
     ];
 
     if (positions.length > 0) {
@@ -292,6 +294,7 @@ async function fetchPortfolioData(userId: string): Promise<string> {
       }
     }
 
+    for (const p of botData.positions) lines.push(`Bot ${p.symbol}: ${p.quantity} adet; son bilinen değer ${p.totalValue.toFixed(2)} TL; K/Z ${p.pnl.toFixed(2)} TL. Fiyat eski olabilir.`);
     return lines.join('\n');
   } catch (error: any) {
     console.error('[AI] Portföy veri hatası:', error?.message);

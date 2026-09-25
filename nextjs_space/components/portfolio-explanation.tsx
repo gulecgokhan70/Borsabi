@@ -10,7 +10,7 @@ export function PortfolioExplanation({ data }: { data: Explanation }) {
       <h2 id="portfolio-explanation-title" className="font-semibold">Portföyüm neden değişti?</h2>
       <span className="text-xs text-muted-foreground">Başlangıçtan bugüne · TL</span>
     </div>
-    <p className="text-sm">Başlangıçtaki {formatCurrency(data.initialBalance)} sanal portföyün, son değerlemeye göre {formatCurrency(data.currentValue)} oldu. Net değişim: <strong>{signed(data.netChange)}</strong>.</p>
+    <p className="text-sm">Toplam {formatCurrency(data.initialBalance)} sanal sermayenin portföy değeri, son değerlemeye göre {formatCurrency(data.currentValue)} oldu. Net değişim: <strong>{signed(data.netChange)}</strong>.</p>
     <dl className="grid grid-cols-2 gap-3 text-sm">
       <div><dt className="text-muted-foreground">Satılan miktarlardan net sonuç</dt><dd className="font-semibold">{signed(data.realizedNet)}</dd></div>
       <div><dt className="text-muted-foreground">Açık pozisyonların net sonucu</dt><dd className="font-semibold">{signed(data.openNet)}</dd></div>
@@ -22,7 +22,7 @@ export function PortfolioExplanation({ data }: { data: Explanation }) {
         {[[incomplete ? 'Ayrıştırılabilen fiyat etkisi' : 'Fiyat etkisi', data.priceEffect], [incomplete ? 'Ayrıştırılabilen kur etkisi' : 'Kur etkisi', data.fxEffect], ['Ödenen toplam komisyon', -data.commissions], ...(incomplete ? [['Ayrıştırılamayan fark', data.unexplained]] : [])].map(([label, value]) => <div key={String(label)} className="flex justify-between gap-3"><dt>{label}</dt><dd className="font-mono shrink-0">{signed(Number(value))}</dd></div>)}
       </dl>
       <p className="text-xs text-muted-foreground mt-3">Fiyat etkisi, varlığın kendi para birimindeki değişimidir. Kur etkisi, doların TL karşılığındaki değişimdir. Komisyonlar net sonuca zaten dahildir; tekrar düşülmez. Açık pozisyonlar için gelecekteki satış komisyonu dahil değildir.</p>
-      {incomplete && <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">Bazı eski kayıtların fiyat/kur ayrımı eksik veya hesap ile kayıtlar arasında fark var. Ayrıştırılamayan tutar bir kazanç türüne atanmadı.</p>}
+      {incomplete && <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">Bazı bot veya eski işlem kayıtlarının fiyat/kur ayrımı eksik veya hesap ile kayıtlar arasında fark var. Ayrıştırılamayan tutar bir kazanç türüne atanmadı.</p>}
       {!!data.contributors.length && <ul className="mt-3 divide-y divide-black/[0.06] dark:divide-white/[0.06]">
         {data.contributors.map(item => <li key={item.symbol} className="py-2 flex flex-wrap justify-between gap-2 text-sm">
           <span>{item.symbol}</span><span>{item.incomplete ? 'Katkı ayrımı eksik' : signed(item.net)}</span>

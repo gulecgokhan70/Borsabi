@@ -1,3 +1,4 @@
+import { readBotPortfolio } from '@/lib/bot-lab/portfolio-view';
 import { valuePositions } from '@/lib/position-valuation';
 import { CurrencyError } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export async function GET() {
       where: { id: userId },
       include: {
         positions: true,
+        bots: { where: { config: { path: ['funding'], equals: 'portfolio' } }, select: { id: true } },
         transactions: { where: { type: 'SELL' }, orderBy: { createdAt: 'desc' } },
         achievements: true,
         priceAlerts: { where: { active: true } },
@@ -26,13 +28,15 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const openPositions = user.positions.filter((p: any) => p.status === 'OPEN');
-    const totalTrades = user.transactions.length;
-    const wins = user.transactions.filter(t => (t.pnl ?? 0) > 0).length;
+    const botData = user.bots?.length ? await readBotPortfolio(prisma, userId) : { positions: [], ledger: [] };
+    const transactions = [...user.transactions, ...botData.ledger.filter(t => t.type === 'SELL')];
+    const totalTrades = transactions.length;
+    const wins = transactions.filter(t => (t.pnl ?? 0) > 0).length;
     const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-    const totalPnl = user.transactions.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+    const totalPnl = transactions.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
 
     const valuedPositions = await valuePositions(openPositions);
-    const openPositionValue = valuedPositions.reduce((sum, p) => sum + p.totalValue, 0);
+    const openPositionValue = [...valuedPositions, ...botData.positions].reduce((sum, p) => sum + p.totalValue, 0);
 
     const totalPortfolioValue = user.balance + openPositionValue;
     const totalReturn = user.initialBalance > 0 ? ((totalPortfolioValue - user.initialBalance) / user.initialBalance) * 100 : 0;
@@ -43,7 +47,7 @@ export async function GET() {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const monthTxns = user.transactions.filter((t: any) => {
+      const monthTxns = transactions.filter((t: any) => {
         const td = new Date(t.createdAt);
         return td >= d && td < end && t.pnl != null;
       });
@@ -64,7 +68,7 @@ export async function GET() {
       totalReturn,
       totalPnl,
       totalTrades,
-      openPositions: openPositions.length,
+      openPositions: openPositions.length + botData.positions.length,
       winRate,
       achievements: user.achievements,
       activeAlerts: user.priceAlerts.length,
