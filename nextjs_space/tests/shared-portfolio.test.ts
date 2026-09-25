@@ -33,3 +33,10 @@ it('capital flows do not erase bot costs and manual/bot lots of one asset stay d
   ]);
   expect(curve.at(-1)?.balance).toBe(1520);
 });
+it('sizes a buy from the allocated budget, not the full portfolio', async () => {
+  const now = Date.now(); const state = autoInitial(3000); state.paused = false;
+  state.pending['BTC-USD'] = { side: 'BUY', after: now - 1, expires: now + 10000, reason: 'test' };
+  const result = await sharedStep(db(10000) as any, 'owner', state, config, [{ symbol: 'BTC-USD', tick: { time: now, price: 100, open: true }, bars: [] }], now);
+  expect(result.events[0]).toMatchObject({ action: 'BUY', quantity: 3, price: 100 });
+  expect(result.state.cash).toBe(2700);
+});

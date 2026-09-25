@@ -5,6 +5,8 @@ export async function readBotPortfolio(db: Prisma.TransactionClient, userId: str
   const bots = (await db.paperBot.findMany({ where: { userId, config: { path: ['funding'], equals: 'portfolio' } }, include: { events: { where: { AND: [{ data: { path: ['portfolio'], equals: true } }, { OR: [{ data: { path: ['action'], equals: 'BUY' } }, { data: { path: ['action'], equals: 'SELL' } }] }] }, orderBy: { createdAt: 'asc' } } } })).filter(b => isShared(b.config));
   const budget = await db.portfolioBotBudget.findUnique({ where: { userId } });
   const positions = bots.flatMap(b => Object.entries((b.state as unknown as AutoState).holdings).map(([symbol, h]) => ({
+    id: `${b.id}:${symbol}`, name: symbol, quantity: h.quantity, entryPrice: h.entry, currentPrice: h.mark, currency: 'TRY', botManaged: true,
+    stopLoss: h.entry * (1 - (b.config as unknown as AutoConfig).stopLoss), takeProfit: h.entry * (1 + (b.config as unknown as AutoConfig).takeProfit),
     symbol, totalValue: h.quantity * h.mark, totalCost: h.quantity * h.entry + h.entryFee,
     pnl: h.quantity * (h.mark - h.entry) - h.entryFee, priceStale: !h.quoteTime || Date.now() - h.quoteTime > (b.market === 'BIST' ? 20 : 5) * 60000,
     breakdown: { pricePnlTry: 0, fxPnlTry: 0 }, breakdownKnown: false,

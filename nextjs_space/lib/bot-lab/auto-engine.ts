@@ -17,7 +17,7 @@ export const universe: Record<Market, { symbol: string; group: string }[]> = {
 };
 export type AutoConfig = {
   mode: 'auto-v2'; funding?: 'portfolio'; market: Market; scope?: 'selected' | 'all'; symbols: string[]; commission: number; friction: number;
-  orderFraction: number; dailyLoss: number; stopLoss: number; takeProfit: number; maxPositions: number;
+  orderLimitTry?: number; exposureLimitTry?: number; orderFraction: number; dailyLoss: number; stopLoss: number; takeProfit: number; maxPositions: number;
 };
 export type Candle = { time: number; close: number; volume: number };
 export type Observation = { symbol: string; bars: Candle[]; tick: Tick; error?: string; source?: string; observedAt?: number };
@@ -156,7 +156,8 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     delete s.pending[symbol];
     if (s.holdings[symbol] || Object.keys(s.holdings).length >= c.maxPositions || Object.keys(s.holdings).some(v => group(c, v) === group(c, symbol))) continue;
     const price = o.tick.price * (1 + c.friction);
-    const budget = Math.min(s.cash, s.equity * c.orderFraction);
+    const ownCost = Object.values(s.holdings).reduce((n, h) => n + h.quantity * h.entry + h.entryFee, 0);
+    const budget = Math.max(0, Math.min(s.cash, s.equity * c.orderFraction, c.orderLimitTry ?? Infinity, (c.exposureLimitTry ?? Infinity) - ownCost));
     const raw = budget / (price * (1 + c.commission));
     const quantity = c.market === 'BIST' ? Math.floor(raw) : Math.floor(raw * 1e8) / 1e8;
     if (quantity <= 0) continue;

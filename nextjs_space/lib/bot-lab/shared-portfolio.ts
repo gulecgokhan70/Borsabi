@@ -75,5 +75,5 @@ export async function sharedStep(db: PrismaClient, userId: string, state: AutoSt
   const delta = cash - state.cash;
   const adjusted = { ...state, cash, equity: cash + holdingValue(state), peak: Math.max(0, state.peak + delta), dayEquity: Math.max(0, state.dayEquity + delta) };
   const fraction = adjusted.equity > 0 ? Math.min(1, view.limit * view.perTradePercent / 100 / adjusted.equity) : 0;
-  return autoStep(adjusted, { ...config, orderFraction: fraction }, observations, now);
+  return autoStep(adjusted, { ...config, orderFraction: fraction, orderLimitTry: view.limit * view.perTradePercent / 100, exposureLimitTry: Math.max(0, view.limit - view.used + holdingCost(state)) }, observations, now);
 }

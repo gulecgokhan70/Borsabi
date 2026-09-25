@@ -43,3 +43,17 @@ it('does not expose cached account data to an unauthenticated request', async ()
   expect((await GET(new NextRequest('https://borsabi.com/api/portfolio?summary=1'))).status).toBe(401);
   expect(prisma.user.findUnique).not.toHaveBeenCalled();
 });
+it('includes shared bot marks and ledger but does not treat imported lots as new market buys', async () => {
+  const { readBotPortfolio } = await import('../lib/bot-lab/portfolio-view');
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({ balance: 9398, initialBalance: 10000, commissionRate: 0 } as any);
+  vi.mocked(prisma.transaction.findMany).mockResolvedValue([]);
+  vi.mocked(readBotPortfolio).mockResolvedValueOnce({ bots: [{ id: 'bot' }], capitalChanges: [],
+    positions: [{ symbol: 'THYAO.IS', totalValue: 660, totalCost: 602, pnl: 58, breakdownKnown: false, breakdown: { pricePnlTry: 0, fxPnlTry: 0 } }],
+    ledger: [{ type: 'BUY', symbol: 'THYAO.IS', holdingKey: 'bot:THYAO.IS', quantity: 6, total: 600, commission: 2, pnl: null, createdAt: new Date(), transfer: true, pricePnlTry: null, fxPnlTry: null }],
+  } as any);
+  const data = await (await GET(new NextRequest('https://borsabi.com/api/portfolio'))).json();
+  expect(data).toMatchObject({ totalPositionValue: 660, totalInvested: 602, unrealizedPnl: 58, buyCount: 0 });
+  expect(data.explanation.netChange).toBe(58);
+  expect(data.equityCurve.at(-1).balance).toBe(10058);
+  expect(data.botAccounts).toHaveLength(1);
+});
