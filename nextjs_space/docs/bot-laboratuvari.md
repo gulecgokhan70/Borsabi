@@ -60,3 +60,46 @@ Gerçek işlem bağlantısı sonraki ayrı aşamadır: aynı seçim/risk çekird
 - Şema tekrar uygulama, aynı botta iki worker yarışı, eski version yazısının reddi ve normal işlem defterinden yalıtım için üç PostgreSQL entegrasyon testi eklendi. Mevcut CI PostgreSQL servisi bu testleri çalıştırır.
 - Yerel ortam PostgreSQL kurulumuna izin vermediği için yeni gerçek veritabanı testleri burada çalıştırılmadı; CI sonucu ayrıca doğrulanmalı.
 - Canlı VPS geçişi, gerçek telefon görsel kontrolü ve canlı veri sağlayıcı oturumu burada yapılmadı. Gerçek alım/satım emri gönderilmez.
+
+## Katalog taraması ve grafik tutarlılığı — 25 Eylül 2026
+
+Yeni botlarda varsayılan kapsam `all`: Borsabi kataloğundaki 611 hisse / 40 kripto. Bu,
+yeni listelenen tüm dünya varlıklarının otomatik keşfi anlamına gelmez; kaynak katalog
+`lib/bist-data.ts` ve `lib/constants.ts` üzerinden güncellenir. Verisi olmayan veya eski
+semboller gerekçesiyle elenir. Manuel seçili liste modu en fazla 8 varlıkla korunur.
+Mevcut botlarda **Tüm desteklenen varlıkları tara** düğmesi kapsamı değiştirir; nakit,
+pozisyonlar, gerçekleşen sonuç, günlük zarar kilidi ve duraklama durumu korunur. Bekleyen
+alışlar iptal edilir; yeni kapsam için ilk gözlem geçmiş sinyalden giriş üretmez.
+
+Tarama sunucuda piyasa başına ortak 48'lik gruplar halinde döner. Aynı anda en fazla
+3 grafik isteği, 6 varlık yüklemesi vardır; web arayüzünün grafik kuyruğu kullanılmaz.
+Bir grubun sonucu 60 saniye paylaşılır; tüm katalog aynı anda değerlendirilmez.
+611 hisselik tur en az 13 grup gerektirir; gerçek süre sağlayıcı yanıtlarına, aktif bot
+sayısına ve işçi döngüsüne bağlıdır. Kısa ömürlü kesişimler turlar arasında kaçabilir.
+İlerleme ortak tarayıcının turunu, aday tarihleri her hesabın son gözlemini gösterir.
+Yeniden başlatmada ortak tarayıcı baştan başlar; hesap ve işlem kayıtları korunur.
+Aday sıralaması o kontrol grubuna aittir; tüm kataloğun eşzamanlı en iyisi iddiası yoktur.
+
+Açık pozisyonlar ve bekleyen emirler geniş taramadan **önce** ayrı işlenip sürüm denetimiyle
+kaydedilir. Kullanıcı aynı anda kontrolü değiştirirse eski işçi sonucu yazılamaz. Güncel
+fiyat mevcutken grafik geçmişinin alınamaması koruyucu satış kontrolünü engellemez.
+Katalogdan çıkmış açık pozisyonlar da izlenmeye devam eder. Duraklatılmış botta açık
+pozisyon kontrolü sürer, geniş alım taraması yapılmaz. USD/TL güncellik kuralı değişmedi.
+Mevcut grup sınırları korunur; katalogdaki her varlık için sektör/korelasyon sınıflaması yoktur.
+
+Seçili liste, açık pozisyonlar, adaylar ve karar günlüğündeki semboller `/stock/<symbol>`
+sayfasına gider. Yüzlerce bağlantı için otomatik sayfa ön yüklemesi kapalıdır.
+
+Günlük BIST grafiği önceki mevcut seansın son Yahoo mumunu referans alır. Fiyat açılıştan
+gerilese bile önceki kapanıştan yüksekse günlük çizgi yeşildir. Haftalık/aylık grafik
+kendi ilk ve son noktasıyla değişimini hesaplar. Üstteki büyük grafik fiyatı, yüzdesi,
+renk ve dokunulan nokta aynı veri dizisini kullanır. Son piyasa fiyatı sabit üst çubukta;
+alım/satım formu bu piyasa fiyatını kullanmaya devam eder. Grafik kaynağı ve nokta zamanı
+görünür. Günlük referans yoksa değişim uydurulmaz, nötr gösterilir. Dönem değişirken eski
+veri yeni dönemin etiketi altında çizilmez.
+
+Doğrulama: 344 birim/akış testi, TypeScript ve ESLint başarılı. Katalog döngüsü/paylaşımı,
+kur güncelliği, grafik kesintisinde çıkış, hesap korunarak kapsam geçişi, eşzamanlı kullanıcı
+kontrolü, detay bağlantıları ve AKCNS günlük/haftalık renk regresyonu kapsandı.
+Veritabanı şemasında değişiklik yok. Gerçek cihaz ve canlı veriyle yeni kapsamın tam turu,
+sunucuya dağıtıldıktan sonra ayrıca gözlenmelidir.

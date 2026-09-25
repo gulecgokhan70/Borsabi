@@ -25,6 +25,7 @@ import {
 } from 'recharts';
 import { StockAnalysisSheet } from '@/components/stock-analysis-sheet';
 import { CandlestickChart, SlidersHorizontal } from 'lucide-react';
+import { chartPerformance } from '@/lib/chart-performance';
 import { ChartSurface } from '@/components/chart-surface';
 import { ChartDrawingToolbar, ChartDrawingOverlay, type DrawingTool } from '@/components/chart-drawing-tools';
 
@@ -52,6 +53,8 @@ interface OHLCData {
 }
 
 interface StockData {
+  chartPreviousClose?: number | null;
+  chartSource?: string;
   priceSource?: string | null;
   priceAsOf?: string | null;
   priceTimeKind?: 'candle' | 'quote';
@@ -259,6 +262,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
 
   useEffect(() => {
     setLoading(true);
+    setData(null); // Never render the previous range with the newly selected period.
     setActivePoint(null); // Periyod değişince aktif nokta sıfırla
     setDrawings([]);
     const requestState = chartRequest;
@@ -344,21 +348,17 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     return ohlcData;
   }, [data?.ohlc, isIntraday, period]);
 
-  // Aktif nokta varsa o noktanın verisini göster, yoksa güncel fiyatı göster
-  const firstClose = chartData.length > 0 ? chartData[0]?.close ?? 0 : 0;
-  const displayPrice = activePoint ? activePoint.close : (data?.price ?? 0);
-  const displayChange = activePoint
-    ? (firstClose > 0 ? activePoint.close - firstClose : 0)
-    : (data?.change ?? 0);
-  const displayChangePercent = activePoint
-    ? (firstClose > 0 ? ((activePoint.close - firstClose) / firstClose) * 100 : 0)
-    : (data?.changePercent ?? 0);
-  const displayDate = activePoint ? activePoint.date : null;
-  const isPositive = displayChange >= 0;
-
-  const chartPositive = activePoint
-    ? (activePoint.close >= firstClose)
-    : (chartData.length >= 2 ? (chartData[chartData.length - 1]?.close ?? 0) >= (chartData[0]?.close ?? 0) : true);
+  // The headline, change and line colour describe the same displayed series.
+  // The sticky header/trade modal retain the separate latest market quote.
+  const performance = chartPerformance(chartData, period, assetSymbol.endsWith('.IS'), data?.chartPreviousClose, activePoint);
+  const hasChart = chartData.length > 0;
+  const displayPrice = hasChart ? performance.price ?? 0 : data?.price ?? 0;
+  const displayChange = hasChart ? performance.change : period === '1d' ? data?.change ?? null : null;
+  const displayChangePercent = hasChart ? performance.percent : period === '1d' ? data?.changePercent ?? null : null;
+  const periodLabel = ({ '1d': assetSymbol.endsWith('.IS') ? 'Günlük değişim' : 'Son 24 saat', '1w': '1 haftalık değişim', '1mo': '1 aylık değişim', '3mo': '3 aylık değişim', '6mo': '6 aylık değişim', '1y': '1 yıllık değişim', '5y': '5 yıllık değişim' } as Record<string, string>)[period] || 'Seçili dönem değişimi';
+  const displayDate = activePoint ? `${activePoint.date} · ${periodLabel}` : periodLabel;
+  const performanceClass = displayChange === null || displayChange === 0 ? 'text-muted-foreground' : displayChange > 0 ? 'text-emerald-500' : 'text-red-500';
+  const chartColor = performance.direction === 'up' ? '#22C55E' : performance.direction === 'down' ? '#EF4444' : '#94A3B8';
 
   // Chart Y domain for drawing tools
   const yDomain: [number, number] = useMemo(() => {
@@ -367,13 +367,13 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const highs = chartData.map((d: any) => d.high).filter(Boolean);
     const lows = chartData.map((d: any) => d.low).filter(Boolean);
     const indicatorValues = advancedChart ? chartData.flatMap(d => [...(overlay === 'ema' ? [d.ema20, d.ema50, d.ema200] : overlay === 'sma' ? [d.sma20, d.sma50, d.sma200] : []), ...(showBands ? [d.bbUpper, d.bbLower] : [])]).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)) : [];
-    const reference = !advancedChart && period === '1d' && data && Number.isFinite(data.prevClose) && data.prevClose > 0 ? [data.prevClose] : [];
+    const reference = !advancedChart && period === '1d' && performance.baseline !== null ? [performance.baseline] : [];
     const allVals = [...closes, ...highs, ...lows, ...indicatorValues, ...reference];
     const mn = Math.min(...allVals);
     const mx = Math.max(...allVals);
     const pad = Math.max((mx - mn) * 0.05, Math.abs(mx) * 0.001, 0.01);
     return [mn - pad, mx + pad];
-  }, [chartData, advancedChart, overlay, showBands, data, period]);
+  }, [chartData, advancedChart, overlay, showBands, performance.baseline, period]);
 
   // The chart moves into a dialog portal in full screen, so observe each mounted node.
   const chartObserver = useRef<ResizeObserver | null>(null);
@@ -479,7 +479,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     <div className="stock-focus min-h-screen bg-white dark:bg-[#0d0d0d] text-foreground px-5 md:px-8 pb-28 space-y-7 max-w-5xl mx-auto">
       <header className="sticky top-0 lg:top-[60px] z-20 -mx-5 md:-mx-8 px-4 md:px-8 py-3 bg-white/95 dark:bg-[#0d0d0d]/95 backdrop-blur flex items-center gap-3 border-b border-transparent">
         <button onClick={() => { if (window.history.length > 1) router.back(); else router.push("/piyasalar"); }} aria-label="Geri dön" className="min-h-[44px] min-w-[44px] grid place-items-center"><ArrowLeft className="w-6 h-6" /></button>
-        <div className="min-w-0 flex-1"><p className="font-semibold truncate">{data?.shortName || symbol}</p><p className="text-xs text-muted-foreground">{data?.price && Number.isFinite(data.price) ? fp(data.price) : loading ? 'Yükleniyor…' : 'Fiyat alınamadı'}</p></div>
+        <div className="min-w-0 flex-1"><p className="font-semibold truncate">{data?.shortName || symbol}</p><p className="text-xs text-muted-foreground">{data?.price && Number.isFinite(data.price) ? `Son fiyat ${fp(data.price)}` : loading ? 'Yükleniyor…' : 'Fiyat alınamadı'}</p></div>
         <button onClick={toggleSaved} disabled={saving || watchlistLoading || !data} aria-label={saved ? 'İzleme listesinden çıkar' : 'İzleme listesine ekle'} aria-pressed={saved} className="min-h-[44px] min-w-[44px] grid place-items-center disabled:opacity-50"><Bookmark className={`w-5 h-5 ${saved ? 'fill-current text-indigo-500' : ''}`} /></button>
         <Link href="/alerts" aria-label="Fiyat alarmları" className="min-h-[44px] min-w-[44px] grid place-items-center"><Bell className="w-5 h-5" /></Link>
         <button onClick={shareStock} aria-label="Hisseyi paylaş" className="min-h-[44px] min-w-[44px] grid place-items-center"><Share2 className="w-5 h-5" /></button>
@@ -488,9 +488,10 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         <h1 className="text-lg font-normal leading-snug">{data.name}</h1>
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <p className="text-[40px] leading-tight sm:text-5xl font-semibold tracking-tight tabular-nums">{displayPrice > 0 && Number.isFinite(displayPrice) ? fp(displayPrice) : 'Fiyat alınamadı'}{isIndex && <span className="text-sm font-normal ml-2 text-muted-foreground">Puan</span>}</p>
-          <p className={`text-xl font-semibold ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{displayChangePercent >= 0 ? '+' : '-'}%{Math.abs(displayChangePercent).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className={`text-xl font-semibold ${performanceClass}`}>{displayChangePercent === null ? '—' : `${displayChangePercent >= 0 ? '+' : '-'}%${Math.abs(displayChangePercent).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
         </div>
-        <p className={`text-sm ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{displayChange >= 0 ? '+' : ''}{fp(displayChange)} <span className="text-muted-foreground">{displayDate || 'Günlük değişim'}</span></p>
+        <p className={`text-sm ${performanceClass}`}>{displayChange === null ? 'Referans fiyat yok' : `${displayChange >= 0 ? '+' : ''}${fp(displayChange)}`} <span className="text-muted-foreground">{displayDate}</span></p>
+        {hasChart && <p className="text-xs text-muted-foreground">Grafik: {data.chartSource || 'Yahoo Finance'} · Son nokta {new Date(data.ohlc[data.ohlc.length - 1].date).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} (Türkiye saati). Üst çubukta son piyasa fiyatı gösterilir.</p>}
       </section> : <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>}
       {/* ===== PRICE CHART ===== */}
       <ChartSurface title={data?.shortName || symbol} subtitle={data?.price ? fp(data.price) : 'Alınamadı'} full={fullChart}
@@ -528,7 +529,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                 <YAxis orientation="right" hide={!advancedChart} domain={yDomain} allowDataOverflow tick={{ fill: '#64748B', fontSize: 10 }} axisLine={false} tickLine={false} width={65}
                   tickFormatter={(v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} />
                 <Tooltip active={tooltipChart === 'price' ? undefined : false} content={<PriceTooltip />} cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 3' }} />
-                {!advancedChart && period === '1d' && data && Number.isFinite(data.prevClose) && data.prevClose > 0 && <ReferenceLine y={data.prevClose} stroke="#94a3b8" strokeDasharray="1 5" label={{ value: fp(data.prevClose), position: 'insideTopLeft', fill: '#64748b', fontSize: 11 }} />}
+                {!advancedChart && period === '1d' && performance.baseline !== null && <ReferenceLine y={performance.baseline} stroke="#94a3b8" strokeDasharray="1 5" label={{ value: fp(performance.baseline), position: 'insideTopLeft', fill: '#64748b', fontSize: 11 }} />}
 
                 {/* Bollinger Bands */}
                 {advancedChart && showBands && (
@@ -547,8 +548,8 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
                     ))}
                   </Bar>
                 ) : (
-                  <Area type="linear" isAnimationActive={false} dataKey="close" stroke={chartPositive ? '#22C55E' : '#EF4444'} strokeWidth={2} dot={({ cx, cy, index }: any) => !advancedChart && index === chartData.length - 1 ? <g key="last-price"><circle cx={cx} cy={cy} r={12} fill={chartPositive ? '#22C55E' : '#EF4444'} opacity={0.12} /><circle cx={cx} cy={cy} r={3.5} fill={chartPositive ? '#22C55E' : '#EF4444'} /></g> : <g key={index} />} activeDot={tooltipChart === 'price' ? undefined : false}
-                    fill={advancedChart ? (chartPositive ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)') : 'transparent'} />
+                  <Area type="linear" isAnimationActive={false} dataKey="close" stroke={chartColor} strokeWidth={2} dot={({ cx, cy, index }: any) => !advancedChart && index === chartData.length - 1 ? <g key="last-price"><circle cx={cx} cy={cy} r={12} fill={chartColor} opacity={0.12} /><circle cx={cx} cy={cy} r={3.5} fill={chartColor} /></g> : <g key={index} />} activeDot={tooltipChart === 'price' ? undefined : false}
+                    fill={advancedChart ? chartColor : 'transparent'} fillOpacity={0.08} />
                 )}
 
                 {advancedChart && overlay !== 'none' && [20, 50, 200].map((n, i) => <Line key={`${overlay}${n}`} type="linear" dataKey={`${overlay}${n}`} stroke={['#a855f7', '#84a817', '#0ea5e9'][i]} strokeWidth={1.5} dot={false} activeDot={false} isAnimationActive={false} />)}

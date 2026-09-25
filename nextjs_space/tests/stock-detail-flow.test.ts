@@ -23,7 +23,7 @@ vi.mock('../components/chart-drawing-tools', () => ({ ChartDrawingToolbar: () =>
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
 
 import StockDetailClient from '../app/stock/[symbol]/stock-detail-client';
-import { Tooltip, Line } from 'recharts';
+import { Tooltip, Line, Area } from 'recharts';
 import { ChartSurface } from '../components/chart-surface';
 import { StockAnalysisSheet } from '../components/stock-analysis-sheet';
 import { TradeModal } from '../components/trade-modal';
@@ -85,7 +85,8 @@ afterEach(async () => {
 it('renders BTC detail quotes and chart-selected changes in USD, then budgets 1000 TRY in the real buy modal', async () => {
   await mount();
   expect(textOf(renderer!.root)).toContain('$79.315,50');
-  expect(textOf(renderer!.root)).toContain('-$758,71');
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.300,00');
+  expect(textOf(renderer!.root)).toContain('Son fiyat $79.315,50');
   expect(textOf(renderer!.root)).toContain('$1.589,90 Milyar');
   expect(textOf(renderer!.root)).not.toContain('₺');
   const chart = renderer!.root.findAllByType('section').find(node => node.props.onMouseMove)!;
@@ -255,7 +256,7 @@ it('dismisses price and volume information after 3 seconds, resets on interactio
   expect(tips()[0].props.active).toBeUndefined();
   await act(async () => { vi.advanceTimersByTime(1000); });
   expect(tips()[0].props.active).toBe(false);
-  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.315,50');
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.300,00');
   await act(async () => move());
   expect(tips()[0].props.active).toBeUndefined();
   await act(async () => renderer!.root.findByProps({ 'aria-label': 'Grafiği tam ekran aç' }).props.onClick());
@@ -319,4 +320,23 @@ it('generates analysis only on request, guards duplicate taps and exposes stream
   await act(async () => panel().props.onGenerate());
   expect(panel().props.error).toContain('Analiz tamamlanamadı');
   expect(panel().props.error).not.toContain('private');
+});
+
+it('uses previous close for the daily colour and switches both percentage and colour with the period', async () => {
+  const fallback = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (url: string, options?: RequestInit) => url.startsWith('/api/stock/')
+    ? Response.json({ ...fixture('AKCNS.IS'), price: 211.7, prevClose: 209, chartPreviousClose: 209, change: 2.7, changePercent: 1.29,
+      ohlc: [230, 211.7].map(close => ({ ...fixture('AKCNS.IS').ohlc[0], open: close, high: close, low: close, close })) })
+    : fallback(url, options));
+  await mount('AKCNS.IS');
+  const headline = () => renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' });
+  expect(textOf(headline())).toContain('+%1,29');
+  expect(renderer!.root.findByType(Area as any).props.stroke).toBe('#22C55E');
+  await act(async () => button('1H').props.onClick());
+  expect(textOf(headline())).toContain('1 haftalık değişim');
+  expect(textOf(headline())).toContain('-%7,96');
+  expect(renderer!.root.findByType(Area as any).props.stroke).toBe('#EF4444');
+  // The order form still receives the latest quote independently of the chart range.
+  await act(async () => button('Al').props.onClick());
+  expect(renderer!.root.findByType(TradeModal).props.price).toBe(211.7);
 });

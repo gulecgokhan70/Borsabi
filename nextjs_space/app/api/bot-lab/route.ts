@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { initialState, State } from '@/lib/bot-lab/engine';
 import { createBot, createAutoBot, controlBot } from '@/lib/bot-lab/validation';
-import { autoInitial, AutoState, controlAuto } from '@/lib/bot-lab/auto-engine';
+import { autoInitial, AutoConfig, AutoState, controlAuto } from '@/lib/bot-lab/auto-engine';
 import { readMutationJson, RequestError } from '@/lib/request-json';
 export const dynamic = 'force-dynamic';
 async function user() {
@@ -52,15 +52,18 @@ export async function PATCH(req: NextRequest) {
     const bot = await prisma.paperBot.findFirst({ where: { id, userId: u.id } });
     if (!bot) return NextResponse.json({ error: 'Bot bulunamadı.' }, { status: 404 });
     const auto = (bot.config as { mode?: string }).mode === 'auto-v2';
-    if (!auto && action === 'close') return NextResponse.json({ error: 'Eski bot sürümü toplu kapatma desteklemiyor.' }, { status: 400 });
+    if (!auto && (action === 'close' || action === 'scan-all')) return NextResponse.json({ error: 'Eski bot sürümü toplu kapatma desteklemiyor.' }, { status: 400 });
     if (auto && action === 'start' && (bot.state as unknown as AutoState).closeRequested) return NextResponse.json({ error: 'Kapatma tamamlanana kadar bekleyin.' }, { status: 409 });
-    const state = auto ? controlAuto(bot.state as unknown as AutoState, action) : { ...(bot.state as unknown as State), pending: null, lastBar: 0 };
+    const expand = action === 'scan-all';
+    const prior = bot.state as unknown as AutoState;
+    const state = expand ? { ...prior, lastBars: {}, candidates: [], scan: undefined, pending: Object.fromEntries(Object.entries(prior.pending).filter(([, order]) => order.side === 'SELL')) } : auto ? controlAuto(prior, action as 'start' | 'stop' | 'close') : { ...(bot.state as unknown as State), pending: null, lastBar: 0 };
     const changed = await prisma.$transaction(async tx => {
       const result = await tx.paperBot.updateMany({ where: { id, userId: u.id, version: bot.version }, data: {
-        running: auto ? true : action === 'start', state: json(state), version: { increment: 1 },
-        message: action === 'start' ? 'Başlatıldı; sunucu kontrolü bekleniyor.' : action === 'close' ? 'Sanal pozisyon kapatma istendi; geçerli fiyat bekleniyor.' : auto ? 'Yeni alımlar duraklatıldı; çıkış kontrolleri devam ediyor.' : 'Durduruldu. Açık pozisyon korunuyor.',
+        ...(expand ? { config: json({ ...(bot.config as unknown as AutoConfig), scope: 'all', symbols: [] }) } : {}),
+        running: expand ? bot.running : auto ? true : action === 'start', state: json(state), version: { increment: 1 },
+        message: expand ? 'Tüm katalog taraması seçildi; bakiye ve açık pozisyonlar korundu.' : action === 'start' ? 'Başlatıldı; sunucu kontrolü bekleniyor.' : action === 'close' ? 'Sanal pozisyon kapatma istendi; geçerli fiyat bekleniyor.' : auto ? 'Yeni alımlar duraklatıldı; çıkış kontrolleri devam ediyor.' : 'Durduruldu. Açık pozisyon korunuyor.',
       } });
-      if (result.count) await tx.paperBotEvent.create({ data: { botId: id, data: json({ time: Date.now(), action: 'WAIT', reason: action === 'start' ? 'Kullanıcı botu başlattı.' : action === 'close' ? 'Kullanıcı tüm sanal pozisyonları kapatma talebi verdi.' : 'Kullanıcı yeni alımları duraklattı.' }) } });
+      if (result.count) await tx.paperBotEvent.create({ data: { botId: id, data: json({ time: Date.now(), action: 'WAIT', reason: expand ? 'Kullanıcı tüm desteklenen varlıkların taranmasını seçti.' : action === 'start' ? 'Kullanıcı botu başlattı.' : action === 'close' ? 'Kullanıcı tüm sanal pozisyonları kapatma talebi verdi.' : 'Kullanıcı yeni alımları duraklattı.' }) } });
       return result.count;
     });
     return changed ? NextResponse.json({ success: true }) : NextResponse.json({ error: 'Bot güncellendi; komutu tekrar deneyin.' }, { status: 409 });

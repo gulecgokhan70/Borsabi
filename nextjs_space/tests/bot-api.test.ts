@@ -66,3 +66,14 @@ it('rejects cross-origin controls and oversized JSON before state writes', async
  expect(prisma.paperBot.updateMany).not.toHaveBeenCalled();
  expect(prisma.paperBot.create).not.toHaveBeenCalled();
 });
+
+it('expands an existing bot without resetting balance, holdings, pause or protective pending exits', async () => {
+  const state = { ...autoInitial(), cash: 95000, paused: true, holdings: { 'THYAO.IS': { quantity: 10, entry: 500, entryFee: 0, mark: 500, quoteTime: 1, openedAt: 1 } }, pending: { 'THYAO.IS': { side: 'SELL', after: 1, expires: 2, reason: 'exit' }, 'AKBNK.IS': { side: 'BUY', after: 1, expires: 2, reason: 'entry' } } };
+  vi.mocked(prisma.paperBot.findFirst).mockResolvedValue({ id: 'bot', userId: 'owner', version: 3, running: true, config: settings, state } as any);
+  expect((await PATCH(req('PATCH', { id: 'bot', action: 'scan-all' }))).status).toBe(200);
+  const data = vi.mocked(prisma.paperBot.updateMany).mock.calls[0][0].data as any;
+  expect(data.config).toEqual({ ...settings, scope: 'all', symbols: [] });
+  expect(data.state).toMatchObject({ cash: 95000, paused: true, holdings: state.holdings, pending: { 'THYAO.IS': state.pending['THYAO.IS'] } });
+  expect(data.state.pending['AKBNK.IS']).toBeUndefined();
+  expect(data.running).toBe(true);
+});

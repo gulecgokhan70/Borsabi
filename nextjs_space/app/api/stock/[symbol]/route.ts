@@ -5,6 +5,7 @@ import { BIST_ALL_ASSETS, CRYPTO_ASSETS } from '@/lib/constants';
 import { getMidasStock } from '@/lib/midas-api';
 import { quoteTimestamp, quoteMarketOpen } from '@/lib/quote-metadata';
 import { assetCurrency } from '@/lib/asset-display';
+import { previousSessionClose } from '@/lib/chart-performance';
 import { enrichCandles, chartHistoryStart, fourHourCandles } from '@/lib/chart-indicators';
 
 /* ── Destek / Direnç Seviyeleri ── */
@@ -180,6 +181,7 @@ export async function GET(
       // ohlc boş kalır, sayfa yine de fiyat/temel verileri gösterir
     }
 
+    const fullHistory = ohlc;
     // Günlük grafik: sadece bugünün borsa seansını göster (09:30 İstanbul)
     if (period === '1d' && isBist && ohlc.length > 0) {
       // Bugünün tarihini İstanbul saatine göre bul
@@ -283,6 +285,8 @@ export async function GET(
         bbMiddle: lastBBMiddle,
         bbLower: lastBBLower,
       },
+      chartPreviousClose: period === '1d' && isBist ? previousSessionClose(fullHistory, ohlc[0]?.time) : null,
+      chartSource: 'Yahoo Finance',
       ohlc: enrichedOhlc,
       supportResistance,
       // Midas ekstra verileri
