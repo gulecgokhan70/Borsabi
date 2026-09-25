@@ -20,17 +20,18 @@ export type AutoConfig = {
   orderFraction: number; dailyLoss: number; stopLoss: number; takeProfit: number; maxPositions: number;
 };
 export type Candle = { time: number; close: number; volume: number };
-export type Observation = { symbol: string; bars: Candle[]; tick: Tick; error?: string };
-export type Candidate = { checkedAt?: number; symbol: string; score: number; eligible: boolean; reason: string; barTime: number; cross: 'BUY' | 'SELL' | null };
-export type Holding = { quantity: number; entry: number; entryFee: number; mark: number; quoteTime: number; openedAt: number };
-export type Pending = { side: 'BUY' | 'SELL'; after: number; expires: number; reason: string };
+export type Observation = { symbol: string; bars: Candle[]; tick: Tick; error?: string; source?: string; observedAt?: number };
+export type Candidate = { checkedAt?: number; quoteTime?: number; source?: string; symbol: string; score: number; eligible: boolean; reason: string; barTime: number; cross: 'BUY' | 'SELL' | null };
+export type Holding = { quantity: number; entry: number; entryFee: number; mark: number; quoteTime: number; openedAt: number; source?: string };
+export type Pending = { side: 'BUY' | 'SELL'; after: number; expires: number; reason: string; signalBarTime?: number; signalQuoteTime?: number; source?: string };
 export type AutoState = {
-  mode: 'auto-v2'; scan?: ScanProgress; paused: boolean; closeRequested: boolean; closeAfter: number; cash: number; equity: number; peak: number;
+  mode: 'auto-v2'; scan?: ScanProgress; focus?: { symbols: string[]; checkedAt: number }; paused: boolean; closeRequested: boolean; closeAfter: number; cash: number; equity: number; peak: number;
   drawdown: number; fees: number; frictionCost: number; realized: number; day: string; dayEquity: number;
   haltedDay: string | null; holdings: Record<string, Holding>; pending: Record<string, Pending>;
   lastBars: Record<string, number>; lastQuotes: Record<string, number>; candidates: Candidate[]; valuedAt: number;
 };
-export type AutoEvent = { time: number; action: 'BUY' | 'SELL' | 'WAIT' | 'HALT'; reason: string; symbol?: string; price?: number; quantity?: number; fee?: number; pnl?: number };
+export type AutoEvent = { time: number; action: 'BUY' | 'SELL' | 'WAIT' | 'HALT'; reason: string; symbol?: string; price?: number; quantity?: number; fee?: number; pnl?: number;
+  quoteTime?: number; observedAt?: number; signalAt?: number; signalBarTime?: number; source?: string };
 export function autoInitial(): AutoState {
   return { mode: 'auto-v2', paused: true, closeRequested: false, closeAfter: 0, cash: INITIAL, equity: INITIAL, peak: INITIAL,
     drawdown: 0, fees: 0, frictionCost: 0, realized: 0, day: '', dayEquity: INITIAL, haltedDay: null,
@@ -47,7 +48,8 @@ function emas(values: number[], period: number) {
   return result;
 }
 export function rankObservation(o: Observation, market: Market, now: number): Candidate {
-  const base: Candidate = { symbol: o.symbol, checkedAt: now, score: 0, eligible: false, reason: '', barTime: 0, cross: null };
+  const base: Candidate = { symbol: o.symbol, checkedAt: now, quoteTime: Number.isFinite(o.tick.time) && o.tick.time > 0 ? o.tick.time : undefined,
+    source: o.source, score: 0, eligible: false, reason: '', barTime: 0, cross: null };
   const reject = (reason: string) => ({ ...base, reason });
   if (o.error) return reject(o.error);
   if (!fresh(o.tick, market, now)) return reject('Piyasa kapalı veya fiyat eski/geçersiz.');
@@ -87,6 +89,7 @@ export function controlAuto(original: AutoState, action: 'start' | 'stop' | 'clo
   const s: AutoState = structuredClone(original);
   if (action === 'start' && s.closeRequested) throw new Error('Pozisyon kapatma tamamlanmadan başlatılamaz.');
   s.paused = action !== 'start';
+  s.focus = { symbols: [], checkedAt: now };
   s.pending = Object.fromEntries(Object.entries(s.pending).filter(([, p]) => p.side === 'SELL'));
   if (action === 'start') s.lastBars = {}; // no historical entry on resume
   if (action === 'close') { s.closeRequested = true; s.closeAfter = now; }
@@ -106,7 +109,7 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
   if (s.day !== day) { s.day = day; s.dayEquity = s.equity; s.haltedDay = null; }
   for (const [symbol, h] of Object.entries(s.holdings)) {
     const o = valid.get(symbol);
-    if (o && o.tick.time >= h.quoteTime) { h.mark = o.tick.price; h.quoteTime = o.tick.time; }
+    if (o && o.tick.time >= h.quoteTime) { h.mark = o.tick.price; h.quoteTime = o.tick.time; h.source = o.source; }
   }
   mark();
   const halt = () => {
@@ -122,9 +125,12 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
   for (const [symbol, h] of Object.entries(s.holdings)) {
     const o = valid.get(symbol); if (!o || o.tick.time <= (s.lastQuotes[symbol] || 0)) continue;
     const pending = s.pending[symbol];
-    const reason = s.closeRequested && o.tick.time > s.closeAfter ? 'Kullanıcı tüm sanal pozisyonları kapattı.' :
-      o.tick.price <= h.entry * (1 - c.stopLoss) ? 'Zarar sınırı tetiklendi; mevcut fiyatla sanal satış.' :
-      o.tick.price >= h.entry * (1 + c.takeProfit) ? 'Kâr hedefi tetiklendi; mevcut fiyatla sanal satış.' :
+    const closing = s.closeRequested && o.tick.time > s.closeAfter;
+    const stop = o.tick.price <= h.entry * (1 - c.stopLoss);
+    const target = o.tick.price >= h.entry * (1 + c.takeProfit);
+    const reason = closing ? 'Kullanıcı tüm sanal pozisyonları kapattı.' :
+      stop ? 'Zarar sınırı tetiklendi; gözlenen fiyatla sanal satış.' :
+      target ? 'Kâr hedefi tetiklendi; gözlenen fiyatla sanal satış.' :
       pending?.side === 'SELL' && o.tick.time > pending.after && now <= pending.expires ? pending.reason : '';
     if (!reason) continue;
     const price = o.tick.price * (1 - c.friction), fee = price * h.quantity * c.commission;
@@ -132,7 +138,10 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     s.cash += price * h.quantity - fee; s.fees += fee; s.realized += pnl;
     s.frictionCost += (o.tick.price - price) * h.quantity;
     delete s.holdings[symbol]; delete s.pending[symbol];
-    events.push({ time: now, symbol, action: 'SELL', reason, quantity: h.quantity, price, fee, pnl });
+    events.push({ time: now, symbol, action: 'SELL', reason, quantity: h.quantity, price, fee, pnl,
+      quoteTime: o.tick.time, observedAt: o.observedAt, source: o.source,
+      signalAt: closing ? s.closeAfter : stop || target ? now : pending?.after,
+      signalBarTime: !closing && !stop && !target ? pending?.signalBarTime : undefined });
     s.lastQuotes[symbol] = o.tick.time;
   }
   mark(); halt();
@@ -152,12 +161,15 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     if (quantity <= 0) continue;
     const fee = quantity * price * c.commission;
     s.cash -= quantity * price + fee; s.fees += fee; s.frictionCost += (price - o.tick.price) * quantity;
-    s.holdings[symbol] = { quantity, entry: price, entryFee: fee, mark: o.tick.price, quoteTime: o.tick.time, openedAt: now };
+    s.holdings[symbol] = { quantity, entry: price, entryFee: fee, mark: o.tick.price, quoteTime: o.tick.time, openedAt: now, source: o.source };
     s.lastQuotes[symbol] = o.tick.time;
-    events.push({ time: now, symbol, action: 'BUY', reason: pending.reason + ' Gözlemden sonraki fiyat kullanıldı.', price, quantity, fee });
+    events.push({ time: now, symbol, action: 'BUY', reason: pending.reason + ' Gözlemden sonraki fiyat kullanıldı.', price, quantity, fee,
+      quoteTime: o.tick.time, observedAt: o.observedAt, source: o.source, signalAt: pending.after, signalBarTime: pending.signalBarTime });
     mark(); halt();
   }
-  const freshCandidates = observations.filter(o => c.symbols.includes(o.symbol)).map(o => rankObservation(o, c.market, now)).sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
+  const freshCandidates = observations.filter(o => c.symbols.includes(o.symbol) &&
+    (!o.tick.time || o.tick.time >= (s.lastQuotes[o.symbol] || 0)))
+    .map(o => rankObservation(o, c.market, now)).sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
   // Historical rows are display-only. Only this batch can reserve new orders.
   s.candidates = [...new Map([...(c.scope === 'all' ? s.candidates.filter(row => c.symbols.includes(row.symbol)) : []), ...freshCandidates].map(row => [row.symbol, row])).values()]
     .sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
@@ -168,9 +180,9 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     s.lastBars[candidate.symbol] = candidate.barTime;
     // First observation establishes baseline for entries, but bearish exits are still allowed.
     if (candidate.cross === 'SELL' && s.holdings[candidate.symbol]) {
-      s.pending[candidate.symbol] = { side: 'SELL', after: now, expires: now + 2 * INTERVAL, reason: 'EMA20/50 aşağı kesişimi; sonraki fiyatla sanal satış.' };
+      s.pending[candidate.symbol] = { side: 'SELL', after: now, expires: now + 2 * INTERVAL, reason: 'EMA20/50 aşağı kesişimi; sonraki fiyatla sanal satış.', signalBarTime: candidate.barTime, signalQuoteTime: candidate.quoteTime, source: candidate.source };
     } else if (previous && candidate.eligible && !s.paused && s.haltedDay !== day && !staleHolding && !reserved.includes(candidate.symbol) && reserved.length < c.maxPositions && !reserved.some(v => group(c, v) === group(c, candidate.symbol))) {
-      s.pending[candidate.symbol] = { side: 'BUY', after: now, expires: now + 2 * INTERVAL, reason: candidate.reason };
+      s.pending[candidate.symbol] = { side: 'BUY', after: now, expires: now + 2 * INTERVAL, reason: candidate.reason, signalBarTime: candidate.barTime, signalQuoteTime: candidate.quoteTime, source: candidate.source };
       reserved.push(candidate.symbol);
     }
   }

@@ -103,3 +103,48 @@ kur güncelliği, grafik kesintisinde çıkış, hesap korunarak kapsam geçişi
 kontrolü, detay bağlantıları ve AKCNS günlük/haftalık renk regresyonu kapsandı.
 Veritabanı şemasında değişiklik yok. Gerçek cihaz ve canlı veriyle yeni kapsamın tam turu,
 sunucuya dağıtıldıktan sonra ayrıca gözlenmelidir.
+
+## Gecikme görünürlüğü ve öncelikli izleme — 25 Eylül 2026
+
+Kaynak gecikmesi tarama hızıyla ortadan kaldırılmaz. İşçi her tamamlanan turun ardından
+60 saniye bekler; ağ istekleri ve diğer hesapların işlem süresi bu aralığa eklenir.
+15 dakikalık mum kullanımı sabit 15 dakika ek gecikme demek değildir: hareketin mumun
+içindeki yerine göre kapanış beklenir, ardından kaynağın bu kapanışı göstermesi gerekir.
+Mevcut botların 15 dakikalık EMA20/50 stratejisi, risk ayarları ve hesapları korunur.
+Saatlik/günlük stratejiye otomatik geçiş yapılmaz; böyle bir değişiklik ayrı değerlendirme gerektirir.
+
+Tam katalog modunda son 30 dakikada değerlendirilmiş, geçerli mum zamanı bulunan,
+en az 40 puanlı en güçlü 12 aday ayrıca izlenir. Katalog üyeliği, son değerlendirme
+zamanı ve puan denetlenir; açık pozisyonlar/bekleyen emirler bu 12'lik kotaya dahil
+değildir. Önce pozisyon/emir kontrolleri kaydedilir, sonra adaylar taze gözlemle yeniden
+değerlendirilip kaydedilir, en son normal 48'lik katalog grubu işlenir. Her kayıtta
+optimistic version kontrolü vardır; kullanıcı kontrolüyle yarışta eski sonuç yazılmaz.
+Geniş tarama başarısız olsa bile önce kaydedilen koruyucu/öncelikli sonuçlar korunur.
+Eski aday puanı yalnızca yeniden kontrol listesini seçer; kendi başına emir oluşturmaz.
+Duraklamada veya kapatma isteğinde yeni aday taraması yapılmaz.
+
+Öncelikli/seçili liste ve pozisyon mum önbelleği 60 saniye; geniş katalog mum önbelleği
+240 saniyedir. İki önbellek de sınırlıdır ve aynı üç eşzamanlı grafik isteği sınırını
+kullanır. Fiyatlar kaynak zamanını korur. Eski katalog fiyatı, daha yeni fiyatla yapılan
+aday değerlendirmesini geriye alamaz. Sağlayıcı kesintisinde önbellekten dönen mumlar
+zaman denetimlerinden muaf değildir.
+
+Yeni aday kayıtlarında fiyat zamanı/kaynak; bekleyen emirlerde sinyal mumu kapanışı ve
+sinyal fiyatı zamanı; işlem olaylarında sinyal/karar zamanı, kullanılan fiyat zamanı,
+botun gözlem zamanı ve sanal kayıt zamanı ayrıdır. Eski olaylarda eksik alanlar uydurulmaz.
+Arayüz fiyat yaşını kaynak zamanından hesaplar; karar günlüğünde yaş kayıt anına göredir.
+Bekleyen emirler ve son geçerlilik zamanı görülebilir. Kaynak zaman damgası değişmeden
+gelen aynı fiyatla tekrar emir yürütülmez. Sinyale bağlı emirler `tick.time > pending.after`
+koşulunu korur; gecikmeli veri bu zamanı aşana kadar ek bekleme oluşabilir.
+Koruyucu zarar/kâr satışları gözlenen fiyatla modellenir; canlı gerçekleşme veya o
+fiyattan gerçekten satış garantisi anlamına gelmez.
+
+Kaynak bu aşamada Yahoo Finance olarak kalır. Doğrudan kripto borsası verisi veya
+lisanslı gerçek zamanlı BIST verisi eklenmemiştir. TL bazlı kripto hesabının kur güncellik
+kuralı korunur. Veritabanı şeması ve dağıtım betiği değişmedi; ek alanlar JSON kayıtlarında
+isteğe bağlıdır. Sunucuda yeni sürüm kurulmadan bu iyileştirmeler çalışmaz.
+
+Doğrulama: 355 test / 80 dosya, TypeScript, ESLint ve üretim derlemesi başarılı.
+Gecikmeli sinyalin geçmiş fiyatla doldurulmaması, ayrı zaman kayıtları, öncelik sınırı,
+eski adayın elenmesi, önbellek yenileme süresi, geniş tarama hatası ve sürüm çatışması
+durumlarında kayıt sırası ve mobil arayüzde zaman alanları test edildi.

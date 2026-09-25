@@ -32,3 +32,24 @@ it('a concurrent user control cancels further processing of the stale bot versio
   expect(autoObservations).toHaveBeenCalledTimes(1);
   expect(persistBot).toHaveBeenCalledTimes(1);
 });
+it('rechecks shortlist with holdings and persists it before the broad scan, even if that scan fails', async () => {
+  const state = autoInitial(); state.paused = false;
+  state.candidates = [{ symbol: 'TUPRS.IS', score: 70, eligible: false, cross: null, reason: 'trend', barTime: now - 900000, checkedAt: now }];
+  vi.mocked(prisma.paperBot.findMany).mockReset().mockResolvedValueOnce([{ id: 'a', version: 4, state, config, message: '' }] as any).mockResolvedValue([]);
+  vi.mocked(autoObservations).mockReset().mockResolvedValueOnce({ config: { ...config, scope: 'selected', symbols: ['TUPRS.IS'] }, progress: undefined,
+    observations: [{ symbol: 'TUPRS.IS', bars: [], tick: { price: 100, time: now, open: true } }] }).mockRejectedValueOnce(new Error('broad scan outage'));
+  await runBots();
+  expect(vi.mocked(autoObservations).mock.calls[0][0]).toMatchObject({ scope: 'selected', symbols: ['TUPRS.IS'] });
+  expect(vi.mocked(persistBot).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(autoObservations).mock.invocationCallOrder[1]);
+  expect(vi.mocked(persistBot).mock.calls.map(call => call[2])).toEqual([4, 5]);
+  expect(vi.mocked(persistBot).mock.calls[1][3]).toMatchObject({ focus: { symbols: ['TUPRS.IS'] } });
+});
+it('stops after a shortlist version conflict and never fetches the broad batch', async () => {
+  const state = autoInitial(); state.paused = false;
+  state.candidates = [{ symbol: 'TUPRS.IS', score: 70, eligible: false, cross: null, reason: 'trend', barTime: now - 900000, checkedAt: now }];
+  vi.mocked(prisma.paperBot.findMany).mockReset().mockResolvedValueOnce([{ id: 'a', version: 4, state, config, message: '' }] as any).mockResolvedValue([]);
+  vi.mocked(persistBot).mockResolvedValue(0);
+  await runBots();
+  expect(autoObservations).toHaveBeenCalledTimes(1);
+  expect(persistBot).toHaveBeenCalledTimes(1);
+});
