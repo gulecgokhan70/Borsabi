@@ -1,0 +1,55 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { CatalogScanner } from '../lib/bot-lab/catalog-scanner';
+import { botCatalog, assetHref } from '../lib/bot-lab/catalog';
+import { autoInitial, autoStep, type AutoConfig, type Observation } from '../lib/bot-lab/auto-engine';
+import { createAutoBot } from '../lib/bot-lab/validation';
+const config: AutoConfig = { mode: 'auto-v2', market: 'CRYPTO', scope: 'all', symbols: [], commission: 0.001, friction: 0.001, orderFraction: 0.05, dailyLoss: 0.02, stopLoss: 0.02, takeProfit: 0.04, maxPositions: 3 };
+afterEach(() => vi.useRealTimers());
+it('covers the application catalog, validates all mode and retains explicit selections', () => {
+  expect(botCatalog.BIST.length).toBeGreaterThan(500);
+  expect(botCatalog.CRYPTO.length).toBe(40);
+  expect(botCatalog.BIST).toContain('AKCNS.IS');
+  expect(botCatalog.BIST).not.toContain('XU100.IS');
+  expect(createAutoBot.safeParse(config).success).toBe(true);
+  expect(createAutoBot.safeParse({ ...config, symbols: ['FAKE'] }).success).toBe(false);
+  expect(createAutoBot.safeParse({ ...config, scope: 'selected', symbols: [] }).success).toBe(false);
+  expect(createAutoBot.safeParse({ ...config, scope: 'selected', symbols: ['XRP-USD'] }).success).toBe(true);
+  expect(assetHref('BTC-USD')).toBe('/stock/BTC-USD');
+});
+it('shares simultaneous scans, rotates fairly, reports complete tours and keeps markets independent', async () => {
+  vi.useFakeTimers(); vi.setSystemTime(100000);
+  const scanner = new CatalogScanner(2, 60000);
+  const symbols = ['a', 'b', 'c', 'd', 'e'];
+  const load = vi.fn(async (rows: string[]) => rows.map(symbol => ({ symbol, bars: [], tick: { price: 0, time: 0, open: false } })));
+  const [a, b] = await Promise.all([scanner.scan('BIST', symbols, load), scanner.scan('BIST', symbols, load)]);
+  expect(load).toHaveBeenCalledTimes(1); expect(a).toBe(b);
+  expect(a.progress).toMatchObject({ total: 5, processed: 2, cycleCompletedAt: null });
+  await scanner.scan('BIST', symbols, load); expect(load).toHaveBeenCalledTimes(1);
+  vi.advanceTimersByTime(60001);
+  expect((await scanner.scan('BIST', symbols, load)).observations.map(o => o.symbol)).toEqual(['c', 'd']);
+  vi.advanceTimersByTime(60001);
+  const end = await scanner.scan('BIST', symbols, load);
+  expect(end.observations.map(o => o.symbol)).toEqual(['e']);
+  expect(end.progress.cycleCompletedAt).toBe(Date.now());
+  vi.advanceTimersByTime(60001);
+  expect((await scanner.scan('BIST', symbols, load)).observations.map(o => o.symbol)).toEqual(['a', 'b']);
+  expect((await scanner.scan('CRYPTO', ['x'], load)).progress.processed).toBe(1);
+});
+it('failed batches do not advance the cursor or pretend to have completed a scan', async () => {
+  const scanner = new CatalogScanner(2);
+  await expect(scanner.scan('BIST', ['a', 'b', 'c'], async () => { throw new Error('outage'); })).rejects.toThrow('outage');
+  const load = vi.fn(async () => []);
+  const result = await scanner.scan('BIST', ['a', 'b', 'c'], load);
+  expect(load).toHaveBeenCalledWith(['a', 'b']);
+  expect(result.progress.cycleCompletedAt).toBeNull();
+});
+it('old eligible display rows cannot become orders when another batch is scanned', () => {
+  const now = Date.now(), state = autoInitial(); state.paused = false;
+  state.candidates = [{ symbol: 'BTC-USD', score: 99, cross: 'BUY', eligible: true, barTime: now, reason: 'old snapshot' }];
+  state.lastBars['BTC-USD'] = now - 900000;
+  const rows: Observation[] = [{ symbol: 'ETH-USD', bars: [], tick: { price: 0, time: 0, open: false } }];
+  const result = autoStep(state, { ...config, symbols: ['BTC-USD', 'ETH-USD'] }, rows, now);
+  expect(result.state.candidates).toHaveLength(2);
+  expect(result.state.pending).toEqual({});
+  expect(result.message).toContain('güncel veri yok');
+});

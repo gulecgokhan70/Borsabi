@@ -1,4 +1,5 @@
 import { INITIAL, Market, Tick } from './engine';
+import type { ScanProgress } from './catalog';
 
 export const INTERVAL = 15 * 60000;
 export const universe: Record<Market, { symbol: string; group: string }[]> = {
@@ -15,16 +16,16 @@ export const universe: Record<Market, { symbol: string; group: string }[]> = {
   ],
 };
 export type AutoConfig = {
-  mode: 'auto-v2'; market: Market; symbols: string[]; commission: number; friction: number;
+  mode: 'auto-v2'; market: Market; scope?: 'selected' | 'all'; symbols: string[]; commission: number; friction: number;
   orderFraction: number; dailyLoss: number; stopLoss: number; takeProfit: number; maxPositions: number;
 };
 export type Candle = { time: number; close: number; volume: number };
 export type Observation = { symbol: string; bars: Candle[]; tick: Tick; error?: string };
-export type Candidate = { symbol: string; score: number; eligible: boolean; reason: string; barTime: number; cross: 'BUY' | 'SELL' | null };
+export type Candidate = { checkedAt?: number; symbol: string; score: number; eligible: boolean; reason: string; barTime: number; cross: 'BUY' | 'SELL' | null };
 export type Holding = { quantity: number; entry: number; entryFee: number; mark: number; quoteTime: number; openedAt: number };
 export type Pending = { side: 'BUY' | 'SELL'; after: number; expires: number; reason: string };
 export type AutoState = {
-  mode: 'auto-v2'; paused: boolean; closeRequested: boolean; closeAfter: number; cash: number; equity: number; peak: number;
+  mode: 'auto-v2'; scan?: ScanProgress; paused: boolean; closeRequested: boolean; closeAfter: number; cash: number; equity: number; peak: number;
   drawdown: number; fees: number; frictionCost: number; realized: number; day: string; dayEquity: number;
   haltedDay: string | null; holdings: Record<string, Holding>; pending: Record<string, Pending>;
   lastBars: Record<string, number>; lastQuotes: Record<string, number>; candidates: Candidate[]; valuedAt: number;
@@ -46,7 +47,7 @@ function emas(values: number[], period: number) {
   return result;
 }
 export function rankObservation(o: Observation, market: Market, now: number): Candidate {
-  const base: Candidate = { symbol: o.symbol, score: 0, eligible: false, reason: '', barTime: 0, cross: null };
+  const base: Candidate = { symbol: o.symbol, checkedAt: now, score: 0, eligible: false, reason: '', barTime: 0, cross: null };
   const reject = (reason: string) => ({ ...base, reason });
   if (o.error) return reject(o.error);
   if (!fresh(o.tick, market, now)) return reject('Piyasa kapalı veya fiyat eski/geçersiz.');
@@ -156,9 +157,12 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     events.push({ time: now, symbol, action: 'BUY', reason: pending.reason + ' Gözlemden sonraki fiyat kullanıldı.', price, quantity, fee });
     mark(); halt();
   }
-  s.candidates = observations.filter(o => c.symbols.includes(o.symbol)).map(o => rankObservation(o, c.market, now)).sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
+  const freshCandidates = observations.filter(o => c.symbols.includes(o.symbol)).map(o => rankObservation(o, c.market, now)).sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
+  // Historical rows are display-only. Only this batch can reserve new orders.
+  s.candidates = [...new Map([...(c.scope === 'all' ? s.candidates.filter(row => c.symbols.includes(row.symbol)) : []), ...freshCandidates].map(row => [row.symbol, row])).values()]
+    .sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
   const reserved = [...Object.keys(s.holdings), ...Object.keys(s.pending).filter(k => s.pending[k].side === 'BUY')];
-  for (const candidate of s.candidates) {
+  for (const candidate of freshCandidates) {
     const previous = s.lastBars[candidate.symbol] || 0;
     if (!candidate.barTime || candidate.barTime <= previous) continue;
     s.lastBars[candidate.symbol] = candidate.barTime;
@@ -176,6 +180,8 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     s.closeRequested ? 'Pozisyon kapatma için yeni ve geçerli fiyat bekleniyor.' :
     s.haltedDay === day ? 'Günlük zarar kilidi açık; yalnızca çıkış kontrolleri çalışıyor.' :
     s.paused ? 'Yeni alımlar duraklatıldı; açık pozisyonların çıkış kontrolleri sürüyor.' :
-    Object.keys(s.pending).length ? 'Sinyal oluştu; sonraki geçerli fiyat bekleniyor.' : 'Tarama tamamlandı; uygun yeni kesişim bekleniyor.';
+    Object.keys(s.pending).length ? 'Sinyal oluştu; sonraki geçerli fiyat bekleniyor.' :
+    freshCandidates.length && freshCandidates.every(row => !row.barTime) ? 'Bu grupta değerlendirilebilir güncel veri yok; aday gerekçelerini kontrol edin.' :
+    c.scope === 'all' ? 'Varlık grubu kontrol edildi; katalog taraması sırayla sürüyor.' : 'Tarama tamamlandı; uygun yeni kesişim bekleniyor.';
   return { state: s, events, message };
 }
