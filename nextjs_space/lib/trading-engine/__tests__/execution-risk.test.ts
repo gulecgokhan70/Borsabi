@@ -91,3 +91,26 @@ test('walk-forward first selected parameters do not depend on later prices', () 
   const b = walkForward({ ...options, candles: changed }, 220, 20);
   assert.deepEqual(a.windows[0], b.windows[0]);
 });
+test('percentage stops execute intrabar with stop precedence and retain net risk sizing', () => {
+  const candles = history(202);
+  candles[200] = { ...candles[200], low: 80, high: 160 };
+  const result = runEngineBacktest({ candles, market: 'CRYPTO', timeframe: '1d', initialCapital: 100000, costs,
+    customSignal: () => signal, stopPercent: 0.05, takeProfitPercent: 0.1 });
+  const first = result.trades[0];
+  assert.equal(first.exitReason, 'STOP_LOSS');
+  assert.ok(Math.abs(first.exit - first.entry * 0.95 * (1 - costs.slippage - costs.spread / 2)) < 1e-8);
+  assert.ok(-first.pnl <= 100000 * 0.005 + 1e-7);
+  assert.ok(first.quantity * first.entry * (1 + costs.commission) <= 15000);
+});
+test('invalid or unpaired percentage levels are rejected rather than silently ignored', () => {
+  const base = { candles: history(202), market: 'CRYPTO' as const, timeframe: '1d' as const, initialCapital: 100000, costs };
+  for (const levels of [{ stopPercent: 0 }, { stopPercent: NaN, takeProfitPercent: 0.1 },
+    { stopPercent: 0.05 }, { takeProfitPercent: 0.1 }, { stopPercent: 0.6, takeProfitPercent: 0.1 }])
+    assert.throws(() => runEngineBacktest({ ...base, ...levels }), RangeError);
+});
+test('sell-only callback liquidates but cannot open short trades', () => {
+  const result = runEngineBacktest({ candles: history(210), market: 'CRYPTO', timeframe: '1d', initialCapital: 100000, costs,
+    customSignal: () => ({ ...signal, direction: 'SHORT' }) });
+  assert.equal(result.trades.length, 0);
+  assert.equal(result.summary.finalCapital, 100000);
+});

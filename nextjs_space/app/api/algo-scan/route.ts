@@ -8,6 +8,7 @@ import { calculateEMA, calculateStochastic } from '@/lib/technical-indicators';
 import { processInBatches, withTimeout, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { readMutationJson, RequestError } from '@/lib/request-json';
 import { takeRequestSlot } from '@/lib/request-limit';
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) return reply({ error: 'Oturum gerekli.' }, 401);
     const parsed = schema.safeParse(await readMutationJson(req));
     if (!parsed.success) return reply({ error: 'Tarama filtreleri geçersiz.' }, 400);
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { tier: true } });
+    if (!user) return reply({ error: 'Kullanıcı bulunamadı.' }, 404);
+    if (!['pro', 'elite'].includes(user.tier)) return reply({ error: 'Algoritmik tarama için Pro üyelik gerekir.' }, 403);
     if (!takeRequestSlot('algo-scan:' + session.user.id, 3, 60000).allowed) return reply({ error: 'Bir dakika sonra yeniden deneyin.' }, 429);
     const {
       market = 'BIST',

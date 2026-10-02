@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
 vi.mock('../lib/auth', () => ({ authOptions: {} }));
+vi.mock('../lib/db', () => ({ prisma: { user: { findUnique: vi.fn() } } }));
 vi.mock('../lib/constants', () => ({ BIST_TOP_STOCKS: [{ symbol: 'THYAO.IS', name: 'THY', shortName: 'THYAO' }],
   CRYPTO_ASSETS: [{ symbol: 'BTC-USD', name: 'Bitcoin', shortName: 'BTC' }, { symbol: 'ETH-USD', name: 'Ethereum', shortName: 'ETH' }] }));
 vi.mock('../lib/yahoo-finance', () => ({ cachedQuote: vi.fn() }));
@@ -10,6 +11,7 @@ vi.mock('../lib/request-limit', () => ({ takeRequestSlot: vi.fn() }));
 vi.mock('../lib/trading-engine/service', () => ({ engineHistory: vi.fn(), cryptoContextAt: vi.fn() }));
 vi.mock('../lib/trading-engine/engine', () => ({ evaluateMarket: vi.fn() }));
 import { getServerSession } from 'next-auth';
+import { prisma } from '../lib/db';
 import { cachedQuote } from '../lib/yahoo-finance';
 import { getMidasStockMap } from '../lib/midas-api';
 import { takeRequestSlot } from '../lib/request-limit';
@@ -24,6 +26,7 @@ const request = (body: unknown = {}, origin?: string) => POST(new NextRequest('h
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getServerSession).mockResolvedValue({ user: { id: 'owner' } });
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({ tier: 'pro' } as any);
   vi.mocked(takeRequestSlot).mockReturnValue({ allowed: true, retryAfter: 0 });
   vi.mocked(getMidasStockMap).mockResolvedValue(new Map());
   vi.mocked(cachedQuote).mockResolvedValue({ regularMarketPrice: 200, regularMarketChangePercent: 3, regularMarketVolume: 99999 } as any);
@@ -43,6 +46,11 @@ it('rejects malformed filters, inverted ranges, and unknown keys', async () => {
   for (const body of [{ market: 'OTHER' }, { emaPeriod: 3 }, { rsiMin: 90, rsiMax: 10 }, { priceMin: -1 }, { userId: 'other' }]) {
     expect((await request(body)).status).toBe(400);
   }
+  expect(engineHistory).not.toHaveBeenCalled();
+});
+it('requires Pro membership before fetching market data', async () => {
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({ tier: 'free' } as any);
+  expect((await request()).status).toBe(403);
   expect(engineHistory).not.toHaveBeenCalled();
 });
 it('enforces same-origin requests and owner-scoped rate limit', async () => {

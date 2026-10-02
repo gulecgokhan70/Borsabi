@@ -9,6 +9,7 @@ import type { AccountRisk, CandleData, Costs, CryptoContext, EngineDecision, Mar
 export interface BacktestOptions {
   candles: readonly CandleData[]; market: MarketType; timeframe: Timeframe; initialCapital: number; costs: Costs;
   strategy?: Strategy; stopMultiplier?: number; rewardRatio?: number; trailingPercent?: number;
+  stopPercent?: number; takeProfitPercent?: number;
   tradeStart?: number; tradeEnd?: number; holidays?: readonly string[];
   contextAt?: (time: number, candles: readonly CandleData[]) => CryptoContext | undefined;
   customSignal?: (past: readonly CandleData[], decision: EngineDecision) => SignalResult;
@@ -19,7 +20,9 @@ export function runEngineBacktest(options: BacktestOptions) {
   const checked = prepareClosedCandles(candles, Number.MAX_SAFE_INTEGER);
   if (!checked.ok || !candles.length || !Number.isFinite(options.initialCapital) || options.initialCapital <= 0
     || Object.values(costs).some(v => !Number.isFinite(v) || v < 0 || v > 0.05)
-    || (options.trailingPercent !== undefined && (!Number.isFinite(options.trailingPercent) || options.trailingPercent < 0 || options.trailingPercent > 0.2)))
+    || (options.trailingPercent !== undefined && (!Number.isFinite(options.trailingPercent) || options.trailingPercent < 0 || options.trailingPercent > 0.2))
+    || ((options.stopPercent !== undefined || options.takeProfitPercent !== undefined)
+      && (![options.stopPercent, options.takeProfitPercent].every(v => typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 0.5))))
     throw new RangeError('Backtest verisi veya maliyet girdileri geçersiz.');
   const profile = getTradingProfile(market, timeframe);
   let cash = options.initialCapital, position: SimPosition | null = null, benchmarkQty = 0, benchmarkCash = options.initialCapital;
@@ -69,8 +72,11 @@ export function runEngineBacktest(options: BacktestOptions) {
     if (!position && !wasHolding && decision.analysis.indicators) {
       const account: AccountRisk = { equity: cash, cash, exposure: 0, dailyLoss: Math.max(0, dayStartEquity - cash),
         dayStartEquity, consecutiveLosses, correlatedExposure: 0, allocationLimit: cash * 0.6, orderLimit: cash * 0.25 };
-      const plan = planTrade(bar.open, decision.analysis.indicators.atr, signal, account, profile, costs,
-        options.stopMultiplier, options.rewardRatio);
+      const atr = decision.analysis.indicators.atr;
+      const stopMultiplier = options.stopPercent === undefined ? options.stopMultiplier
+        : fillPrice(bar.open, 'BUY', costs) * options.stopPercent / atr;
+      const rewardRatio = options.stopPercent === undefined ? options.rewardRatio : options.takeProfitPercent! / options.stopPercent;
+      const plan = planTrade(bar.open, atr, signal, account, profile, costs, stopMultiplier, rewardRatio);
       if (plan.allowed && plan.direction === 'LONG') {
         const entryFee = plan.entry * plan.quantity * costs.commission;
         position = { side: 'LONG', quantity: plan.quantity, entry: plan.entry, entryFee, openedAt: openTime,
@@ -101,6 +107,7 @@ export function runEngineBacktest(options: BacktestOptions) {
   const benchmarkFinal = timeline[timeline.length - 1]?.benchmark ?? options.initialCapital;
   return { summary: { ...summary, benchmarkReturn: (benchmarkFinal / options.initialCapital - 1) * 100 },
     equity, timeline, trades, assumptions: ['Sonraki mum açılışında gerçekleşme.', 'İki çıkış seviyesi aynı mumda görülürse stop öncelikli.',
+      options.stopPercent === undefined ? 'ATR tabanlı stop/hedef.' : 'Gerçekleşen giriş fiyatına göre yüzde stop/hedef; V2 risk bütçesi korunur.',
       'Komisyon, tahmini spread ve fiyat kayması dahil; likidite ve sıra önceliği modellenmedi.',
       'BIST tatilleri/yarım günleri sağlayıcı verisi ve isteğe bağlı tatil listesine dayanır.',
       'Güven puanı kazanma olasılığı değildir.'], currency: market === 'BIST' ? 'TRY' : 'USD' };

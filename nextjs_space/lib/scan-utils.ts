@@ -5,6 +5,9 @@
 
 import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
 import { type MidasStock } from '@/lib/midas-api';
+import { engineHistory } from '@/lib/trading-engine/service';
+import { evaluateMarket } from '@/lib/trading-engine/engine';
+import type { EngineDecision, Timeframe } from '@/lib/trading-engine/types';
 
 // ===== CONCURRENCY LIMITER =====
 // Aynı anda max N adet async iş çalıştırır
@@ -100,6 +103,7 @@ const CHART_TIMEOUT = 8000; // 8 saniye
 const QUOTE_TIMEOUT = 5000; // 5 saniye
 
 export interface StockFetchResult {
+  engine?: EngineDecision;
   ohlcv: OHLCVData;
   effectiveQuote: any;
   price: number;
@@ -117,11 +121,13 @@ export async function fetchStockData(
   yahooSymbol: string,
   midasData: MidasStock | null,
   chartPeriod: { period1: any; period2: any; interval: string },
+  engineOptions?: { timeframe: Timeframe; asOf: number },
 ): Promise<StockFetchResult | null> {
   // Chart her zaman Yahoo'dan (tarihsel veri)
   const chart = await withRetry(
     () => withTimeout(
-      cachedChart(yahooSymbol, chartPeriod as any).catch(() => null),
+      engineOptions ? engineHistory(yahooSymbol, 'BIST', engineOptions.timeframe, engineOptions.asOf).then(quotes => ({ quotes })).catch(() => null)
+        : cachedChart(yahooSymbol, chartPeriod as any).catch(() => null),
       CHART_TIMEOUT,
       `chart:${symbol}`
     ),
@@ -131,6 +137,9 @@ export async function fetchStockData(
   if (!chart) return null;
 
   const quotes = chart?.quotes ?? [];
+  const engine = engineOptions ? evaluateMarket({ candles: quotes as any, marketType: 'BIST',
+    timeframe: engineOptions.timeframe, asOf: engineOptions.asOf }) : undefined;
+  if (engine && engine.analysis.status !== 'READY') return null;
   const ohlcv = extractOHLCV(quotes);
 
   if (ohlcv.closes.length < 26) return null;
@@ -186,7 +195,7 @@ export async function fetchStockData(
 
   if (price <= 0) return null;
 
-  return { ohlcv, effectiveQuote, price, volume, avgVolume, changePercent };
+  return { ohlcv, effectiveQuote, price, volume, avgVolume, changePercent, engine };
 }
 
 // ===== BIST MARKET OPEN CHECK =====

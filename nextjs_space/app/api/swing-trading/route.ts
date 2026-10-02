@@ -4,8 +4,11 @@ import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
 import { cachedScan } from '@/lib/scan-cache';
-import { calculateRSI, calculateEMA, calculateMACD, calculateATR } from '@/lib/technical-indicators';
+import { calculateRSI, calculateEMA } from '@/lib/technical-indicators';
 import { processInBatches, fetchStockData, isBistMarketHours, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { takeRequestSlot } from '@/lib/request-limit';
 
 // ===== SAPAN SİSTEMİ =====
 function detectSapan(
@@ -133,7 +136,7 @@ function scoreSwingTrade(
   // === TREND (25 Puan) ===
   if (aboveEma20) { trendPuan += 8; signals.push('EMA20 üzerinde ✓'); }
   if (ema20AboveEma50) { trendPuan += 8; signals.push('EMA20 > EMA50 ✓'); }
-  const ema200Arr = calculateEMA(closes, Math.min(200, len - 1));
+  const ema200Arr = calculateEMA(closes, 200);
   const lastEma200 = ema200Arr[ema200Arr.length - 1] ?? 0;
   if (price > lastEma200) { trendPuan += 5; signals.push('EMA200 üzerinde'); }
   const recent20 = closes.slice(-20);
@@ -215,8 +218,10 @@ function scoreSwingTrade(
   };
 }
 
-async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean }> {
+async function runSwingTradingScan() {
     const results: any[] = [];
+    const asOf = Date.now();
+    let unavailable = 0;
 
     let midasMap = new Map<string, MidasStock>();
     try {
@@ -237,9 +242,10 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
 
         const data = await fetchStockData(
           cleanSym, stock.symbol, midasData,
-          { period1: startDate, period2: endDate, interval: '1d' }
+          { period1: startDate, period2: endDate, interval: '1d' }, { timeframe: '1d', asOf }
         );
-        if (!data) return null;
+        if (!data?.engine?.analysis.indicators) { unavailable++; return null; }
+        const engine = data.engine, indicators = engine.analysis.indicators!;
 
         const { ohlcv, price, volume, avgVolume, changePercent } = data;
         const { closes, highs, lows, volumes, candleData } = ohlcv;
@@ -249,16 +255,15 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
         const candlePatterns = detectCandlePatterns(candleData);
         const cpScore = candlePatternScore(candlePatterns);
 
-        const rsi = calculateRSI(closes);
-        const macd = calculateMACD(closes);
+        const rsi = indicators.rsi;
+        const macd = indicators.macd;
         const ema20Arr = calculateEMA(closes, 20);
         const ema50Arr = calculateEMA(closes, 50);
-        const ema200Arr = calculateEMA(closes, Math.min(200, closes.length - 1));
-        const atr = calculateATR(highs, lows, closes);
+        const atr = indicators.atr;
 
         const lastEma20 = ema20Arr[ema20Arr.length - 1] ?? 0;
         const lastEma50 = ema50Arr[ema50Arr.length - 1] ?? 0;
-        const lastEma200 = ema200Arr[ema200Arr.length - 1] ?? 0;
+        const lastEma200 = indicators.ema200;
 
         const result = scoreSwingTrade(
           closes, highs, lows, volumes,
@@ -283,6 +288,10 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
           result.score = Math.min(100, result.hacimPuan + result.trendPuan + result.momentumPuan + result.formasyonPuan + result.riskOdulPuan);
         }
 
+        result.score = engine.signal.score;
+        result.passesFilter = engine.signal.direction === 'LONG' && stopLevel > 0;
+        result.signals = [...engine.signal.reasons, ...engine.signal.warnings, ...candlePatterns.map(cp => `🕯 ${cp.name}`)];
+
         let quality = 'İşlem Yok';
         if (result.score >= 80) quality = 'Elite Kurulum';
         else if (result.score >= 65) quality = 'Güçlü Kurulum';
@@ -303,6 +312,8 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
           volume,
           avgVolume,
           score: Math.round(result.score),
+          engine: 'v2', timeframe: '1d', direction: engine.signal.direction, regime: engine.signal.regime,
+          lastClosedAt: engine.analysis.lastClosedAt,
           quality,
           signals: result.signals,
           candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
@@ -331,6 +342,7 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
           },
         };
       } catch (e: any) {
+        unavailable++;
         console.error(`[SwingTrade] ${stock?.shortName || stock?.symbol}: ${e?.message}`);
         return null;
       }
@@ -342,16 +354,22 @@ async function runSwingTradingScan(): Promise<{ data: any[]; marketOpen: boolean
     }
 
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
-    const filtered = results.filter((r: any) => r.score >= 35);
-    const top10 = filtered.slice(0, 10);
+    const top10 = results.slice(0, 10);
     const marketOpen = isBistMarketHours();
-    return { data: top10, marketOpen };
+    if (unavailable === BIST_TOP_STOCKS.length) throw new Error('Geçerli kapanmış veri yok.');
+    return { data: top10, marketOpen, unavailable, engine: 'v2', timeframe: '1d', asOf };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { result, cachedAt, fresh } = await cachedScan('swing-trading', runSwingTradingScan);
-    return NextResponse.json({ ...result, cachedAt, fresh });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
+    if (!takeRequestSlot('swing-scan:' + session.user.id, 12, 60000).allowed) return NextResponse.json({ error: 'Bir dakika sonra yeniden deneyin.' }, { status: 429 });
+    const { result, cachedAt, fresh } = await cachedScan('swing-trading-v2', runSwingTradingScan);
+    return NextResponse.json({ ...result, marketOpen: isBistMarketHours(), cachedAt, fresh,
+      data: result.data.map(r => fresh && r.lastClosedAt !== null && Date.now() - r.lastClosedAt <= 4 * 86400000 ? r
+        : { ...r, passesFilter: false, direction: 'NONE', quality: 'Güncel sinyal yok', signals: ['Veri/önbellek eski; güncel sinyal onayı yok.', ...r.signals] }) },
+      { headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
   } catch (error: any) {
     console.error('Swing trading error:', error);
     return NextResponse.json({ error: 'Swing trading taraması yapılamadı' }, { status: 500 });
