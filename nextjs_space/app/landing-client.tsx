@@ -1,4 +1,5 @@
 'use client';
+import { STRATEGIES } from '@/lib/backtest-strategies';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { TrendingUp, Shield, Bot, BarChart3, Zap, GraduationCap, ArrowRight, ChevronRight } from 'lucide-react';
@@ -8,9 +9,9 @@ const FEATURES = [
   { icon: TrendingUp, title: 'Canlı Piyasa Takibi', desc: 'BIST ve kripto piyasalarını anlık takip edin, teknik analiz göstergelerini inceleyin.' },
   { icon: Shield, title: 'Risk Yönetimi', desc: 'Profesyonel risk merkezi ile portföyünüzü koruyun, stop-loss ve take-profit ayarlayın.' },
   { icon: Bot, title: 'AI Destekli Analiz', desc: 'Yapay zeka asistanıyla piyasa analizi yapın, alım-satım sinyalleri alın.' },
-  { icon: BarChart3, title: 'Backtest Motoru', desc: '5 farklı stratejiyi geçmiş verilerle test edin, performansı analiz edin.' },
+  { icon: BarChart3, title: 'Backtest Motoru', desc: `${STRATEGIES.length} farklı stratejiyi geçmiş verilerle test edin, performansı analiz edin.` },
   { icon: Zap, title: 'Day & Swing Trading', desc: 'Günlük ve orta vadeli trade fırsatlarını otomatik tarayın.' },
-  { icon: GraduationCap, title: 'Master Akademi', desc: '6 kapsamlı kurs, quizler ve adım adım eğitim içerikleri.' },
+  { icon: GraduationCap, title: 'Master Akademi', desc: 'Kapsamlı kurslar, quizler ve adım adım eğitim içerikleri.' },
 ];
 
 const STATS = [

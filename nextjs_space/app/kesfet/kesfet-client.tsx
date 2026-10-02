@@ -444,6 +444,7 @@ export function KesfetClient() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
+            { href: '/bot-lab', label: 'Bot Laboratuvarı', icon: '🤖', color: 'text-[#3B82F6]' },
             { href: '/day-trading', label: 'Day Trading', icon: '⚡', color: 'text-[#F59E0B]' },
             { href: '/swing-trading', label: 'Swing Trading', icon: '🌊', color: 'text-[#3B82F6]' },
             { href: '/screening', label: 'Tarama', icon: '🔍', color: 'text-[#8B5CF6]' },

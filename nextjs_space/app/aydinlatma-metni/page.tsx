@@ -1,5 +1,4 @@
 'use client';
-import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, Eye, Database, Lock, UserCheck, Globe, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,7 +15,7 @@ export default function AydinlatmaMetniPage() {
     {
       icon: Database,
       title: '2. İşlenen Kişisel Veriler',
-      content: `Platform kapsamında aşağıdaki kişisel verileriniz işlenmektedir:\n\n• Kimlik Bilgileri: Ad, soyad, kullanıcı adı\n• İletişim Bilgileri: E-posta adresi\n• Hesap Bilgileri: Şifrelenmiş parola, profil tercihleri\n• İşlem Verileri: Simülasyon alım-satım işlemleri, sanal portföy bilgileri, izleme listesi\n• Kullanım Verileri: Oturum bilgileri, platform kullanım istatistikleri\n• Teknik Veriler: IP adresi, tarayıcı türü, cihaz bilgisi`
+      content: `Platform kapsamında aşağıdaki kişisel verileriniz işlenmektedir:\n\n• Kimlik Bilgileri: Ad, soyad, kullanıcı adı\n• İletişim Bilgileri: E-posta adresi\n• Hesap Bilgileri: Şifrelenmiş parola, profil tercihleri\n• İşlem Verileri: Simülasyon alım-satım işlemleri, sanal portföy bilgileri, izleme listesi, işlem gerekçeleri ve geçmiş piyasa pratikleri\n• Yapay Zekâ Bildirimleri: Bildirdiğiniz yanıtın içeriği, bildirim nedeni, isteğe bağlı açıklamanız ve hesabınızla ilişkisi\n• Kullanım Verileri: Oturum bilgileri, platform kullanım istatistikleri\n• Teknik Veriler: IP adresi, tarayıcı türü, cihaz bilgisi`
     },
     {
       icon: UserCheck,
@@ -31,7 +30,7 @@ export default function AydinlatmaMetniPage() {
     {
       icon: Globe,
       title: '5. Kişisel Verilerin Aktarılması',
-      content: `Kişisel verileriniz, hizmet sunumu kapsamında aşağıdaki taraflarla paylaşılabilir:\n\n• Sunucu ve altyapı hizmeti sağlayıcıları (barındırma hizmetleri)\n• Yasal zorunluluk halinde yetkili kamu kurum ve kuruluşları\n\nKişisel verileriniz, yukarıda belirtilen amaçlar dışında üçüncü kişi veya kuruluşlarla paylaşılmamakta, ticari amaçla satılmamakta veya pazarlama amacıyla kullanılmamaktadır.`
+      content: `Kişisel verileriniz, hizmet sunumu kapsamında aşağıdaki taraflarla paylaşılabilir:\n\n• Sunucu ve altyapı hizmeti sağlayıcıları (barındırma hizmetleri)\n• Yapay zekâ hizmeti sağlayıcıları: Yapay zekâ özelliklerinde mesajlarınız ve ilgili analiz bağlamı, sunucuda etkin olan Groq veya Abacus.AI hizmetine gönderilir. Yanıt bildirimleri ayrıca inceleme amacıyla Platform veritabanına kaydedilir.\n• Yasal zorunluluk halinde yetkili kamu kurum ve kuruluşları\n\nKişisel verileriniz, yukarıda belirtilen amaçlar dışında üçüncü kişi veya kuruluşlarla paylaşılmamakta, ticari amaçla satılmamakta veya pazarlama amacıyla kullanılmamaktadır.`
     },
     {
       icon: UserCheck,
@@ -51,7 +50,7 @@ export default function AydinlatmaMetniPage() {
     {
       icon: Shield,
       title: '9. Değişiklikler',
-      content: `Bu aydınlatma metni, yasal düzenlemelerdeki değişiklikler veya platformdaki güncellemeler doğrultusunda zaman zaman güncellenebilir. Güncellemeler platform üzerinden yayınlanacaktır.\n\nSon güncelleme tarihi: Haziran 2026`
+      content: `Bu aydınlatma metni, yasal düzenlemelerdeki değişiklikler veya platformdaki güncellemeler doğrultusunda zaman zaman güncellenebilir. Güncellemeler platform üzerinden yayınlanacaktır.\n\nSon güncelleme tarihi: 9 Eylül 2026`
     }
   ];
 
@@ -67,15 +66,20 @@ export default function AydinlatmaMetniPage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
             </div>
-            <h1 className="font-bold text-foreground text-lg">Aydınlatma Metni</h1>
+            <h1 className="font-bold text-foreground text-lg">Gizlilik Politikası ve Aydınlatma Metni</h1>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <div className="glass-card rounded-2xl p-5 space-y-2 text-sm">
+          <h2 className="font-semibold">Hesap ve veri silme</h2>
+          <p>Hesabınızı ve hesabınıza bağlı aktif uygulama verilerini şifrenizle doğrulayarak silebilirsiniz. Geçmiş yedekler ve sunucu günlükleri bu işlemle otomatik olarak temizlenmez; bunlarla ilgili talep ve sorularınızı info@borsabi.com adresine iletebilirsiniz.</p>
+          <Link href="/hesap-silme" className="inline-flex min-h-[44px] items-center text-blue-500">Hesap silme sayfasını aç</Link>
+        </div>
         {/* Intro Banner */}
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+        <div
           className="glass-card rounded-2xl p-5 border border-[#8B5CF6]/10">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8B5CF6]/10 to-[#6366F1]/10 flex items-center justify-center flex-shrink-0">
@@ -90,11 +94,11 @@ export default function AydinlatmaMetniPage() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Sections */}
         {sections.map((section, i) => (
-          <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * (i + 1) }}
+          <div key={i}
             className="glass-card rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/[0.06] flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#8B5CF6]/10 to-[#6366F1]/10 flex items-center justify-center flex-shrink-0">
@@ -111,11 +115,11 @@ export default function AydinlatmaMetniPage() {
                 </p>
               ))}
             </div>
-          </motion.div>
+          </div>
         ))}
 
         {/* Footer Note */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+        <div
           className="text-center py-6 space-y-2">
           <p className="text-[10px] text-muted-foreground">
             ⚠️ BorsaBi Trader tamamen eğitim ve simülasyon amaçlıdır. Gerçek para ile işlem yapılmaz.
@@ -123,7 +127,7 @@ export default function AydinlatmaMetniPage() {
           <p className="text-[10px] text-muted-foreground">
             © 2024-2026 BorsaBi Trader. Tüm hakları saklıdır.
           </p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,10 @@
+import { profitFactorOf } from '@/lib/ux-metrics';
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { commissionRate as validateCommission } from '@/lib/commission';
 import { cachedChart } from '@/lib/yahoo-finance';
 
 function calculateEMA(data: number[], period: number): number[] {
@@ -101,6 +106,7 @@ interface Trade {
   entryPrice: number;
   exitPrice: number;
   type: 'LONG';
+  commission: number;
   pnl: number;
   pnlPercent: number;
   holdingDays: number;
@@ -114,7 +120,8 @@ function runBacktest(
   dates: string[],
   strategy: string,
   stopLossPercent: number,
-  takeProfitPercent: number
+  takeProfitPercent: number,
+  commissionRate: number
 ): { trades: Trade[]; equity: number[] } {
   const trades: Trade[] = [];
   const equity: number[] = [100000];
@@ -122,7 +129,6 @@ function runBacktest(
   let inTrade = false;
   let entryPrice = 0;
   let entryIdx = 0;
-  const commissionRate = 0.002;
 
   const ema20 = calculateEMA(closes, 20);
   const ema50 = calculateEMA(closes, 50);
@@ -245,6 +251,7 @@ function runBacktest(
           entryPrice: Math.round(entryPrice * 100) / 100,
           exitPrice: Math.round(price * 100) / 100,
           type: 'LONG',
+          commission: Math.round(commission * qty * 100) / 100,
           pnl: Math.round(pnl * 100) / 100,
           pnlPercent: Math.round(pnlPercent * 100) / 100,
           holdingDays,
@@ -263,6 +270,11 @@ function runBacktest(
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Oturum gerekli' }, { status: 401 });
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { commissionRate: true } });
+    if (!user) return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 });
+    const commissionRate = validateCommission(user.commissionRate);
     const body = await request.json();
     const { symbol, strategy, period, stopLoss, takeProfit } = body;
 
@@ -305,16 +317,16 @@ export async function POST(request: NextRequest) {
 
     const { trades, equity } = runBacktest(
       closes, highs, lows, dates, strategy,
-      stopLoss || 3, takeProfit || 6
+      stopLoss || 3, takeProfit || 6, commissionRate
     );
 
     const winningTrades = trades.filter((t: Trade) => t.pnl > 0);
-    const losingTrades = trades.filter((t: Trade) => t.pnl <= 0);
+    const losingTrades = trades.filter((t: Trade) => t.pnl < 0);
     const totalPnL = trades.reduce((s: number, t: Trade) => s + t.pnl, 0);
     const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0;
     const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s: number, t: Trade) => s + t.pnl, 0) / winningTrades.length : 0;
     const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((s: number, t: Trade) => s + t.pnl, 0) / losingTrades.length) : 0;
-    const profitFactor = avgLoss > 0 ? avgWin / avgLoss : 0;
+    const { profitFactor, profitFactorStatus } = profitFactorOf(trades.map(t => t.pnl));
     const maxDrawdown = calculateMaxDrawdown(equity);
     const avgHoldingDays = trades.length > 0 ? Math.round(trades.reduce((s: number, t: Trade) => s + t.holdingDays, 0) / trades.length) : 0;
     const totalReturn = ((equity[equity.length - 1] - 100000) / 100000) * 100;
@@ -324,8 +336,10 @@ export async function POST(request: NextRequest) {
       : equity;
 
     return NextResponse.json({
+      commissionRate,
       summary: {
         totalTrades: trades.length,
+        totalCommission: Math.round(trades.reduce((sum, trade) => sum + trade.commission, 0) * 100) / 100,
         winningTrades: winningTrades.length,
         losingTrades: losingTrades.length,
         winRate: Math.round(winRate * 100) / 100,
@@ -333,7 +347,8 @@ export async function POST(request: NextRequest) {
         totalReturn: Math.round(totalReturn * 100) / 100,
         avgWin: Math.round(avgWin * 100) / 100,
         avgLoss: Math.round(avgLoss * 100) / 100,
-        profitFactor: Math.round(profitFactor * 100) / 100,
+        profitFactor: profitFactor === null ? null : Math.round(profitFactor * 100) / 100,
+        profitFactorStatus,
         maxDrawdown: Math.round(maxDrawdown * 100) / 100,
         avgHoldingDays,
         finalCapital: equity[equity.length - 1],

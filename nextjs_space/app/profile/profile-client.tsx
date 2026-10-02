@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Crown, Star, Zap, TrendingUp, BarChart3, Shield, Award, Calendar, Edit3, Check, X, LogOut, Percent, Save } from 'lucide-react';
+import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { toast } from 'sonner';
 import { formatCurrency, formatPercent } from '@/lib/constants';
 
 const AVATARS = [
@@ -63,7 +65,6 @@ export default function ProfileClient() {
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState('');
-  const [upgrading, setUpgrading] = useState(false);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [commissionInput, setCommissionInput] = useState('');
@@ -104,25 +105,13 @@ export default function ProfileClient() {
     setAvatarPickerOpen(false);
   };
 
-  const handleUpgrade = async (tier: string) => {
-    setUpgrading(true);
-    const res = await fetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tier }),
-    });
-    if (res.ok) {
-      setProfile((p: any) => ({ ...p, tier }));
-    }
-    setUpgrading(false);
-  };
-
   if (loading) return (
     <div className="flex items-center justify-center h-96">
       <div className="w-8 h-8 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
+  if (profile?.error) return <div role="alert" className="glass-card p-6">{profile.error}</div>;
   if (!profile) return <div className="text-center text-muted-foreground py-20">Profil yüklenemedi.</div>;
 
   const effectiveTier = profile.tier === 'elite' ? 'pro' : profile.tier;
@@ -210,7 +199,7 @@ export default function ProfileClient() {
       {/* Tier Selection */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Crown className="w-4 h-4 text-[#F59E0B]" /> Paket Seçimi
+          <Crown className="w-4 h-4 text-[#F59E0B]" /> Paket Bilgisi
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TIERS.map((tier) => {
@@ -234,18 +223,12 @@ export default function ProfileClient() {
                     </li>
                   ))}
                 </ul>
-                {!isActive && (
-                  <button onClick={() => handleUpgrade(tier.id)} disabled={upgrading}
-                    className="w-full py-2 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-                    style={{ background: tier.color }}>
-                    {upgrading ? 'Yükleniyor...' : tier.id === 'free' ? 'Geç' : 'Seç'}
-                  </button>
-                )}
+                {!isActive && <p className="text-xs text-muted-foreground min-h-[44px] flex items-center">Paket değişikliği şu an kullanıma açık değil.</p>}
               </div>
             );
           })}
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">* Bu bir simülasyon platformudur. Paket değişikliği özellik erişimini değiştirir.</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">Mevcut paketiniz korunur. Yeni üyelik satın alma işlemleri henüz kullanıma açık değildir.</p>
       </motion.div>
 
       {/* Achievements Summary */}
@@ -268,16 +251,14 @@ export default function ProfileClient() {
           <Percent className="w-4 h-4 text-[#8B5CF6]" /> Komisyon Oranı
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
-          İşlemlerinizde uygulanacak komisyon oranını belirleyin. Varsayılan: %0.20
+          İşlemlerinizde uygulanacak komisyon oranını belirleyin. Simülasyon, strateji testi ve adım adım pratikte kullanılır. Varsayılan: %0,20
         </p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 flex-1">
             <span className="text-sm text-muted-foreground">%</span>
             <input
-              type="number"
-              step="0.01"
-              min="0"
-              max="1"
+              type="text"
+              inputMode="decimal"
               value={commissionInput}
               onChange={e => setCommissionInput(e.target.value)}
               className="glass-inner border border-black/[0.08] dark:border-white/[0.08] rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-[#8B5CF6] w-full"
@@ -302,21 +283,21 @@ export default function ProfileClient() {
         </div>
         <button
           onClick={async () => {
+            const rate = Number(commissionInput.trim().replace(',', '.')) / 100;
+            if (!commissionInput.trim() || !Number.isFinite(rate) || rate < 0 || rate > 0.01) {
+              toast.error('Komisyon %0 ile %1 arasında olmalı.'); return;
+            }
             setSavingCommission(true);
-            const rate = parseFloat(commissionInput) / 100;
-            if (isNaN(rate) || rate < 0 || rate > 1) {
-              setSavingCommission(false);
-              return;
-            }
-            const res = await fetch('/api/profile', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ commissionRate: rate }),
-            });
-            if (res.ok) {
+            try {
+              const res = await fetch('/api/profile', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commissionRate: rate }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Komisyon kaydedilemedi.');
               setProfile((p: any) => ({ ...p, commissionRate: rate }));
-            }
-            setSavingCommission(false);
+              toast.success('Komisyon kaydedildi. Sonraki işlemlerinizde kullanılacak.');
+            } catch (error) { toast.error(error instanceof Error ? error.message : 'Komisyon kaydedilemedi.'); }
+            finally { setSavingCommission(false); }
           }}
           disabled={savingCommission}
           className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-white bg-[#8B5CF6] hover:bg-[#7C3AED] transition-all disabled:opacity-50"
@@ -325,6 +306,12 @@ export default function ProfileClient() {
           {savingCommission ? 'Kaydediliyor...' : 'Kaydet'}
         </button>
       </motion.div>
+
+      <section className="glass-card rounded-xl p-5 space-y-3">
+        <h3 className="font-semibold">Hesap yönetimi</h3>
+        <Link href="/hesap-silme" className="inline-flex min-h-[44px] items-center text-red-500 underline">Hesabımı sil</Link>
+        {profile.role === 'admin' && <Link href="/admin/ai-reports" className="flex min-h-[44px] items-center text-blue-500 underline">AI içerik bildirimlerini incele</Link>}
+      </section>
 
       {/* Logout */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>

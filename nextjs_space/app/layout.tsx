@@ -15,8 +15,6 @@ export const viewport = {
   themeColor: '#0A0A0A',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export const metadata = {
@@ -40,7 +38,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js"></script>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -48,16 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="msapplication-TileColor" content="#0A0A0A" />
         <meta name="msapplication-TileImage" content="/icon-144x144.png" />
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            var origError = console.error;
-            console.error = function() {
-              var msg = arguments[0];
-              if (typeof msg === 'string' && (msg.indexOf('contentWindow') !== -1 || msg.indexOf('Cannot listen to the event from the provided iframe') !== -1)) return;
-              origError.apply(console, arguments);
-            };
-          })();
-        `}} />
+
       </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <Providers>

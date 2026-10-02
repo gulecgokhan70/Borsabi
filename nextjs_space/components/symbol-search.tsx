@@ -1,140 +1,53 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
-import { Search, ChevronDown, X } from 'lucide-react';
-
-interface SymbolOption {
-  symbol: string;
-  name: string;
-  shortName: string;
-}
-
+import { useState, useRef, useEffect, useId } from 'react';
+import { Search, X } from 'lucide-react';
+import { matchesSymbol } from '@/lib/symbol-search';
+interface SymbolOption { symbol: string; name: string; shortName: string }
 interface SymbolSearchProps {
   value: string;
   onChange: (symbol: string) => void;
   groups: { label: string; items: SymbolOption[] }[];
   placeholder?: string;
 }
-
 export function SymbolSearch({ value, onChange, groups, placeholder = 'Sembol ara...' }: SymbolSearchProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Find selected item name
-  const allItems = groups.flatMap(g => g.items);
-  const selected = allItems.find(i => i.symbol === value);
-
+  const id = useId();
+  const selected = groups.flatMap(g => g.items).find(i => i.symbol === value);
+  const results = groups.flatMap(g => g.items.filter(i => matchesSymbol(i, query)).map(item => ({ ...item, group: g.label }))).slice(0, 30);
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const outside = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
   }, []);
-
-  useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [open]);
-
-  const q = search.toLowerCase().trim();
-
-  const filteredGroups = groups.map(g => ({
-    ...g,
-    items: q
-      ? g.items.filter(i =>
-          i.shortName.toLowerCase().includes(q) ||
-          i.name.toLowerCase().includes(q)
-        )
-      : g.items,
-  })).filter(g => g.items.length > 0);
-
-  const totalFiltered = filteredGroups.reduce((sum, g) => sum + g.items.length, 0);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground rounded-lg px-3 py-2.5 text-sm text-left flex items-center justify-between hover:border-[#3B82F6]/30 focus:border-[#3B82F6] focus:outline-none transition-colors"
-      >
-        <span className={selected ? 'text-foreground' : 'text-slate-400 dark:text-slate-500'}>
-          {selected ? `${selected.shortName} - ${selected.name}` : 'Sembol seçin'}
-        </span>
-        <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-50 mt-1 w-full glass-card rounded-xl shadow-xl overflow-hidden">
-          {/* Search input */}
-          <div className="p-2 border-b border-black/[0.08] dark:border-white/[0.08]">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={placeholder}
-                className="w-full glass-inner border border-black/[0.06] dark:border-white/[0.08] text-foreground rounded-lg pl-8 pr-8 py-2 text-sm focus:border-[#3B82F6] focus:outline-none placeholder-muted-foreground"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-foreground"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 px-1">
-              {totalFiltered} sonuç
-            </p>
-          </div>
-
-          {/* Results */}
-          <div className="max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#334155]">
-            {filteredGroups.length === 0 ? (
-              <div className="px-3 py-4 text-center text-xs text-slate-400 dark:text-slate-500">
-                Sonuç bulunamadı
-              </div>
-            ) : (
-              filteredGroups.map(group => (
-                <div key={group.label}>
-                  <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider glass-inner sticky top-0">
-                    {group.label} ({group.items.length})
-                  </div>
-                  {group.items.slice(0, q ? 50 : 30).map(item => (
-                    <button
-                      key={item.symbol}
-                      onClick={() => {
-                        onChange(item.symbol);
-                        setOpen(false);
-                        setSearch('');
-                      }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-black/[0.05] dark:hover:bg-white/[0.06]/50 flex items-center gap-2 transition-colors ${
-                        item.symbol === value ? 'bg-[#3B82F6]/10 text-[#3B82F6]' : 'text-foreground'
-                      }`}
-                    >
-                      <span className="font-mono text-xs w-10 flex-shrink-0">{item.shortName}</span>
-                      <span className="text-xs text-muted-foreground truncate">{item.name}</span>
-                    </button>
-                  ))}
-                  {group.items.length > (q ? 50 : 30) && (
-                    <div className="px-3 py-1.5 text-[10px] text-slate-400 dark:text-slate-500 text-center">
-                      +{group.items.length - (q ? 50 : 30)} daha... Arama yaparak daraltın
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+  function choose(item: SymbolOption) { onChange(item.symbol); setQuery(''); setOpen(false); inputRef.current?.blur(); }
+  return <div ref={ref} className="relative">
+    <div className="relative">
+      <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <input ref={inputRef} role="combobox" aria-label="Sembol ara" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-list`}
+        aria-activedescendant={open && results[active] ? `${id}-${active}` : undefined}
+        autoComplete="off" spellCheck={false} value={open ? query : selected ? `${selected.shortName} · ${selected.name}` : query}
+        onFocus={() => { setOpen(true); setQuery(''); setActive(0); }}
+        onChange={e => { setQuery(e.target.value); setOpen(true); setActive(0); onChange(''); }}
+        onBlur={e => { if (!e.currentTarget.parentElement?.parentElement?.contains(e.relatedTarget)) setOpen(false); }}
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); setOpen(true); setActive(i => Math.max(0, Math.min(results.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))); }
+          if (e.key === 'Enter' && open) { e.preventDefault(); if (results[active]) choose(results[active]); }
+          if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
+        }} placeholder={placeholder} className="w-full min-h-[44px] glass-inner border border-black/[0.08] dark:border-white/[0.08] text-foreground rounded-lg pl-9 pr-11 py-3 text-sm focus:border-[#3B82F6] focus:outline-none" />
+      {(value || query) && <button type="button" aria-label="Sembolü temizle" onClick={() => { onChange(''); setQuery(''); setOpen(true); setActive(0); inputRef.current?.focus(); }} className="absolute right-0 top-0 min-w-[44px] min-h-[44px] flex items-center justify-center"><X className="w-4 h-4" /></button>}
     </div>
-  );
+    {open && <div id={`${id}-list`} role="listbox" aria-label="Arama sonuçları" className="absolute z-50 mt-1 w-full max-h-72 overflow-y-auto rounded-xl bg-background border border-black/10 dark:border-white/10 shadow-xl">
+      {!results.length && <p className="p-3 text-sm text-muted-foreground">Sonuç bulunamadı</p>}
+      {results.map((item, i) => <button key={item.symbol} id={`${id}-${i}`} type="button" role="option" aria-selected={i === active}
+        onMouseDown={e => e.preventDefault()} onClick={() => choose(item)}
+        className={`w-full min-h-[44px] px-3 py-2 text-left text-sm ${i === active ? 'bg-[#3B82F6]/10' : 'hover:bg-[#3B82F6]/5'}`}>
+        <span className="font-semibold">{item.shortName}</span><span className="ml-2 text-muted-foreground">{item.name}</span><span className="block text-xs text-muted-foreground">{item.group}</span>
+      </button>)}
+      {query && <p role="status" className="px-3 py-2 text-xs text-muted-foreground">{results.length === 30 ? 'İlk 30 sonuç' : `${results.length} sonuç`}</p>}
+    </div>}
+  </div>;
 }

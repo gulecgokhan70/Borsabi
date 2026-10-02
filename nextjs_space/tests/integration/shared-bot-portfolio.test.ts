@@ -1,0 +1,76 @@
+import { afterAll, afterEach, beforeEach, expect, it } from 'vitest';
+import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { configureBudget, budgetView } from '../../lib/bot-lab/shared-portfolio';
+import { readBotPortfolio } from '../../lib/bot-lab/portfolio-view';
+import { autoInitial } from '../../lib/bot-lab/auto-engine';
+import { persistBot, json } from '../../lib/bot-lab/persistence';
+import { executeTrade } from '../../lib/trading';
+const connection = process.env.TEST_DATABASE_URL!;
+const url = new URL(connection);
+if (!['localhost', '127.0.0.1', '::1', '[::1]'].includes(url.hostname) || url.pathname !== '/borsabi_test') throw new Error('Only disposable local borsabi_test allowed');
+const db = new PrismaClient({ datasources: { db: { url: connection } } });
+let userId: string;
+const config = { mode: 'auto-v2', funding: 'portfolio', symbols: [], market: 'BIST', orderFraction: .05, commission: 0, friction: 0, dailyLoss: .02, stopLoss: .02, takeProfit: .04, maxPositions: 3 };
+const h = (q = 6) => ({ quantity: q, entry: 100, entryFee: 0, mark: 110, quoteTime: Date.now(), openedAt: Date.now() });
+beforeEach(async () => { userId = (await db.user.create({ data: { email: `shared-${randomUUID()}@example.test`, password: 'test', initialBalance: 10000, balance: 10000, commissionRate: 0 } })).id; });
+afterEach(async () => { await db.transaction.deleteMany({ where: { userId } }); await db.position.deleteMany({ where: { userId } }); await db.user.delete({ where: { id: userId } }); });
+afterAll(async () => { await db.$disconnect(); });
+const configure = (allocationPercent = 10, capital = 10000, version = 0) => configureBudget(db, userId, { capital, allocationPercent, perTradePercent: 100, version });
+const bot = (market: string, shared = true) => db.paperBot.create({ data: { userId, market, symbol: 'AUTO', running: true, config: json({ ...config, market, ...(shared ? {} : { funding: undefined }) }), state: json(autoInitial()) } });
+const buy = async (id: string, symbol: string, qty = 6) => persistBot(db, id, 0, { ...autoInitial(), cash: 1000 - qty * 100, holdings: { [symbol]: h(qty) } }, 'buy', [{ time: Date.now(), action: 'BUY', symbol, quantity: qty, price: 100, fee: 0, reason: 'fixture' }]);
+it('migrates cost plus fees once, preserves holdings/history and never copies isolated cash', async () => {
+  const b = await bot('BIST', false); const holding = { ...h(), entryFee: 2 };
+  await db.paperBot.update({ where: { id: b.id }, data: { state: json({ ...autoInitial(), cash: 99000, holdings: { 'THYAO.IS': holding } }) } });
+  const view = await configure();
+  expect(view.cash).toBe(9398); expect(view.used).toBe(602);
+  const saved = await db.paperBot.findUniqueOrThrow({ where: { id: b.id } });
+  expect((saved.state as any).holdings['THYAO.IS']).toEqual(holding);
+  expect((saved.config as any).funding).toBe('portfolio');
+  await expect(configure()).rejects.toThrow('Bütçe değişti');
+  await configure(10, 10000, 1);
+  expect((await budgetView(db, userId)).cash).toBe(9398);
+  const portfolio = await readBotPortfolio(db, userId);
+  expect(portfolio.ledger).toHaveLength(1); expect(portfolio.ledger[0].transfer).toBe(true);
+  expect(portfolio.positions[0]).toMatchObject({ totalValue: 660, totalCost: 602, pnl: 58 });
+  expect(await persistBot(db, b.id, 0, {}, 'old worker', [])).toBe(0);
+});
+it('insufficient cash rolls back the entire migration; adding capital is not profit', async () => {
+  const b = await bot('BIST', false);
+  await db.paperBot.update({ where: { id: b.id }, data: { state: json({ ...autoInitial(), holdings: { 'THYAO.IS': h() } }) } });
+  await db.user.update({ where: { id: userId }, data: { balance: 100 } });
+  await expect(configure()).rejects.toThrow('yeterli nakit');
+  expect(await db.portfolioBotBudget.count({ where: { userId } })).toBe(0);
+  expect(await db.paperBotEvent.count({ where: { botId: b.id } })).toBe(0);
+  const view = await configure(10, 11000);
+  expect(view.cash).toBe(500); expect(view.capitalChanges).toHaveLength(1);
+  expect(view.capitalChanges[0].amount).toBe(1000);
+});
+it('two concurrent bots cannot exceed the shared allocation', async () => {
+  await configure(); const a = await bot('BIST'), b = await bot('CRYPTO');
+  const results = await Promise.allSettled([buy(a.id, 'THYAO.IS'), buy(b.id, 'BTC-USD')]);
+  expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+  expect((await budgetView(db, userId))).toMatchObject({ cash: 9400, used: 600, available: 400 });
+  expect(await db.paperBotEvent.count({ where: { bot: { userId } } })).toBe(1);
+});
+it('bot and manual order cannot spend the same cash', async () => {
+  await configure(100, 1000); const b = await bot('CRYPTO');
+  const results = await Promise.allSettled([buy(b.id, 'BTC-USD', 8), executeTrade(db, userId, { type: 'BUY', symbol: 'THYAO.IS', marketType: 'BIST', quantity: 8, orderType: 'market', requestId: randomUUID() }, 100)]);
+  expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+  expect((await db.user.findUniqueOrThrow({ where: { id: userId } })).balance).toBe(200);
+});
+it('sell credits the main cash once and keeps net realized result', async () => {
+  await configure(); const b = await bot('BIST'); await buy(b.id, 'THYAO.IS');
+  const state = { ...autoInitial(), holdings: {}, realized: 59 };
+  const event = { time: Date.now(), action: 'SELL' as const, symbol: 'THYAO.IS', quantity: 6, price: 110, fee: 1, pnl: 59, reason: 'fixture' };
+  expect(await persistBot(db, b.id, 1, state, 'sell', [event])).toBe(1);
+  expect(await persistBot(db, b.id, 1, state, 'sell', [event])).toBe(0);
+  expect((await budgetView(db, userId))).toMatchObject({ cash: 10059, used: 0 });
+  expect((await readBotPortfolio(db, userId)).ledger.at(-1)?.pnl).toBe(59);
+});
+it('per-trade limit rejects an order without writing any cash or event', async () => {
+  await configureBudget(db, userId, { capital: 10000, allocationPercent: 10, perTradePercent: 10, version: 0 });
+  const b = await bot('BIST'); await expect(buy(b.id, 'THYAO.IS')).rejects.toThrow('işlem başı');
+  expect((await budgetView(db, userId)).cash).toBe(10000);
+  expect(await db.paperBotEvent.count({ where: { botId: b.id } })).toBe(0);
+});

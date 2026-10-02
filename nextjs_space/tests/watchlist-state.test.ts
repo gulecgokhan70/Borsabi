@@ -1,0 +1,32 @@
+import { createElement, type ReactNode } from 'react';
+import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'react-test-renderer';
+import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('framer-motion', () => ({ motion: { div: 'div' }, AnimatePresence: ({ children }: { children: ReactNode }) => children }));
+vi.mock('../components/price-chart', () => ({ PriceChart: () => null }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() } }));
+import { WatchlistClient } from '../app/watchlist/watchlist-client';
+let renderer: ReactTestRenderer;
+const fetchMock = vi.fn();
+const textOf = (node: ReactTestInstance | string): string => typeof node === 'string' ? node : node.children.map(textOf).join('');
+beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); });
+afterEach(async () => { await act(async () => renderer?.unmount()); vi.useRealTimers(); vi.unstubAllGlobals(); });
+it('shows a persistent retry error instead of pretending a failed list is empty, then recovers', async () => {
+  fetchMock.mockResolvedValueOnce(Response.json({ error: 'Offline' }, { status: 503 }));
+  await act(async () => { renderer = create(createElement(WatchlistClient)); });
+  expect(textOf(renderer.root)).not.toContain('Henüz izleme listeniz boş');
+  expect(renderer.root.findByProps({ role: 'alert' })).toBeDefined();
+  fetchMock.mockResolvedValueOnce(Response.json({ data: [] }));
+  const retry = renderer.root.findAllByType('button').find(b => textOf(b) === 'Yeniden dene')!;
+  await act(async () => retry.props.onClick());
+  expect(textOf(renderer.root)).toContain('İlk hisseni ekle');
+  expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0);
+});
+it('keeps the saved asset but disables trading when its price is unavailable', async () => {
+  fetchMock.mockResolvedValueOnce(Response.json({ data: [{ id: 'a', symbol: 'THYAO.IS', name: 'Türk Hava Yolları', type: 'BIST' }] }));
+  fetchMock.mockResolvedValueOnce(Response.json({ data: [{ symbol: 'THYAO.IS', price: 0, error: true }] }));
+  await act(async () => { renderer = create(createElement(WatchlistClient)); });
+  expect(textOf(renderer.root)).toContain('Türk Hava Yolları');
+  expect(textOf(renderer.root)).toContain('Fiyat alınamadı');
+  expect(renderer.root.findAllByType('button').find(b => textOf(b) === 'İşlem Yap')!.props.disabled).toBe(true);
+});

@@ -28,11 +28,19 @@ export function AcademyClient() {
             <div className="w-10 h-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-[#8B5CF6]" />
             </div>
-            BorsaBi Academy
+            Öğren
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Profesyonel trader olmak için gereken tüm bilgiler</p>
+          <p className="text-muted-foreground text-sm mt-1">Kısa derslerle piyasaları ve sanal işlemleri öğren.</p>
         </div>
       </div>
+
+      <Link href="/kesfet" className="inline-flex items-center gap-2 min-h-[44px] text-sm text-blue-500">Keşfet: fikirler ve öğrenme içerikleri <ChevronRight className="w-4 h-4" /></Link>
+
+      <Link href="/baslangic-rehberi" className="block glass-card rounded-xl p-4 border border-[#3B82F6]/20">
+        <span className="block font-semibold text-foreground">Başlangıç rehberi</span>
+        <span className="block mt-1 text-sm text-muted-foreground">5 kısa adım: hisse keşfi, sanal işlem ve portföy. Başla veya kaldığın yerden devam et.</span>
+        <span className="inline-flex items-center min-h-[44px] text-sm text-[#3B82F6]">Rehberi aç <ChevronRight className="w-4 h-4" /></span>
+      </Link>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
