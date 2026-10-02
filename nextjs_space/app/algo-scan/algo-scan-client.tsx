@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Play, Filter, TrendingUp, TrendingDown, BarChart3, Activity, RefreshCw, ChevronDown } from 'lucide-react';
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
@@ -30,25 +30,49 @@ export default function AlgoScanClient() {
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
   const [scanned, setScanned] = useState(false);
+  const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+  const requestRef = useRef<AbortController | null>(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   const runScan = async () => {
+    if (requestRef.current) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
     setLoading(true);
+    setError('');
+    setScanned(false);
     try {
       const res = await fetch('/api/algo-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(filters),
+        signal: controller.signal,
       });
       const data = await res.json();
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error(data.error || 'Tarama tamamlanamadı.');
       setResults(data.results || []);
+      setNote(`${data.note || ''}${data.unavailable ? ` ${data.unavailable} varlık veri yetersizliği nedeniyle atlandı.` : ''}`);
       setScanned(true);
     } catch (e) {
-      console.error(e);
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Tarama tamamlanamadı.');
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setLoading(false);
+      }
     }
-    setLoading(false);
   };
 
-  const updateFilter = (key: string, value: any) => setFilters(f => ({ ...f, [key]: value }));
+  const updateFilter = (key: string, value: any) => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setLoading(false);
+    setScanned(false);
+    setError('');
+    setFilters(f => ({ ...f, [key]: value }));
+  };
 
   return (
     <div className="space-y-6">
@@ -59,7 +83,7 @@ export default function AlgoScanClient() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-foreground">Algoritmik Tarama</h1>
-          <p className="text-xs text-muted-foreground">Özel filtrelerle piyasa tarayın</p>
+          <p className="text-xs text-muted-foreground">V2 ortak motor · Kapanmış günlük mumlar · Eğitim/simülasyon</p>
         </div>
       </motion.div>
 
@@ -195,6 +219,8 @@ export default function AlgoScanClient() {
       </motion.div>
 
       {/* Results */}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {scanned && <p className="text-xs text-muted-foreground">{note}</p>}
       {scanned && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="glass-card rounded-xl overflow-hidden">
@@ -220,11 +246,12 @@ export default function AlgoScanClient() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-xs">
-                      <span className="text-foreground font-medium">{formatCurrency(r.price)}</span>
+                      <span className="text-foreground font-medium">{r.currency === 'USD' ? new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'USD' }).format(r.price) : formatCurrency(r.price)}</span>
                       <span className={r.change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{formatPercent(r.change)}</span>
                       <span className="text-muted-foreground">RSI: <span className={r.rsi < 30 ? 'text-[#22C55E]' : r.rsi > 70 ? 'text-[#EF4444]' : 'text-foreground'}>{r.rsi.toFixed(1)}</span></span>
                       <span className="text-muted-foreground">MACD: <span className={r.macd.histogram > 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}>{r.macd.histogram > 0 ? '+' : ''}{r.macd.histogram.toFixed(3)}</span></span>
-                      <span className="text-muted-foreground">EMA{filters.emaPeriod}: <span className="text-foreground">{formatNumber(r.ema)}</span></span>
+                      <span className="text-muted-foreground">EMA{r.emaPeriod}: <span className="text-foreground">{formatNumber(r.ema)}</span></span>
+                      <span className="text-muted-foreground">V2: {r.direction === 'LONG' ? 'Koşullar uygun' : 'Bekle'} · {r.regime}</span>
                       <span className="text-muted-foreground">Hacim: <span className={r.volRatio > 1.5 ? 'text-[#F59E0B]' : 'text-foreground'}>{r.volRatio}x</span></span>
                       {r.stochastic && <span className="text-muted-foreground">Stoch: <span className={r.stochastic.k < 20 ? 'text-[#22C55E]' : r.stochastic.k > 80 ? 'text-[#EF4444]' : 'text-foreground'}>{r.stochastic.k.toFixed(1)}</span></span>}
                       {r.adx && <span className="text-muted-foreground">ADX: <span className={r.adx.adx > 25 ? 'text-[#F59E0B]' : 'text-foreground'}>{r.adx.adx.toFixed(1)}</span></span>}
@@ -238,6 +265,7 @@ export default function AlgoScanClient() {
                       ))}
                     </div>
                   </div>
+                  {!!r.warnings?.length && <p className="mt-2 text-xs text-amber-500">{r.warnings.join(' · ')}</p>}
                 </motion.div>
               ))}
             </div>

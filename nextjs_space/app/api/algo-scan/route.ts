@@ -1,16 +1,42 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { BIST_TOP_STOCKS, CRYPTO_ASSETS } from '@/lib/constants';
-import { cachedQuote, cachedChart } from '@/lib/yahoo-finance';
+import { cachedQuote } from '@/lib/yahoo-finance';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
-import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
-import { calculateRSI, calculateEMA, calculateMACD, calculateBollingerBands, calculateStochastic, calculateADX } from '@/lib/technical-indicators';
+import { detectCandlePatterns } from '@/lib/candle-patterns';
+import { calculateEMA, calculateStochastic } from '@/lib/technical-indicators';
 import { processInBatches, withTimeout, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { z } from 'zod';
+import { readMutationJson, RequestError } from '@/lib/request-json';
+import { takeRequestSlot } from '@/lib/request-limit';
+import { engineHistory, cryptoContextAt } from '@/lib/trading-engine/service';
+import { evaluateMarket } from '@/lib/trading-engine/engine';
+import type { CandleData } from '@/lib/trading-engine/types';
+
+const schema = z.object({
+  market: z.enum(['BIST', 'CRYPTO']).default('BIST'),
+  rsiMin: z.number().finite().min(0).max(100).default(0), rsiMax: z.number().finite().min(0).max(100).default(100),
+  macdSignal: z.enum(['all', 'bullish', 'bearish']).default('all'),
+  emaFilter: z.enum(['all', 'above', 'below']).default('all'), emaPeriod: z.union([z.literal(10), z.literal(20), z.literal(50), z.literal(200)]).default(20),
+  volumeMin: z.number().finite().min(0).max(1000).default(0),
+  priceMin: z.number().finite().min(0).max(1e9).default(0), priceMax: z.number().finite().min(0).max(1e9).default(999999),
+  changeMin: z.number().finite().min(-100).max(1e6).default(-100), changeMax: z.number().finite().min(-100).max(1e6).default(100),
+  sortBy: z.enum(['score', 'rsi', 'change', 'volume']).default('score'),
+  bollingerPos: z.enum(['all', 'upper', 'lower', 'squeeze']).default('all'),
+  stochSignal: z.enum(['all', 'oversold', 'overbought']).default('all'), adxMin: z.number().finite().min(0).max(100).default(0),
+}).strict().refine(v => v.rsiMin <= v.rsiMax && v.priceMin <= v.priceMax && v.changeMin <= v.changeMax);
+const reply = (data: unknown, status = 200) => NextResponse.json(data, { status,
+  headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
 
 export async function POST(req: NextRequest) {
   try {
-    let body: any = {};
-    try { body = await req.json(); } catch { body = {}; }
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return reply({ error: 'Oturum gerekli.' }, 401);
+    const parsed = schema.safeParse(await readMutationJson(req));
+    if (!parsed.success) return reply({ error: 'Tarama filtreleri geçersiz.' }, 400);
+    if (!takeRequestSlot('algo-scan:' + session.user.id, 3, 60000).allowed) return reply({ error: 'Bir dakika sonra yeniden deneyin.' }, 429);
     const {
       market = 'BIST',
       rsiMin = 0,
@@ -27,11 +53,18 @@ export async function POST(req: NextRequest) {
       bollingerPos = 'all',
       stochSignal = 'all',
       adxMin = 0,
-    } = body;
+    } = parsed.data;
 
     const stocks = market === 'CRYPTO' ? CRYPTO_ASSETS : BIST_TOP_STOCKS;
     const results: any[] = [];
     const isBist = market !== 'CRYPTO';
+    const asOf = Date.now();
+    let unavailable = 0;
+    let btc: CandleData[] = [], eth: CandleData[] = [];
+    if (!isBist) {
+      [btc, eth] = await Promise.all(['BTC-USD', 'ETH-USD'].map(symbol =>
+        withTimeout(engineHistory(symbol, market, '1d', asOf), 8000, symbol).catch(() => [])));
+    }
 
     let midasMap = new Map<string, MidasStock>();
     if (isBist) {
@@ -47,25 +80,25 @@ export async function POST(req: NextRequest) {
         const cleanSym = stock.symbol.replace('.IS', '').toUpperCase();
         const midasData = isBist ? (midasMap.get(cleanSym) || null) : null;
 
-        const [quote, chart] = await Promise.all([
+        const [quote, candles] = await Promise.all([
           midasData ? Promise.resolve(null) : withTimeout(
             cachedQuote(stock.symbol).catch(() => null),
             5000, `quote:${cleanSym}`
           ).catch(() => null),
           withTimeout(
-            cachedChart(stock.symbol, {
-              period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0],
-              period2: new Date().toISOString().split('T')[0],
-              interval: '1d' as any,
-            }).catch(() => null),
+            stock.symbol === 'BTC-USD' ? Promise.resolve(btc) : stock.symbol === 'ETH-USD' ? Promise.resolve(eth) : engineHistory(stock.symbol, market, '1d', asOf),
             8000, `chart:${cleanSym}`
           ).catch(() => null),
         ]);
 
-        if (!chart) return null;
+        if (!candles) { unavailable++; return null; }
+        const context = isBist ? undefined : cryptoContextAt(candles, btc, eth, '1d', asOf);
+        const decision = evaluateMarket({ candles, marketType: market, timeframe: '1d', asOf }, { context });
+        const indicators = decision.analysis.indicators;
+        if (decision.analysis.status !== 'READY' || !indicators) { unavailable++; return null; }
 
         // Aligned veri çıkarma: tüm alanları geçerli mumlardan al
-        const validQuotes = (chart.quotes || []).filter((q: any) => q && q.close > 0 && q.high > 0 && q.low > 0);
+        const validQuotes = candles;
         const closes = validQuotes.map((q: any) => q.close) as number[];
         const volumes = validQuotes.map((q: any) => q.volume ?? 0) as number[];
 
@@ -74,7 +107,6 @@ export async function POST(req: NextRequest) {
           .filter((q: any) => q.open > 0)
           .map((q: any) => ({ open: q.open, high: q.high, low: q.low, close: q.close }));
         const candlePatterns = detectCandlePatterns(candleData);
-        const cpScore = candlePatternScore(candlePatterns);
 
         if (closes.length < 30) return null;
 
@@ -93,19 +125,18 @@ export async function POST(req: NextRequest) {
           volume = rawVol > 0 ? rawVol : (volumes.length > 0 ? volumes[volumes.length - 1] : 0);
         }
         if (price <= 0) return null;
-        const avgVolume = volumes.length > 20 ? volumes.slice(-20).reduce((a: number, b: number) => a + b, 0) / 20 : volume;
-        const volRatio = avgVolume > 0 ? volume / avgVolume : 1;
+        const volRatio = indicators.volumeRatio ?? 0;
 
         const highs = validQuotes.map((q: any) => q.high) as number[];
         const lows = validQuotes.map((q: any) => q.low) as number[];
 
-        const rsi = calculateRSI(closes);
-        const macd = calculateMACD(closes);
+        const rsi = indicators.rsi;
+        const macd = indicators.macd;
         const ema = calculateEMA(closes, emaPeriod);
         const currentEma = ema[ema.length - 1];
-        const bb = calculateBollingerBands(closes);
+        const bb = indicators.bollinger;
         const stoch = calculateStochastic(closes, highs, lows);
-        const adx = calculateADX(closes, highs, lows);
+        const adx = { adx: indicators.adx, plusDI: indicators.plusDI, minusDI: indicators.minusDI };
 
         // Filtre uygula
         if (rsi < rsiMin || rsi > rsiMax) return null;
@@ -114,13 +145,13 @@ export async function POST(req: NextRequest) {
         if (volRatio < volumeMin) return null;
         if (macdSignal === 'bullish' && macd.histogram <= 0) return null;
         if (macdSignal === 'bearish' && macd.histogram >= 0) return null;
-        if (emaFilter === 'above' && price < currentEma) return null;
-        if (emaFilter === 'below' && price > currentEma) return null;
+        if (emaFilter === 'above' && indicators.close < currentEma) return null;
+        if (emaFilter === 'below' && indicators.close > currentEma) return null;
 
         // Bollinger filtre
         if (bb) {
-          if (bollingerPos === 'upper' && price < bb.middle) return null;
-          if (bollingerPos === 'lower' && price > bb.middle) return null;
+          if (bollingerPos === 'upper' && indicators.close < bb.middle) return null;
+          if (bollingerPos === 'lower' && indicators.close > bb.middle) return null;
           if (bollingerPos === 'squeeze' && bb.bandwidth > 4) return null;
         }
         // Stochastic filtre
@@ -129,20 +160,7 @@ export async function POST(req: NextRequest) {
         // ADX filtre
         if (adx.adx < adxMin) return null;
 
-        // Skor
-        let score = 50;
-        if (rsi < 30) score += 15;
-        else if (rsi > 70) score -= 10;
-        if (macd.histogram > 0) score += 10;
-        if (price > currentEma) score += 10;
-        if (volRatio > 1.5) score += 10;
-        if (change > 0) score += 5;
-        if (adx.adx > 25) score += 5;
-        if (stoch.k < 20) score += 5;
-        if (bb && price <= bb.lower) score += 5;
-        score = Math.min(100, Math.max(0, score));
-
-        if (cpScore > 0) score = Math.min(100, score + cpScore);
+        const score = decision.signal.score;
 
         return {
           symbol: stock.symbol,
@@ -160,9 +178,14 @@ export async function POST(req: NextRequest) {
           stochastic: stoch,
           adx,
           score,
+          engine: 'v2', currency: isBist ? 'TRY' : 'USD',
+          direction: decision.signal.direction, regime: decision.signal.regime,
+          confidence: decision.signal.confidence, reasons: decision.signal.reasons, warnings: decision.signal.warnings,
+          lastClosedAt: decision.analysis.lastClosedAt,
           candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
         };
       } catch (e: any) {
+        unavailable++;
         console.error(`[AlgoScan] ${stock?.shortName || stock?.symbol}: ${e?.message}`);
         return null;
       }
@@ -182,9 +205,12 @@ export async function POST(req: NextRequest) {
     };
     results.sort(sortFn[sortBy] || sortFn.score);
 
-    return NextResponse.json({ results, total: results.length });
+    if (unavailable === stocks.length) return reply({ error: 'Yeterli ve geçerli kapanmış veri alınamadı. Yeniden deneyin.' }, 503);
+    return reply({ results, total: results.length, unavailable, scanned: stocks.length, engine: 'v2', asOf,
+      note: 'V2 puanı ve göstergeler kapanmış günlük mumlara dayanır. Fiyat/değişim güncel kotasyondur; güven değeri kazanma olasılığı değildir. Yatırım tavsiyesi değildir.' });
   } catch (err: any) {
+    if (err instanceof RequestError) return reply({ error: err.message }, err.status);
     console.error('Algo scan error:', err);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return reply({ error: 'Tarama tamamlanamadı.' }, 503);
   }
 }

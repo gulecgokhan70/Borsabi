@@ -1,0 +1,33 @@
+import { createElement } from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { afterEach, expect, it, vi } from 'vitest';
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+import AlgoScanClient from '../app/algo-scan/algo-scan-client';
+let renderer: ReactTestRenderer;
+afterEach(async () => { await act(async () => renderer?.unmount()); vi.unstubAllGlobals(); });
+const scanButton = () => renderer.root.findAllByType('button').find(b => b.props.disabled !== undefined)!;
+it('prevents duplicate scans and shows server failures instead of empty results', async () => {
+  let resolve: (value: unknown) => void = () => undefined;
+  const fetcher = vi.fn(() => new Promise(r => { resolve = r; }));
+  vi.stubGlobal('fetch', fetcher);
+  await act(async () => { renderer = create(createElement(AlgoScanClient)); });
+  await act(async () => { scanButton().props.onClick(); scanButton().props.onClick(); });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await act(async () => { resolve({ ok: false, json: async () => ({ error: 'Veri sağlayıcısı kullanılamıyor.' }) }); });
+  expect(renderer.root.findByProps({ role: 'alert' }).children.join('')).toContain('Veri sağlayıcısı');
+  expect(JSON.stringify(renderer.toJSON())).not.toContain('Filtrelere uygun sonuç bulunamadı');
+});
+it('aborts outdated filters and ignores a late response from the previous market', async () => {
+  const pending: { signal: AbortSignal; resolve: (value: unknown) => void }[] = [];
+  vi.stubGlobal('fetch', vi.fn((_url, options) => new Promise(resolve => pending.push({ signal: options.signal, resolve }))));
+  await act(async () => { renderer = create(createElement(AlgoScanClient)); });
+  await act(async () => { scanButton().props.onClick(); });
+  await act(async () => { renderer.root.findAllByType('select')[0].props.onChange({ target: { value: 'CRYPTO' } }); });
+  expect(pending[0].signal.aborted).toBe(true);
+  await act(async () => { scanButton().props.onClick(); });
+  await act(async () => { pending[1].resolve({ ok: true, json: async () => ({ results: [], note: 'CRYPTO_NEW', unavailable: 2 }) }); });
+  await act(async () => { pending[0].resolve({ ok: false, json: async () => ({ error: 'BIST_OLD' }) }); });
+  expect(JSON.stringify(renderer.toJSON())).toContain('CRYPTO_NEW');
+  expect(JSON.stringify(renderer.toJSON())).toContain('2 varlık');
+  expect(JSON.stringify(renderer.toJSON())).not.toContain('BIST_OLD');
+});
