@@ -20,6 +20,7 @@ import { formatCurrency, formatNumber, formatPercent, isIndexSymbol } from '@/li
 import { assetCurrency, tradableMarketType } from '@/lib/asset-display';
 import { TradeModal } from '@/components/trade-modal';
 import { AssetActivity } from '@/components/asset-activity';
+import { TradingEngineCard } from '@/components/trading-engine-card';
 import { useHaptic } from '@/hooks/use-haptic';
 import {
   ComposedChart, Bar, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -644,6 +645,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>
       </ChartSurface>
 
+      {marketType && <TradingEngineCard key={'engine:' + assetSymbol} symbol={assetSymbol} />}
       {marketType && <AssetActivity key={assetSymbol} symbol={assetSymbol} revision={activityRevision} />}
 
       {data && <StockAnalysisSheet symbol={data.symbol} name={data.shortName} analysis={analysis} generatedAt={analysisTime} loading={analysisLoading} error={analysisError} onGenerate={fetchAnalysis} formatPrice={fp} />}

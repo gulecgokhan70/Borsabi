@@ -104,9 +104,8 @@ test('duplicates, reversed bars and overlapping bars are rejected', () => {
 
 test('invalid clock and unsupported timeframe are blocked', () => {
   for (const asOf of [NaN, Infinity, 0, -1]) assert.equal(run(series(), 'BIST', asOf).status, 'INVALID_DATA');
-  const result = analyzeMarket({ candles: series(), marketType: 'BIST',
-    timeframe: '1h' as '1d', asOf: START + 240 * DAY });
-  assert.equal(result.status, 'INVALID_DATA');
+  assert.throws(() => analyzeMarket({ candles: series(), marketType: 'BIST',
+    timeframe: '5m' as '1d', asOf: START + 240 * DAY }), RangeError);
   assert.throws(() => getTradingProfile('OTHER' as 'BIST'), RangeError);
 });
 

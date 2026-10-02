@@ -1,4 +1,26 @@
-# Trading Engine v2 — foundation
+# Trading Engine v2 — analysis and research integration
+
+## Current integration (supersedes the foundation notes below)
+
+The engine now includes daily/hourly/15m strategies, scoring, ATR risk sizing,
+cost-aware next-open backtesting and rolling walk-forward parameter selection.
+BTC/ETH context uses aligned timestamps and blocks stale or bearish references.
+New authenticated analysis and Pro-only backtest APIs are under
+`/api/trading-engine`; stock/crypto detail cards use these endpoints.
+Profile commission is server-derived. Research capital is TRY for BIST and USD
+for crypto; no historical FX conversion is invented and account cash is untouched.
+Daily provider bars are conservatively available at the following midnight.
+Intrabar exits use candle closing timestamps as an approximation; ambiguous
+stop/target touches prefer the stop and trailing ratchets only afterward.
+
+**Remaining:** the existing automatic bot, scanners, legacy backtest and strategy
+builder have not yet migrated to this engine. Their behavior is preserved.
+No model was trained: walk-forward selects deterministic research parameters.
+Confidence is not probability. Liquidity, partial fills, corporate actions,
+auction hours and the complete holiday calendar are not modeled. This is not
+a finished release and must not be deployed as the completed bot integration.
+
+## Historical foundation notes
 
 This first increment provides daily-bar analysis for BIST and CRYPTO:
 validated closed candles → shared indicators → explainable market regime →

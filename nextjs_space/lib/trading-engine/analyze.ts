@@ -7,7 +7,7 @@ import type { AnalyzeMarketInput, MarketAnalysis, RegimeResult } from './types';
 
 /** Pure analysis: no network, database writes, order routing or wall-clock reads. */
 export function analyzeMarket(input: AnalyzeMarketInput): MarketAnalysis {
-  const profile = getTradingProfile(input.marketType);
+  const profile = getTradingProfile(input.marketType, input.timeframe);
   const base = { version: '2-foundation' as const, marketType: input.marketType,
     timeframe: profile.timeframe, asOf: input.asOf };
   const blocked = (status: 'INVALID_DATA' | 'INSUFFICIENT_DATA', reason: string,

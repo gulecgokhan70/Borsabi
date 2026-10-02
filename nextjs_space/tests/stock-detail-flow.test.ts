@@ -62,6 +62,7 @@ beforeEach(() => {
   fxUnavailable = false; heldQuantity = 0; orderBody = undefined; loseReply = false; sessionValues.clear();
   vi.stubGlobal('sessionStorage', { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => sessionValues.set(key, value), removeItem: (key: string) => sessionValues.delete(key) });
   fetchMock.mockReset().mockImplementation(async (input: string, options?: RequestInit) => {
+    if (input.startsWith('/api/trading-engine?')) return Response.json({ analysis: { status: 'INSUFFICIENT_DATA', regime: { regime: 'UNCERTAIN' }, lastClosedAt: null }, signal: { direction: 'NONE', score: 0, confidence: 0, strategy: null, reasons: [], warnings: [] }, plan: null });
     if (input.endsWith('/activity')) return Response.json({ open: [], closed: [], trades: [], moreClosed: false, moreTrades: false, valuationUnavailable: false });
     if (input.startsWith('/api/stock/')) return Response.json(fixture(decodeURIComponent(input.split('/')[3].split('?')[0])));
     if (input === '/api/watchlist') return Response.json(options?.method === 'POST' ? { added: true } : { data: [] });
