@@ -23,6 +23,7 @@ export function AssetActivityContent({ data, view }: { data: AssetActivityData; 
       </dl>
       <details className="text-sm"><summary className="cursor-pointer min-h-[44px] flex items-center">Pozisyon ayrıntıları</summary><div className="space-y-1 text-muted-foreground">
         <p>Ortalama alış: {money(p.entry, p.currency)} ({p.currency})</p><p>Açılış: {date(p.openedAt)}</p>
+        {p.stopLossTry !== undefined && <p>V2 stop: {money(p.stopLossTry)} · Hedef: {money(p.takeProfitTry ?? null)} · Sinyal puanı {p.signalScore}/100. Seviyeler TL bazlıdır.</p>}
         {p.quoteTime && <p>Fiyat zamanı: {date(p.quoteTime)}</p>}
         {p.origin === 'Eski sanal bot' && <p>Ayrı sanal bot hesabına aittir; ana portföy toplamına dahil değildir.</p>}
       </div></details>

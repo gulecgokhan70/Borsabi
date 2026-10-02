@@ -4,6 +4,9 @@ import { botCatalog } from './catalog';
 import { CatalogScanner } from './catalog-scanner';
 import { botChart } from './chart-provider';
 import { providerBars } from './provider-bars';
+import { providerCandles } from '../trading-engine/adapter';
+import { cryptoContextAt } from '../trading-engine/service';
+import type { CandleData } from '../trading-engine/types';
 const scanner = new CatalogScanner();
 const timestamp = (value: unknown) => value instanceof Date ? value.getTime() : typeof value === 'number' ? value * 1000 : NaN;
 export async function autoObservations(c: AutoConfig, state?: AutoState) {
@@ -22,7 +25,17 @@ export async function autoObservations(c: AutoConfig, state?: AutoState) {
     const rateTime = timestamp(fx.regularMarketTime);
     if (fx.currency !== 'TRY' || !Number.isFinite(fx.regularMarketPrice) || fx.regularMarketPrice <= 0 || !Number.isFinite(rateTime) || rateTime > now || now - rateTime > 20 * 60000)
       throw new Error('USD/TL kuru güncel değil; TL bazlı kripto işlemleri bekletiliyor.');
-    observations = observations.map(o => ({ ...o, tick: { ...o.tick, price: o.tick.price * fx.regularMarketPrice } }));
+    let btc: CandleData[] = [], eth: CandleData[] = [];
+    if (c.tradingEngine === 'v2') {
+      try {
+        const charts = await Promise.all([botChart('BTC-USD', true), botChart('ETH-USD', true)]);
+        btc = providerCandles(charts[0]?.quotes ?? [], 'CRYPTO', '15m').slice(-400);
+        eth = providerCandles(charts[1]?.quotes ?? [], 'CRYPTO', '15m').slice(-400);
+      } catch { /* Context remains absent; signal engine fails closed. */ }
+    }
+    observations = observations.map(o => ({ ...o, fxRate: fx.regularMarketPrice,
+      ...(c.tradingEngine === 'v2' ? { context: cryptoContextAt(o.candles ?? [], btc, eth, '15m', o.tick.time) } : {}),
+      tick: { ...o.tick, price: o.tick.price * fx.regularMarketPrice } }));
   }
   return { config, observations, progress: batch.progress };
 }
@@ -37,6 +50,7 @@ async function loadObservations(c: AutoConfig, priority = false): Promise<Observ
         const local = new Date(Date.now() + 3 * 3600000), minute = local.getUTCHours() * 60 + local.getUTCMinutes();
         const open = c.market === 'CRYPTO' || (q.marketState === 'REGULAR' && local.getUTCDay() > 0 && local.getUTCDay() < 6 && minute >= 600 && minute < 1080);
         return { symbol, source: 'Yahoo Finance', observedAt: Date.now(), bars: providerBars(chart?.quotes || [], c.market),
+          candles: providerCandles(chart?.quotes || [], c.market, '15m').slice(-400),
           tick: { time: timestamp(q.regularMarketTime), price: q.regularMarketPrice, open } };
       } catch { return { symbol, bars: [], tick: { time: 0, price: 0, open: false }, error: 'Fiyat veya mum verisine ulaşılamadı.' }; }
     })));

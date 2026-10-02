@@ -14,7 +14,7 @@ export function botChart(symbol: string, priority = false) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        yf.chart(symbol, { period1: new Date(Date.now() - 7 * 86400000), interval: '15m' }, { fetchOptions: { signal: controller.signal } }),
+        yf.chart(symbol, { period1: new Date(Date.now() - 30 * 86400000), interval: '15m' }, { fetchOptions: { signal: controller.signal } }),
         new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new Error('Bot chart timeout')); }, 6000); }),
       ]);
     } finally {

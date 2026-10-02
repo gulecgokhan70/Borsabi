@@ -49,6 +49,12 @@ cd "$app"
 echo 'Yeni surum ayri klasorde hazirlaniyor; mevcut site acik.'
 stage='Paket kurulumu'
 runuser -u borsabi -- npm ci --include=dev
+stage='Islem motoru ve uygulama testleri'
+runuser -u borsabi -- npm run test:trading-engine
+runuser -u borsabi -- npm test
+stage='Tur ve kod kontrolleri'
+runuser -u borsabi -- npm run typecheck
+runuser -u borsabi -- npm run lint
 stage='Kripto gecmisinin ilk kontrolu'
 runuser -u borsabi -- node --require dotenv/config node_modules/tsx/dist/cli.mjs scripts/currency-migration.ts --check
 stage='Bildirim anahtar dosyasinin hazirlanmasi'

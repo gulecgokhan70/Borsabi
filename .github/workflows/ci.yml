@@ -44,5 +44,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - run: npm run test:trading-engine
       - run: npm run test:integration
       - run: npm run build

@@ -7,11 +7,12 @@ export const createBot = z.object({
   maxOrder: z.number().min(100).max(100000),
   dailyLoss: z.number().min(0.001).max(0.2),
 }).strict().refine(v => symbols[v.market].includes(v.symbol), 'Desteklenmeyen sembol');
-export const controlBot = z.object({ id: z.string().min(1), action: z.enum(['start', 'stop', 'close', 'scan-all']) }).strict();
+export const controlBot = z.object({ id: z.string().min(1), action: z.enum(['start', 'stop', 'close', 'scan-all', 'upgrade-engine']) }).strict();
 
 import { botCatalog } from './catalog';
 export const createAutoBot = z.object({
   mode: z.literal('auto-v2'), market: z.enum(['BIST', 'CRYPTO']),
+  tradingEngine: z.literal('v2').optional(),
   scope: z.enum(['selected', 'all']).optional(),
   symbols: z.array(z.string()).max(8),
   commission: z.number().finite().min(0).max(0.01), friction: z.number().finite().min(0).max(0.01),

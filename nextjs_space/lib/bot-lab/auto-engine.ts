@@ -1,5 +1,9 @@
 import { INITIAL, Market, Tick } from './engine';
 import type { ScanProgress } from './catalog';
+import { evaluateMarket } from '../trading-engine/engine';
+import { planTrade } from '../trading-engine/risk-engine';
+import { getTradingProfile } from '../trading-engine/config';
+import type { CandleData, CryptoContext, SignalResult } from '../trading-engine/types';
 
 export const INTERVAL = 15 * 60000;
 export const universe: Record<Market, { symbol: string; group: string }[]> = {
@@ -16,22 +20,26 @@ export const universe: Record<Market, { symbol: string; group: string }[]> = {
   ],
 };
 export type AutoConfig = {
-  mode: 'auto-v2'; funding?: 'portfolio'; market: Market; scope?: 'selected' | 'all'; symbols: string[]; commission: number; friction: number;
+  mode: 'auto-v2'; tradingEngine?: 'v2'; funding?: 'portfolio'; market: Market; scope?: 'selected' | 'all'; symbols: string[]; commission: number; friction: number;
   orderLimitTry?: number; exposureLimitTry?: number; orderFraction: number; dailyLoss: number; stopLoss: number; takeProfit: number; maxPositions: number;
 };
 export type Candle = { time: number; close: number; volume: number };
-export type Observation = { symbol: string; bars: Candle[]; tick: Tick; error?: string; source?: string; observedAt?: number };
-export type Candidate = { checkedAt?: number; quoteTime?: number; source?: string; symbol: string; score: number; eligible: boolean; reason: string; barTime: number; cross: 'BUY' | 'SELL' | null };
-export type Holding = { quantity: number; entry: number; entryFee: number; mark: number; quoteTime: number; openedAt: number; source?: string };
+export type Observation = { symbol: string; bars: Candle[]; tick: Tick; error?: string; source?: string; observedAt?: number;
+  candles?: CandleData[]; context?: CryptoContext; fxRate?: number };
+export type Candidate = { checkedAt?: number; quoteTime?: number; source?: string; symbol: string; score: number; eligible: boolean; reason: string; barTime: number; cross: 'BUY' | 'SELL' | null; engineSignal?: SignalResult };
+export type Holding = { quantity: number; entry: number; entryFee: number; mark: number; quoteTime: number; openedAt: number; source?: string;
+  stopLossTry?: number; takeProfitTry?: number; engineSignal?: SignalResult };
 export type Pending = { side: 'BUY' | 'SELL'; after: number; expires: number; reason: string; signalBarTime?: number; signalQuoteTime?: number; source?: string };
 export type AutoState = {
   mode: 'auto-v2'; scan?: ScanProgress; focus?: { symbols: string[]; checkedAt: number }; paused: boolean; closeRequested: boolean; closeAfter: number; cash: number; equity: number; peak: number;
   drawdown: number; fees: number; frictionCost: number; realized: number; day: string; dayEquity: number;
   haltedDay: string | null; holdings: Record<string, Holding>; pending: Record<string, Pending>;
+  consecutiveLosses?: number;
   lastBars: Record<string, number>; lastQuotes: Record<string, number>; candidates: Candidate[]; valuedAt: number;
 };
 export type AutoEvent = { time: number; action: 'BUY' | 'SELL' | 'WAIT' | 'HALT'; reason: string; symbol?: string; price?: number; quantity?: number; fee?: number; pnl?: number;
-  portfolio?: boolean; transfer?: boolean; quoteTime?: number; observedAt?: number; signalAt?: number; signalBarTime?: number; source?: string };
+  portfolio?: boolean; transfer?: boolean; quoteTime?: number; observedAt?: number; signalAt?: number; signalBarTime?: number; source?: string;
+  engineSignal?: SignalResult; stopLossTry?: number; takeProfitTry?: number };
 export function autoInitial(initialCapital = INITIAL): AutoState {
   if (!Number.isFinite(initialCapital) || initialCapital < 0) throw new Error('Geçersiz başlangıç sermayesi.');
   return { mode: 'auto-v2', paused: true, closeRequested: false, closeAfter: 0, cash: initialCapital, equity: initialCapital, peak: initialCapital,
@@ -48,12 +56,22 @@ function emas(values: number[], period: number) {
   for (const n of values.slice(period)) { value += 2 / (period + 1) * (n - value); result.push(value); }
   return result;
 }
-export function rankObservation(o: Observation, market: Market, now: number): Candidate {
+export function rankObservation(o: Observation, market: Market, now: number, engineV2 = false): Candidate {
   const base: Candidate = { symbol: o.symbol, checkedAt: now, quoteTime: Number.isFinite(o.tick.time) && o.tick.time > 0 ? o.tick.time : undefined,
     source: o.source, score: 0, eligible: false, reason: '', barTime: 0, cross: null };
   const reject = (reason: string) => ({ ...base, reason });
   if (o.error) return reject(o.error);
   if (!fresh(o.tick, market, now)) return reject('Piyasa kapalı veya fiyat eski/geçersiz.');
+  if (engineV2) {
+    const decision = evaluateMarket({ candles: o.candles ?? [], marketType: market, timeframe: '15m', asOf: o.tick.time }, { context: o.context });
+    base.barTime = decision.analysis.lastClosedAt ?? 0;
+    base.score = decision.signal.score;
+    base.engineSignal = decision.signal;
+    base.eligible = decision.signal.direction === 'LONG';
+    base.cross = base.eligible ? 'BUY' : decision.analysis.regime.trend === 'DOWN' ? 'SELL' : null;
+    base.reason = [...decision.signal.reasons, ...decision.signal.warnings].join(' ');
+    return base;
+  }
   const bars = o.bars.filter(b => b.time <= o.tick.time).sort((a, b) => a.time - b.time).slice(-120);
   if (bars.length < 51) return reject('En az 51 kapanmış 15 dakikalık mum gerekli.');
   if (bars.some((b, i) => !Number.isFinite(b.time) || !Number.isFinite(b.close) || b.close <= 0 || !Number.isFinite(b.volume) || b.volume < 0 || (i > 0 && b.time <= bars[i - 1].time)))
@@ -93,6 +111,7 @@ export function controlAuto(original: AutoState, action: 'start' | 'stop' | 'clo
   s.focus = { symbols: [], checkedAt: now };
   s.pending = Object.fromEntries(Object.entries(s.pending).filter(([, p]) => p.side === 'SELL'));
   if (action === 'start') s.lastBars = {}; // no historical entry on resume
+  if (action === 'start') s.consecutiveLosses = 0; // Explicit user acknowledgement clears the risk cooldown.
   if (action === 'close') { s.closeRequested = true; s.closeAfter = now; }
   return s;
 }
@@ -114,7 +133,8 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
   }
   mark();
   const halt = () => {
-    if (s.dayEquity > 0 && s.equity <= s.dayEquity * (1 - c.dailyLoss)) {
+    const dailyLoss = c.tradingEngine === 'v2' ? Math.min(c.dailyLoss, getTradingProfile(c.market, '15m').risk.dailyLossLimit) : c.dailyLoss;
+    if (s.dayEquity > 0 && s.equity <= s.dayEquity * (1 - dailyLoss)) {
       if (s.haltedDay !== day) events.push({ time: now, action: 'HALT', reason: 'Günlük zarar sınırı; yeni alımlar durdu, açık pozisyonların çıkış kontrolleri devam ediyor.' });
       s.haltedDay = day;
     }
@@ -127,8 +147,9 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     const o = valid.get(symbol); if (!o || o.tick.time <= (s.lastQuotes[symbol] || 0)) continue;
     const pending = s.pending[symbol];
     const closing = s.closeRequested && o.tick.time > s.closeAfter;
-    const stop = o.tick.price <= h.entry * (1 - c.stopLoss);
-    const target = o.tick.price >= h.entry * (1 + c.takeProfit);
+    // Legacy held positions keep their existing percentage exits after an upgrade.
+    const stop = o.tick.price <= (h.stopLossTry ?? h.entry * (1 - c.stopLoss));
+    const target = o.tick.price >= (h.takeProfitTry ?? h.entry * (1 + c.takeProfit));
     const reason = closing ? 'Kullanıcı tüm sanal pozisyonları kapattı.' :
       stop ? 'Zarar sınırı tetiklendi; gözlenen fiyatla sanal satış.' :
       target ? 'Kâr hedefi tetiklendi; gözlenen fiyatla sanal satış.' :
@@ -136,10 +157,12 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     if (!reason) continue;
     const price = o.tick.price * (1 - c.friction), fee = price * h.quantity * c.commission;
     const pnl = (price - h.entry) * h.quantity - h.entryFee - fee;
+    s.consecutiveLosses = pnl < 0 ? (s.consecutiveLosses ?? 0) + 1 : 0;
     s.cash += price * h.quantity - fee; s.fees += fee; s.realized += pnl;
     s.frictionCost += (o.tick.price - price) * h.quantity;
     delete s.holdings[symbol]; delete s.pending[symbol];
     events.push({ time: now, symbol, action: 'SELL', reason, quantity: h.quantity, price, fee, pnl,
+      ...(h.engineSignal ? { engineSignal: h.engineSignal, stopLossTry: h.stopLossTry, takeProfitTry: h.takeProfitTry } : {}),
       quoteTime: o.tick.time, observedAt: o.observedAt, source: o.source,
       signalAt: closing ? s.closeAfter : stop || target ? now : pending?.after,
       signalBarTime: !closing && !stop && !target ? pending?.signalBarTime : undefined });
@@ -155,23 +178,41 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     if (!o || o.tick.time <= pending.after || o.tick.time <= (s.lastQuotes[symbol] || 0)) continue;
     delete s.pending[symbol];
     if (s.holdings[symbol] || Object.keys(s.holdings).length >= c.maxPositions || Object.keys(s.holdings).some(v => group(c, v) === group(c, symbol))) continue;
-    const price = o.tick.price * (1 + c.friction);
+    let price = o.tick.price * (1 + c.friction);
     const ownCost = Object.values(s.holdings).reduce((n, h) => n + h.quantity * h.entry + h.entryFee, 0);
     const budget = Math.max(0, Math.min(s.cash, s.equity * c.orderFraction, c.orderLimitTry ?? Infinity, (c.exposureLimitTry ?? Infinity) - ownCost));
     const raw = budget / (price * (1 + c.commission));
-    const quantity = c.market === 'BIST' ? Math.floor(raw) : Math.floor(raw * 1e8) / 1e8;
+    let quantity = c.market === 'BIST' ? Math.floor(raw) : Math.floor(raw * 1e8) / 1e8;
+    let stopLossTry: number | undefined, takeProfitTry: number | undefined, engineSignal: SignalResult | undefined;
+    if (c.tradingEngine === 'v2') {
+      const decision = evaluateMarket({ candles: o.candles ?? [], marketType: c.market, timeframe: '15m', asOf: o.tick.time }, { context: o.context });
+      const fx = c.market === 'CRYPTO' ? o.fxRate : 1;
+      if (!decision.analysis.indicators || !fx || !Number.isFinite(fx) || fx <= 0) continue;
+      const plan = planTrade(o.tick.price, decision.analysis.indicators.atr * fx, decision.signal,
+        { equity: s.equity, cash: s.cash, exposure: ownCost, dayStartEquity: s.dayEquity,
+          dailyLoss: Math.max(0, s.dayEquity - s.equity), consecutiveLosses: s.consecutiveLosses ?? 0,
+          correlatedExposure: 0, allocationLimit: c.exposureLimitTry ?? s.equity * 0.6,
+          orderLimit: budget }, getTradingProfile(c.market, '15m'), { commission: c.commission, slippage: c.friction, spread: 0 }, undefined, 3);
+      if (!plan.allowed) {
+        events.push({ time: now, action: 'WAIT', symbol, reason: 'V2 risk kontrolü: ' + plan.reasons.join(' ') });
+        continue;
+      }
+      price = plan.entry; quantity = plan.quantity; stopLossTry = plan.stopLoss; takeProfitTry = plan.takeProfit; engineSignal = decision.signal;
+    }
     if (quantity <= 0) continue;
     const fee = quantity * price * c.commission;
     s.cash -= quantity * price + fee; s.fees += fee; s.frictionCost += (price - o.tick.price) * quantity;
-    s.holdings[symbol] = { quantity, entry: price, entryFee: fee, mark: o.tick.price, quoteTime: o.tick.time, openedAt: now, source: o.source };
+    s.holdings[symbol] = { quantity, entry: price, entryFee: fee, mark: o.tick.price, quoteTime: o.tick.time, openedAt: now, source: o.source,
+      ...(engineSignal ? { stopLossTry, takeProfitTry, engineSignal } : {}) };
     s.lastQuotes[symbol] = o.tick.time;
     events.push({ time: now, symbol, action: 'BUY', reason: pending.reason + ' Gözlemden sonraki fiyat kullanıldı.', price, quantity, fee,
+      ...(engineSignal ? { engineSignal, stopLossTry, takeProfitTry } : {}),
       quoteTime: o.tick.time, observedAt: o.observedAt, source: o.source, signalAt: pending.after, signalBarTime: pending.signalBarTime });
     mark(); halt();
   }
   const freshCandidates = observations.filter(o => c.symbols.includes(o.symbol) &&
     (!o.tick.time || o.tick.time >= (s.lastQuotes[o.symbol] || 0)))
-    .map(o => rankObservation(o, c.market, now)).sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
+    .map(o => rankObservation(o, c.market, now, c.tradingEngine === 'v2')).sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
   // Historical rows are display-only. Only this batch can reserve new orders.
   s.candidates = [...new Map([...(c.scope === 'all' ? s.candidates.filter(row => c.symbols.includes(row.symbol)) : []), ...freshCandidates].map(row => [row.symbol, row])).values()]
     .sort((a, b) => b.score - a.score || a.symbol.localeCompare(b.symbol));
@@ -182,16 +223,18 @@ export function autoStep(original: AutoState, c: AutoConfig, observations: Obser
     s.lastBars[candidate.symbol] = candidate.barTime;
     // First observation establishes baseline for entries, but bearish exits are still allowed.
     if (candidate.cross === 'SELL' && s.holdings[candidate.symbol]) {
-      s.pending[candidate.symbol] = { side: 'SELL', after: now, expires: now + 2 * INTERVAL, reason: 'EMA20/50 aşağı kesişimi; sonraki fiyatla sanal satış.', signalBarTime: candidate.barTime, signalQuoteTime: candidate.quoteTime, source: candidate.source };
+      s.pending[candidate.symbol] = { side: 'SELL', after: now, expires: now + 2 * INTERVAL, reason: c.tradingEngine === 'v2' ? 'V2 düşüş rejimi; sonraki fiyatla sanal satış.' : 'EMA20/50 aşağı kesişimi; sonraki fiyatla sanal satış.', signalBarTime: candidate.barTime, signalQuoteTime: candidate.quoteTime, source: candidate.source };
     } else if (previous && candidate.eligible && !s.paused && s.haltedDay !== day && !staleHolding && !reserved.includes(candidate.symbol) && reserved.length < c.maxPositions && !reserved.some(v => group(c, v) === group(c, candidate.symbol))) {
       s.pending[candidate.symbol] = { side: 'BUY', after: now, expires: now + 2 * INTERVAL, reason: candidate.reason, signalBarTime: candidate.barTime, signalQuoteTime: candidate.quoteTime, source: candidate.source };
       reserved.push(candidate.symbol);
     }
   }
   for (const [symbol, o] of valid) s.lastQuotes[symbol] = Math.max(s.lastQuotes[symbol] || 0, o.tick.time);
-  if (s.paused || s.haltedDay === day) s.pending = Object.fromEntries(Object.entries(s.pending).filter(([, p]) => p.side === 'SELL'));
+  const cooldown = c.tradingEngine === 'v2' && (s.consecutiveLosses ?? 0) >= 3;
+  if (s.paused || s.haltedDay === day || cooldown) s.pending = Object.fromEntries(Object.entries(s.pending).filter(([, p]) => p.side === 'SELL'));
   const message = staleHolding ? 'Bazı açık pozisyonların fiyatı güncel değil; yeni alımlar engellendi.' :
     s.closeRequested ? 'Pozisyon kapatma için yeni ve geçerli fiyat bekleniyor.' :
+    cooldown ? 'Üç ardışık zarar; yeni alımlar kilitli. Duraklatıp yeniden başlatmak kilidi onaylayarak sıfırlar; çıkış kontrolleri devam eder.' :
     s.haltedDay === day ? 'Günlük zarar kilidi açık; yalnızca çıkış kontrolleri çalışıyor.' :
     s.paused ? 'Yeni alımlar duraklatıldı; açık pozisyonların çıkış kontrolleri sürüyor.' :
     Object.keys(s.pending).length ? 'Sinyal oluştu; sonraki geçerli fiyat bekleniyor.' :

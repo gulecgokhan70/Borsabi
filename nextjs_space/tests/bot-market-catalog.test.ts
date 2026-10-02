@@ -45,3 +45,18 @@ it('uses the priority chart cache for selected/shortlist observations and preser
   expect(botChart).toHaveBeenCalledWith('THYAO.IS', true);
   expect(result.observations[0]).toMatchObject({ source: 'Yahoo Finance', observedAt: now, tick: { time: now - 15 * 60000 } });
 });
+
+it('V2 loader preserves native OHLC and attaches context at the source quote time with FX applied once', async () => {
+  const { autoObservations } = await import('../lib/bot-lab/auto-market');
+  const quoteTime = now - 60000;
+  vi.mocked(cachedQuote).mockImplementation(async symbol => ({ currency: symbol === 'USDTRY=X' ? 'TRY' : 'USD',
+    regularMarketPrice: symbol === 'USDTRY=X' ? 40 : 100, regularMarketTime: new Date(quoteTime), marketState: 'REGULAR' }));
+  vi.mocked(botChart).mockResolvedValue({ quotes: Array.from({ length: 240 }, (_, n) => ({ date: new Date(now - (241 - n) * 900000),
+    open: 100 + n * 0.2, high: 100.25 + n * 0.2, low: 99.75 + n * 0.2, close: 100 + n * 0.2, volume: 100 })) });
+  const c = { ...config, tradingEngine: 'v2' as const, market: 'CRYPTO' as const, scope: 'selected' as const, symbols: ['BTC-USD'] };
+  const a = await autoObservations(c), b = await autoObservations(c);
+  expect(a.observations[0].tick.price).toBe(4000); expect(b.observations[0].tick.price).toBe(4000);
+  expect(a.observations[0].candles?.at(-1)?.close).toBeCloseTo(147.8);
+  expect(a.observations[0].fxRate).toBe(40);
+  expect(a.observations[0].context?.btc).toMatchObject({ asOf: quoteTime, timeframe: '15m', status: 'READY' });
+});

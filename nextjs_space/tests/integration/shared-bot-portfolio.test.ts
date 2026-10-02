@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeEach, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { configureBudget, budgetView } from '../../lib/bot-lab/shared-portfolio';
+import { configureBudget, budgetView, sharedStep } from '../../lib/bot-lab/shared-portfolio';
 import { readBotPortfolio } from '../../lib/bot-lab/portfolio-view';
-import { autoInitial } from '../../lib/bot-lab/auto-engine';
+import { autoInitial, INTERVAL, type AutoConfig } from '../../lib/bot-lab/auto-engine';
 import { persistBot, json } from '../../lib/bot-lab/persistence';
 import { executeTrade } from '../../lib/trading';
 const connection = process.env.TEST_DATABASE_URL!;
@@ -19,6 +19,26 @@ afterAll(async () => { await db.$disconnect(); });
 const configure = (allocationPercent = 10, capital = 10000, version = 0) => configureBudget(db, userId, { capital, allocationPercent, perTradePercent: 100, version });
 const bot = (market: string, shared = true) => db.paperBot.create({ data: { userId, market, symbol: 'AUTO', running: true, config: json({ ...config, market, ...(shared ? {} : { funding: undefined }) }), state: json(autoInitial()) } });
 const buy = async (id: string, symbol: string, qty = 6) => persistBot(db, id, 0, { ...autoInitial(), cash: 1000 - qty * 100, holdings: { [symbol]: h(qty) } }, 'buy', [{ time: Date.now(), action: 'BUY', symbol, quantity: qty, price: 100, fee: 0, reason: 'fixture' }]);
+it('V2 risk-sized BUY persists once against main cash and keeps ATR exit metadata', async () => {
+  await configure(); const now = Date.now();
+  const c: AutoConfig = { ...config, mode: 'auto-v2', funding: 'portfolio', tradingEngine: 'v2', market: 'BIST', symbols: ['THYAO.IS'] };
+  const state = autoInitial(1000); state.paused = false;
+  state.pending['THYAO.IS'] = { side: 'BUY', after: now - 1, expires: now + INTERVAL, reason: 'fixture' };
+  const b = await db.paperBot.create({ data: { userId, market: 'BIST', symbol: 'AUTO', running: true, config: json(c), state: json(state) } });
+  const candles = Array.from({ length: 240 }, (_, n) => { const price = 100 + n * 0.2;
+    return { timestamp: now - (240 - n) * INTERVAL, closedAt: now - (239 - n) * INTERVAL,
+      open: price, high: price + 0.25, low: price - 0.25, close: price, volume: 100 }; });
+  const result = await sharedStep(db, userId, state, c, [{ symbol: 'THYAO.IS', candles, bars: [], tick: { time: now, price: 147.8, open: true } }], now);
+  expect(result.events.filter(e => e.action === 'BUY')).toHaveLength(1);
+  const held = result.state.holdings['THYAO.IS']; expect(held.stopLossTry).toBeLessThan(held.entry);
+  const spent = held.quantity * held.entry + held.entryFee;
+  expect(spent).toBeLessThanOrEqual(250);
+  expect(await persistBot(db, b.id, 0, result.state, result.message, result.events)).toBe(1);
+  expect((await budgetView(db, userId)).cash).toBeCloseTo(10000 - spent);
+  expect(await persistBot(db, b.id, 0, result.state, result.message, result.events)).toBe(0);
+  const event = await db.paperBotEvent.findFirstOrThrow({ where: { botId: b.id } });
+  expect(event.data).toMatchObject({ portfolio: true, stopLossTry: held.stopLossTry });
+});
 it('migrates cost plus fees once, preserves holdings/history and never copies isolated cash', async () => {
   const b = await bot('BIST', false); const holding = { ...h(), entryFee: 2 };
   await db.paperBot.update({ where: { id: b.id }, data: { state: json({ ...autoInitial(), cash: 99000, holdings: { 'THYAO.IS': holding } }) } });

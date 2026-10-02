@@ -51,7 +51,8 @@ export function PositionSummary({ holdings, config, clock }: {
       </dl>
       <details className="border-t pt-2"><summary className="cursor-pointer py-1">Alış ve fiyat ayrıntıları</summary><div className="space-y-1 pt-2">
         <p>Birim alış fiyatı: {money(h.entry)}</p><p>Alış komisyonu: {money(h.entryFee)}</p><p>Son birim fiyat: {money(h.mark)}</p>
-        <p>Zarar sınırı: {money(h.entry * (1 - config.stopLoss))} · Hedef: {money(h.entry * (1 + config.takeProfit))}</p>
+        <p>Zarar sınırı: {money(h.stopLossTry ?? h.entry * (1 - config.stopLoss))} · Hedef: {money(h.takeProfitTry ?? h.entry * (1 + config.takeProfit))}</p>
+        {h.engineSignal && <p>V2 · {h.engineSignal.regime} · Sinyal puanı {h.engineSignal.score}/100 · Stop ve hedef TL bazlıdır.</p>}
       </div></details>
       <p className="text-xs text-muted-foreground">Fiyat zamanı: {h.quoteTime ? new Date(h.quoteTime).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' }) : 'Bilinmiyor'} · {quoteAgeLabel(h.quoteTime, clock)}</p>
       <p className="text-xs text-muted-foreground">Kaynak: {h.source || 'Eski kayıtta belirtilmemiş'}</p>

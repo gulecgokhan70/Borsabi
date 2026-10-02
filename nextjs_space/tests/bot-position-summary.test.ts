@@ -37,3 +37,8 @@ it('does not invent chart history or a balance for an empty account', () => {
   expect(html).not.toContain('<figure');
   expect(html).not.toContain('₺');
 });
+
+it('shows stored V2 ATR levels instead of legacy percentage targets', () => {
+  const html = render({ 'BTC-USD': { ...holding(100, 100, 10, 1), stopLossTry: 90, takeProfitTry: 130 } });
+  expect(html).toContain(`Zarar sınırı: ${money(90)}`); expect(html).toContain(`Hedef: ${money(130)}`);
+});

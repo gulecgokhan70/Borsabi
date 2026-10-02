@@ -9,6 +9,7 @@ export type AssetOpenPosition = {
   id: string; origin: ActivityOrigin; quantity: number; entry: number; currency: string;
   cost: number | null; value: number | null; pnl: number | null; openedAt: string;
   stale: boolean; quoteTime: string | null;
+  stopLossTry?: number; takeProfitTry?: number; signalScore?: number;
 };
 export type AssetClosedPosition = {
   id: string; origin: ActivityOrigin; closedAt: string | null; pnl: number | null;
@@ -71,6 +72,7 @@ export async function presentAssetActivity(snapshot: Awaited<ReturnType<typeof r
       if (!asset.aliases.includes(symbol) || h.quantity <= 0) continue;
       const cost = h.quantity * h.entry + h.entryFee;
       open.push({ id: bot.id + ':' + symbol, origin: config.funding === 'portfolio' ? 'Bot' : 'Eski sanal bot',
+        ...(h.engineSignal ? { stopLossTry: h.stopLossTry, takeProfitTry: h.takeProfitTry, signalScore: h.engineSignal.score } : {}),
         quantity: h.quantity, entry: h.entry, currency: 'TRY', cost, value: h.quantity * h.mark,
         pnl: h.quantity * h.mark - cost, openedAt: new Date(h.openedAt).toISOString(),
         stale: !h.quoteTime || Date.now() - h.quoteTime > (asset.market === 'BIST' ? 20 : 5) * 60000,

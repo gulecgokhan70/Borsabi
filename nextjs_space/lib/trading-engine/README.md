@@ -13,8 +13,18 @@ Daily provider bars are conservatively available at the following midnight.
 Intrabar exits use candle closing timestamps as an approximation; ambiguous
 stop/target touches prefer the stop and trailing ratchets only afterward.
 
-**Remaining:** the existing automatic bot, scanners, legacy backtest and strategy
-builder have not yet migrated to this engine. Their behavior is preserved.
+The automatic bot now supports opt-in `tradingEngine: 'v2'`. New UI-created bots
+use it; older bots keep their engine until an authenticated, version-guarded
+upgrade pauses entries and cancels only pending buys. Cash, held exits and history
+are preserved. V2 uses native OHLC, quote-time BTC/ETH context, and validated FX
+to convert ATR into TRY for its shared portfolio risk gate. Fee and friction are
+applied exactly once. Stored TRY stop/target levels remain fixed; crypto FX
+movements therefore affect exits. Three consecutive losses block new entries until
+explicit restart acknowledges the cooldown; daily locks survive same-day restart.
+Older held positions retain their existing percentage exits after upgrade.
+
+**Remaining:** scanners, legacy backtest and strategy builder have not yet
+migrated to this engine. Their behavior is preserved.
 No model was trained: walk-forward selects deterministic research parameters.
 Confidence is not probability. Liquidity, partial fills, corporate actions,
 auction hours and the complete holiday calendar are not modeled. This is not

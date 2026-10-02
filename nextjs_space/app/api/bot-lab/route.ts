@@ -59,18 +59,20 @@ export async function PATCH(req: NextRequest) {
     const bot = await prisma.paperBot.findFirst({ where: { id, userId: u.id } });
     if (!bot) return NextResponse.json({ error: 'Bot bulunamadı.' }, { status: 404 });
     const auto = (bot.config as { mode?: string }).mode === 'auto-v2';
-    if (!auto && (action === 'close' || action === 'scan-all')) return NextResponse.json({ error: 'Eski bot sürümü toplu kapatma desteklemiyor.' }, { status: 400 });
+    if (!auto && (action === 'close' || action === 'scan-all' || action === 'upgrade-engine')) return NextResponse.json({ error: 'Eski tek varlık botu bu komutu desteklemiyor.' }, { status: 400 });
     if (auto && action === 'start' && (bot.state as unknown as AutoState).closeRequested) return NextResponse.json({ error: 'Kapatma tamamlanana kadar bekleyin.' }, { status: 409 });
     const expand = action === 'scan-all';
+    const upgrade = action === 'upgrade-engine';
     const prior = bot.state as unknown as AutoState;
-    const state = expand ? { ...prior, lastBars: {}, candidates: [], scan: undefined, focus: undefined, pending: Object.fromEntries(Object.entries(prior.pending).filter(([, order]) => order.side === 'SELL')) } : auto ? controlAuto(prior, action as 'start' | 'stop' | 'close') : { ...(bot.state as unknown as State), pending: null, lastBar: 0 };
+    const state = expand || upgrade ? { ...prior, ...(upgrade ? { paused: true } : {}), lastBars: {}, candidates: [], scan: undefined, focus: undefined, pending: Object.fromEntries(Object.entries(prior.pending).filter(([, order]) => order.side === 'SELL')) } : auto ? controlAuto(prior, action as 'start' | 'stop' | 'close') : { ...(bot.state as unknown as State), pending: null, lastBar: 0 };
     const changed = await prisma.$transaction(async tx => {
       const result = await tx.paperBot.updateMany({ where: { id, userId: u.id, version: bot.version }, data: {
         ...(expand ? { config: json({ ...(bot.config as unknown as AutoConfig), scope: 'all', symbols: [] }) } : {}),
-        running: expand ? bot.running : auto ? true : action === 'start', state: json(state), version: { increment: 1 },
-        message: expand ? 'Tüm katalog taraması seçildi; bakiye ve açık pozisyonlar korundu.' : action === 'start' ? 'Başlatıldı; sunucu kontrolü bekleniyor.' : action === 'close' ? 'Sanal pozisyon kapatma istendi; geçerli fiyat bekleniyor.' : auto ? 'Yeni alımlar duraklatıldı; çıkış kontrolleri devam ediyor.' : 'Durduruldu. Açık pozisyon korunuyor.',
+        ...(upgrade ? { config: json({ ...(bot.config as unknown as AutoConfig), tradingEngine: 'v2' }) } : {}),
+        running: upgrade ? true : expand ? bot.running : auto ? true : action === 'start', state: json(state), version: { increment: 1 },
+        message: upgrade ? 'V2 motoruna geçildi; mevcut pozisyonların çıkış kuralları ve bakiye korundu. Yeni alımlar duraklatıldı.' : expand ? 'Tüm katalog taraması seçildi; bakiye ve açık pozisyonlar korundu.' : action === 'start' ? 'Başlatıldı; sunucu kontrolü bekleniyor.' : action === 'close' ? 'Sanal pozisyon kapatma istendi; geçerli fiyat bekleniyor.' : auto ? 'Yeni alımlar duraklatıldı; çıkış kontrolleri devam ediyor.' : 'Durduruldu. Açık pozisyon korunuyor.',
       } });
-      if (result.count) await tx.paperBotEvent.create({ data: { botId: id, data: json({ time: Date.now(), action: 'WAIT', reason: expand ? 'Kullanıcı tüm desteklenen varlıkların taranmasını seçti.' : action === 'start' ? 'Kullanıcı botu başlattı.' : action === 'close' ? 'Kullanıcı tüm sanal pozisyonları kapatma talebi verdi.' : 'Kullanıcı yeni alımları duraklattı.' }) } });
+      if (result.count) await tx.paperBotEvent.create({ data: { botId: id, data: json({ time: Date.now(), action: 'WAIT', reason: upgrade ? 'Kullanıcı V2 motoruna geçiş istedi; açık pozisyonlar ve bakiye değişmedi.' : expand ? 'Kullanıcı tüm desteklenen varlıkların taranmasını seçti.' : action === 'start' ? 'Kullanıcı botu başlattı.' : action === 'close' ? 'Kullanıcı tüm sanal pozisyonları kapatma talebi verdi.' : 'Kullanıcı yeni alımları duraklattı.' }) } });
       return result.count;
     });
     return changed ? NextResponse.json({ success: true }) : NextResponse.json({ error: 'Bot güncellendi; komutu tekrar deneyin.' }, { status: 409 });
