@@ -1,8 +1,9 @@
 import { cachedQuote } from '@/lib/yahoo-finance';
-import { AutoConfig, AutoState, INTERVAL, Observation } from './auto-engine';
+import { AutoConfig, AutoState, Observation } from './auto-engine';
 import { botCatalog } from './catalog';
 import { CatalogScanner } from './catalog-scanner';
 import { botChart } from './chart-provider';
+import { providerBars } from './provider-bars';
 const scanner = new CatalogScanner();
 const timestamp = (value: unknown) => value instanceof Date ? value.getTime() : typeof value === 'number' ? value * 1000 : NaN;
 export async function autoObservations(c: AutoConfig, state?: AutoState) {
@@ -35,7 +36,7 @@ async function loadObservations(c: AutoConfig, priority = false): Promise<Observ
         if (q.currency !== (c.market === 'BIST' ? 'TRY' : 'USD')) throw new Error('currency');
         const local = new Date(Date.now() + 3 * 3600000), minute = local.getUTCHours() * 60 + local.getUTCMinutes();
         const open = c.market === 'CRYPTO' || (q.marketState === 'REGULAR' && local.getUTCDay() > 0 && local.getUTCDay() < 6 && minute >= 600 && minute < 1080);
-        return { symbol, source: 'Yahoo Finance', observedAt: Date.now(), bars: (chart?.quotes || []).map((b: { date: Date; close: number; volume: number }) => ({ time: new Date(b.date).getTime() + INTERVAL, close: b.close, volume: b.volume })),
+        return { symbol, source: 'Yahoo Finance', observedAt: Date.now(), bars: providerBars(chart?.quotes || [], c.market),
           tick: { time: timestamp(q.regularMarketTime), price: q.regularMarketPrice, open } };
       } catch { return { symbol, bars: [], tick: { time: 0, price: 0, open: false }, error: 'Fiyat veya mum verisine ulaşılamadı.' }; }
     })));
