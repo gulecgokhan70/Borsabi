@@ -219,7 +219,7 @@ export function DashboardClient() {
                 </p>
               </div>
             </div>
-            <QuoteTime info={idx} className="mb-2" /><PriceChart symbol={idx?.symbol} height="h-32" />
+            <QuoteTime info={idx} className="mb-2" /><PriceChart symbol={idx?.symbol} period="1d" refreshKey={idx?.priceAsOf} height="h-32" />
           </div>
         ))}
       </motion.div>

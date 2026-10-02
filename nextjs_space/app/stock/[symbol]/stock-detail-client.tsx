@@ -326,9 +326,9 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     const ohlcData = (data?.ohlc ?? []).map((d: OHLCData) => ({
       date: isIntraday
         ? (['1d'].includes(period)
-          ? new Date(d.date).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-          : new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }))
-        : new Date(d.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' }),
+          ? new Date(d.date).toLocaleTimeString('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' })
+          : new Date(d.date).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }))
+        : new Date(d.date).toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: '2-digit', month: 'short' }),
       open: d.open,
       high: d.high,
       low: d.low,
@@ -352,15 +352,16 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
     return ohlcData;
   }, [data?.ohlc, isIntraday, period]);
 
-  // The headline, change and line colour describe the same displayed series.
+  // Daily headlines use the latest quote; chart colour always describes the actual candle series.
   // The sticky header/trade modal retain the separate latest market quote.
   const performance = chartPerformance(chartData, period, assetSymbol.endsWith('.IS'), data?.chartPreviousClose, activePoint);
   const hasChart = chartData.length > 0;
-  const displayPrice = hasChart ? performance.price ?? 0 : data?.price ?? 0;
-  const displayChange = hasChart ? performance.change : period === '1d' ? data?.change ?? null : null;
-  const displayChangePercent = hasChart ? performance.percent : period === '1d' ? data?.changePercent ?? null : null;
+  const showLatestQuote = period === '1d' && !activePoint;
+  const displayPrice = showLatestQuote ? data?.price ?? 0 : hasChart ? performance.price ?? 0 : data?.price ?? 0;
+  const displayChange = showLatestQuote ? data?.change ?? null : hasChart ? performance.change : null;
+  const displayChangePercent = showLatestQuote ? data?.changePercent ?? null : hasChart ? performance.percent : null;
   const periodLabel = ({ '1d': assetSymbol.endsWith('.IS') ? 'Günlük değişim' : 'Son 24 saat', '1w': '1 haftalık değişim', '1mo': '1 aylık değişim', '3mo': '3 aylık değişim', '6mo': '6 aylık değişim', '1y': '1 yıllık değişim', '5y': '5 yıllık değişim' } as Record<string, string>)[period] || 'Seçili dönem değişimi';
-  const displayDate = activePoint ? `${activePoint.date} · ${periodLabel}` : periodLabel;
+  const displayDate = activePoint ? `Seçilen mum: ${activePoint.date} (Türkiye saati) · ${periodLabel}` : periodLabel;
   const performanceClass = displayChange === null || displayChange === 0 ? 'text-muted-foreground' : displayChange > 0 ? 'text-emerald-500' : 'text-red-500';
   const chartColor = performance.direction === 'up' ? '#22C55E' : performance.direction === 'down' ? '#EF4444' : '#94A3B8';
 
@@ -496,7 +497,9 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
           <p className={`text-xl font-semibold ${performanceClass}`}>{displayChangePercent === null ? '—' : `${displayChangePercent >= 0 ? '+' : '-'}%${Math.abs(displayChangePercent).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
         </div>
         <p className={`text-sm ${performanceClass}`}>{displayChange === null ? 'Referans fiyat yok' : `${displayChange >= 0 ? '+' : ''}${fp(displayChange)}`} <span className="text-muted-foreground">{displayDate}</span></p>
-        {hasChart && <p className="text-xs text-muted-foreground">Grafik: {data.chartSource || 'Yahoo Finance'} · Son nokta {new Date(data.ohlc[data.ohlc.length - 1].date).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} (Türkiye saati). Üst çubukta son piyasa fiyatı gösterilir.</p>}
+        {showLatestQuote && <QuoteTime info={data} />}
+        {activePoint && <button onClick={closeChartInfo} className="text-sm text-indigo-600 dark:text-indigo-400 min-h-[44px]">{period === '1d' ? 'Son fiyata dön' : 'Dönem sonuna dön'}</button>}
+        {hasChart && <p className="text-xs text-muted-foreground">Grafik: {data.chartSource || 'Yahoo Finance'} · Son mum {fp(data.ohlc[data.ohlc.length - 1].close)} · {new Date(data.ohlc[data.ohlc.length - 1].date).toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })} (Türkiye saati). Mum fiyatı ile son kotasyonun zamanı farklı olabilir.</p>}
       </section> : <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>}
       {/* ===== PRICE CHART ===== */}
       <ChartSurface title={data?.shortName || symbol} subtitle={data?.price ? fp(data.price) : 'Alınamadı'} full={fullChart}
@@ -519,7 +522,7 @@ export default function StockDetailClient({ symbol }: { symbol: string }) {
         </div>}
 
         {/* Main Price Chart */}
-        <div ref={chartContainerRef} style={{ height: 'var(--chart-height, clamp(260px, 46dvh, 460px))', position: 'relative' }}>
+        <div ref={chartContainerRef} onTouchEnd={closeChartInfo} onTouchCancel={closeChartInfo} style={{ height: 'var(--chart-height, clamp(260px, 46dvh, 460px))', position: 'relative' }}>
           {chartData.length > 0 ? (
             <>
             <ResponsiveContainer width="100%" height="100%">

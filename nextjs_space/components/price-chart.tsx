@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 import { useHaptic } from '@/hooks/use-haptic';
+import { chartPerformance } from '@/lib/chart-performance';
 
 interface PriceChartProps {
   symbol: string;
@@ -10,12 +11,14 @@ interface PriceChartProps {
   height?: string;
   color?: string;
   showPeriodSelector?: boolean;
+  refreshKey?: string;
 }
 
-export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) {
+export function PriceChart({ symbol, period = '1mo', height = 'h-48', color, refreshKey }: PriceChartProps) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [positive, setPositive] = useState(true);
+  const [direction, setDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const [percent, setPercent] = useState<number | null>(null);
   const haptic = useHaptic();
   const lastHapticTs = useRef(0);
   const handleTouch = useCallback(() => {
@@ -25,24 +28,30 @@ export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) 
 
   useEffect(() => {
     if (!symbol) return;
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
+    setData([]);
+    setPercent(null);
+    setDirection('neutral');
 
-    fetch(`/api/market/history?symbol=${encodeURIComponent(symbol)}&period=1mo`)
-      .then(r => r.json())
+    const url = period === '1d' ? `/api/stock/${encodeURIComponent(symbol)}?period=1d&interval=5m`
+      : `/api/market/history?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(period)}`;
+    fetch(url, { signal: controller.signal })
+      .then(r => { if (!r.ok) throw new Error('Grafik alınamadı'); return r.json(); })
       .then(json => {
-        if (cancelled) return;
-        const pts = (json?.data ?? []).map((d: any) => ({ close: d?.close ?? 0 })).filter((d: any) => d.close > 0);
+        if (controller.signal.aborted) return;
+        const pts = (period === '1d' ? json?.ohlc ?? [] : json?.data ?? [])
+          .filter((d: any) => Number.isFinite(d?.close) && d.close > 0).map((d: any) => ({ close: d.close, date: d.date }));
         setData(pts);
-        if (pts.length >= 2) {
-          setPositive(pts[pts.length - 1].close >= pts[0].close);
-        }
+        const result = chartPerformance(pts, period, symbol.endsWith('.IS'), json?.chartPreviousClose);
+        setDirection(result.direction);
+        setPercent(result.percent);
       })
       .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
 
-    return () => { cancelled = true; };
-  }, [symbol]);
+    return () => controller.abort();
+  }, [symbol, period, refreshKey]);
 
   if (loading) {
     return (
@@ -56,9 +65,11 @@ export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) 
     return <div className={`${height} flex items-center justify-center text-xs text-slate-400 dark:text-slate-500`}>Veri yok</div>;
   }
 
-  const chartColor = color || (positive ? '#22C55E' : '#EF4444');
+  const chartColor = color || (direction === 'up' ? '#22C55E' : direction === 'down' ? '#EF4444' : '#94A3B8');
 
   return (
+    <div>
+    <p className="text-[10px] text-muted-foreground mb-1">{period === '1d' ? 'Günlük grafik · 5 dakikalık mumlar' : period === '1mo' ? '1 aylık grafik' : `${period} grafik`}{percent !== null ? ` · ${percent >= 0 ? '+' : ''}%${percent.toLocaleString('tr-TR', { maximumFractionDigits: 2 })}` : ' · Referans fiyat yok'}</p>
     <div className={`${height} w-full`} onTouchMove={handleTouch}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
@@ -69,9 +80,10 @@ export function PriceChart({ symbol, height = 'h-48', color }: PriceChartProps) 
             </linearGradient>
           </defs>
           <YAxis domain={['dataMin', 'dataMax']} hide />
-          <Area type="monotone" dataKey="close" stroke={chartColor} strokeWidth={1.5} fill={`url(#grad-${symbol.replace(/[^a-zA-Z0-9]/g, '')})`} dot={false} isAnimationActive={false} />
+          <Area type="linear" dataKey="close" stroke={chartColor} strokeWidth={1.5} fill={`url(#grad-${symbol.replace(/[^a-zA-Z0-9]/g, '')})`} dot={false} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
+    </div>
     </div>
   );
 }

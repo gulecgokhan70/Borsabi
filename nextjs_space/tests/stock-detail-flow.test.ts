@@ -90,7 +90,7 @@ afterEach(async () => {
 it('renders BTC detail quotes and chart-selected changes in USD, then budgets 1000 TRY in the real buy modal', async () => {
   await mount();
   expect(textOf(renderer!.root)).toContain('$79.315,50');
-  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.300,00');
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.315,50');
   expect(textOf(renderer!.root)).toContain('Son fiyat $79.315,50');
   expect(textOf(renderer!.root)).toContain('$1.589,90 Milyar');
   expect(textOf(renderer!.root)).not.toContain('₺');
@@ -262,7 +262,7 @@ it('dismisses price and volume information after 3 seconds, resets on interactio
   expect(tips()[0].props.active).toBeUndefined();
   await act(async () => { vi.advanceTimersByTime(1000); });
   expect(tips()[0].props.active).toBe(false);
-  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.300,00');
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.315,50');
   await act(async () => move());
   expect(tips()[0].props.active).toBeUndefined();
   await act(async () => renderer!.root.findByProps({ 'aria-label': 'Grafiği tam ekran aç' }).props.onClick());
@@ -345,4 +345,16 @@ it('uses previous close for the daily colour and switches both percentage and co
   // The order form still receives the latest quote independently of the chart range.
   await act(async () => button('Al').props.onClick());
   expect(renderer!.root.findByType(TradeModal).props.price).toBe(211.7);
+});
+
+it('restores the latest quote when a mobile chart touch ends', async () => {
+  await mount();
+  const chart = renderer!.root.findAllByType('section').find(node => node.props.onMouseMove)!;
+  await act(async () => chart.props.onMouseMove({ activePayload: [{ payload: { close: 78000, date: '11:10' } }] }));
+  expect(textOf(renderer!.root)).toContain('Seçilen mum: 11:10');
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$78.000,00');
+  const surface = renderer!.root.findAllByType('div').find(node => node.props.onTouchEnd)!;
+  await act(async () => surface.props.onTouchEnd());
+  expect(textOf(renderer!.root.findByProps({ 'aria-label': 'Hisse fiyatı' }))).toContain('$79.315,50');
+  expect(textOf(renderer!.root)).not.toContain('Seçilen mum:');
 });
