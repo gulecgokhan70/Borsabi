@@ -5,7 +5,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:trading-engine": "node --import tsx --test lib/trading-engine/__tests__/*.test.ts",
+    "typecheck:trading-engine": "tsc --project tsconfig.trading-engine.json",
+    "lint:trading-engine": "eslint --config eslint.trading-engine.config.mjs lib/trading-engine"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/safe-seed.ts"
