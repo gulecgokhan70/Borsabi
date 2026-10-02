@@ -2,7 +2,7 @@
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/constants';
 
-export default function EquityChart({ equity, positive }: { equity: number[]; positive: boolean }) {
+export default function EquityChart({ equity, positive, currency = 'TRY' }: { equity: number[]; positive: boolean; currency?: 'TRY' | 'USD' }) {
   const data = equity.map((v: number, i: number) => ({ day: i, value: v }));
   const color = positive ? '#22C55E' : '#EF4444';
 
@@ -17,8 +17,8 @@ export default function EquityChart({ equity, positive }: { equity: number[]; po
         </defs>
         <Tooltip
           contentStyle={{ background: '#141414', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff' }}
-          formatter={(val: any) => [formatCurrency(val), 'Sermaye']}
-          labelFormatter={(l: any) => `Gün ${l}`}
+          formatter={(val: any) => [currency === 'TRY' ? formatCurrency(val) : new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(val), 'Sermaye']}
+          labelFormatter={(l: any) => `Örnek ${l}`}
         />
         <Area type="monotone" dataKey="value" stroke={color} fill="url(#eqGrad)" strokeWidth={2} dot={false} />
       </AreaChart>

@@ -24,6 +24,8 @@ export function WatchlistClient() {
   const [watchlist, setWatchlist] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const inFlight = useRef(false);
   const [showAdd, setShowAdd] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [tradeModal, setTradeModal] = useState<any>(null);
@@ -32,17 +34,22 @@ export function WatchlistClient() {
   const prevPricesRef = useRef<Record<string, any>>({});
 
   const fetchWatchlist = useCallback(async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
+    setLoadError('');
     try {
       const res = await fetch('/api/watchlist');
       const data = await res.json();
-      const items = data?.data ?? [];
+      if (!res.ok || !Array.isArray(data?.data)) throw new Error('İzleme listesi alınamadı. Yeniden deneyin.');
+      const items = data.data;
       setWatchlist(items);
 
       if ((items?.length ?? 0) > 0) {
         const symbols = items.map((w: any) => w?.symbol).filter(Boolean).join(',');
         const priceRes = await fetch(`/api/market?symbols=${symbols}`);
         const priceData = await priceRes.json();
+        if (!priceRes.ok || !Array.isArray(priceData?.data)) throw new Error('Listedeki fiyatlar alınamadı. Yeniden deneyin.');
         const priceMap: Record<string, any> = {};
         (priceData?.data ?? []).forEach((p: any) => { if (p?.symbol) priceMap[p.symbol] = p; });
 
@@ -91,14 +98,14 @@ export function WatchlistClient() {
         prevPricesRef.current = priceMap;
         setPrices(priceMap);
       }
-    } catch (e: any) { console.error(e); } finally { setLoading(false); }
+    } catch { setLoadError('Liste veya fiyatlar güncellenemedi. Bağlantınızı kontrol edip yeniden deneyin.'); setPrices({}); } finally { inFlight.current = false; setLoading(false); }
   }, [haptic]);
 
   useEffect(() => { fetchWatchlist(); }, [fetchWatchlist]);
 
   // Otomatik yenileme - 30 saniye
   useEffect(() => {
-    const interval = setInterval(() => { fetchWatchlist(); }, 30000);
+    const interval = setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) fetchWatchlist(); }, 30000);
     return () => clearInterval(interval);
   }, [fetchWatchlist]);
 
@@ -110,6 +117,7 @@ export function WatchlistClient() {
         body: JSON.stringify({ symbol, name, type }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error('Liste güncellenemedi');
       if (data?.added) toast.success(data?.message ?? 'Eklendi');
       if (data?.removed) toast.info(data?.message ?? 'Kaldırıldı');
       fetchWatchlist();
@@ -227,20 +235,24 @@ export function WatchlistClient() {
         )}
       </AnimatePresence>
 
+      {loadError && <div role="alert" className="glass-card rounded-xl p-4 text-sm text-amber-500">
+        <p>{loadError}</p><button onClick={fetchWatchlist} disabled={loading} className="min-h-[44px] underline">Yeniden dene</button>
+      </div>}
       {/* Watchlist items */}
-      {loading ? (
+      {loading && watchlist.length === 0 ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#3B82F6]" /></div>
-      ) : (watchlist?.length ?? 0) === 0 ? (
+      ) : loadError && watchlist.length === 0 ? null : (watchlist?.length ?? 0) === 0 ? (
         <div className="text-center py-16">
           <Eye className="w-10 h-10 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Henüz izleme listeniz boş</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">"Ekle" butonuyla favori hisselerinizi ekleyin</p>
+          <button onClick={() => setShowAdd(true)} className="min-h-[44px] mt-2 text-sm text-blue-500 underline">İlk hisseni ekle</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {watchlist.map((w: any, i: number) => {
             const priceData = prices?.[w?.symbol];
-            const change = priceData?.changePercent ?? 0;
+            const hasPrice = !priceData?.error && Number.isFinite(priceData?.price) && priceData.price > 0;
+            const change = hasPrice ? priceData?.changePercent ?? 0 : 0;
             return (
               <motion.div key={w?.id ?? i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 className={`glass-card rounded-xl p-4 transition-colors ${Math.abs(change) >= ALERT_THRESHOLD ? (change >= 0 ? 'border-[#22C55E]/30 ring-1 ring-[#22C55E]/10' : 'border-[#EF4444]/30 ring-1 ring-[#EF4444]/10') : 'hover:border-[#3B82F6]/30'}`}>
@@ -264,8 +276,8 @@ export function WatchlistClient() {
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <div className="text-right">
-                      <p className="text-sm font-mono font-semibold text-foreground">{formatNumber(priceData?.price ?? 0)}</p>
-                      <p className={`text-xs font-mono ${change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{formatPercent(change)}</p>
+                      <p className="text-sm font-mono font-semibold text-foreground">{hasPrice ? formatNumber(priceData.price) : 'Fiyat alınamadı'}</p>
+                      <p className={`text-xs font-mono ${change >= 0 ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>{hasPrice ? formatPercent(change) : '—'}</p>
                     </div>
                     <button onClick={() => toggleWatchlist(w?.symbol, w?.name, w?.type)} className="p-1.5 rounded-lg hover:bg-[#EF4444]/10 text-slate-400 dark:text-slate-500 hover:text-[#EF4444] transition-colors" title="Kaldır">
                       <X className="w-3.5 h-3.5" />
@@ -275,8 +287,9 @@ export function WatchlistClient() {
                 <PriceChart symbol={w?.symbol} height="h-24" />
                 {!isIndexSymbol(w?.symbol) && (
                   <button
+                    disabled={!hasPrice}
                     onClick={() => setTradeModal({ symbol: w?.symbol, name: w?.name, price: priceData?.price ?? 0, marketType: w?.type })}
-                    className="w-full mt-3 py-2 text-xs font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors"
+                    className="disabled:opacity-50 disabled:cursor-not-allowed w-full mt-3 py-2 text-xs font-semibold bg-[#3B82F6]/10 text-[#3B82F6] rounded-lg hover:bg-[#3B82F6]/20 transition-colors"
                   >İşlem Yap</button>
                 )}
               </motion.div>

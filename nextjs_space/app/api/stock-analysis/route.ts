@@ -2,8 +2,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getMidasStock } from '@/lib/midas-api';
+import { assetCurrency } from '@/lib/asset-display';
+import { isIndexSymbol } from '@/lib/constants';
+import { normalizeMarketSymbol } from '@/lib/market-quotes';
 import { cachedChart } from '@/lib/yahoo-finance';
+import { aiErrorResponse, getAIConfig, requestAICompletion } from '@/lib/ai-provider';
 
 function calcRSI(closes: number[], period = 14): number {
   if (closes.length < period + 1) return 50;
@@ -46,15 +49,18 @@ export async function POST(request: NextRequest) {
 
     const { symbol, name, price, change, changePercent, high, low, open, prevClose, volume, marketCap,
       fiftyTwoWeekHigh, fiftyTwoWeekLow, indicators, vwap, tavan, taban, fk, pddd,
-      supportResistance, recentNews } = await request.json();
+      supportResistance, recentNews, currency } = await request.json();
 
-    if (!symbol) return new Response(JSON.stringify({ error: 'Symbol required' }), { status: 400 });
+    if (typeof symbol !== 'string' || !symbol) return new Response(JSON.stringify({ error: 'Symbol required' }), { status: 400 });
+    const normalizedSymbol = normalizeMarketSymbol(symbol);
+    const priceUnit = isIndexSymbol(normalizedSymbol) ? 'puan' : assetCurrency(normalizedSymbol, currency);
+
+    getAIConfig();
 
     // Fetch historical data for analysis
     let ohlcData: any[] = [];
     try {
-      const yahooSym = symbol.endsWith('.IS') ? symbol : symbol + '.IS';
-      const chart = await cachedChart(yahooSym, { period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0], period2: new Date().toISOString().split('T')[0], interval: '1d' as any });
+      const chart = await cachedChart(normalizedSymbol, { period1: new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0], period2: new Date().toISOString().split('T')[0], interval: '1d' as any });
       ohlcData = (chart?.quotes || []).filter((q: any) => q.close).map((q: any) => ({
         date: new Date(q.date).toLocaleDateString('tr-TR'),
         close: q.close, high: q.high, low: q.low, open: q.open, volume: q.volume
@@ -80,16 +86,17 @@ export async function POST(request: NextRequest) {
 
     // Build prompt
     const dataContext = `
-Hisse: ${symbol} (${name || symbol})
-Fiyat: ${price} TL | Değişim: %${changePercent?.toFixed(2)} (${change?.toFixed(2)} TL)
+Varlık: ${normalizedSymbol} (${name || symbol})
+Fiyat ve teknik seviyelerin birimi: ${priceUnit}. Tutarları başka bir para birimine çevirmeden bu birimle yorumla.
+Fiyat: ${price} ${priceUnit} | Değişim: %${changePercent?.toFixed(2)} (${change?.toFixed(2)} ${priceUnit})
 Açılış: ${open} | Yüksek: ${high} | Düşük: ${low} | Önceki Kapanış: ${prevClose}
 Hacim: ${volume ? (volume > 1e6 ? (volume / 1e6).toFixed(1) + 'M' : volume.toLocaleString('tr-TR')) : 'N/A'}
 Hacim Oranı (20 gün ort.): ${volRatio.toFixed(2)}x
-Piyasa Değeri: ${marketCap ? (marketCap > 1e9 ? (marketCap / 1e9).toFixed(1) + ' Milyar TL' : (marketCap / 1e6).toFixed(0) + ' Milyon TL') : 'N/A'}
+Piyasa Değeri: ${marketCap ? (marketCap > 1e9 ? (marketCap / 1e9).toFixed(1) + ' Milyar ' + priceUnit : (marketCap / 1e6).toFixed(0) + ' Milyon ' + priceUnit) : 'N/A'}
 52 Hafta Yüksek: ${fiftyTwoWeekHigh || 'N/A'} | 52 Hafta Düşük: ${fiftyTwoWeekLow || 'N/A'}
-${tavan ? 'Tavan: ' + tavan + ' TL' : ''} ${taban ? '| Taban: ' + taban + ' TL' : ''}
+${tavan ? 'Tavan: ' + tavan + ' ' + priceUnit : ''} ${taban ? '| Taban: ' + taban + ' ' + priceUnit : ''}
 ${fk ? 'F/K: ' + fk.toFixed(1) : ''} ${pddd ? '| PD/DD: ' + pddd.toFixed(2) : ''}
-${vwap ? 'VWAP: ' + vwap.toFixed(2) + ' TL' : ''}
+${vwap ? 'VWAP: ' + vwap.toFixed(2) + ' ' + priceUnit : ''}
 
 Teknik Göstergeler:
 - RSI(14): ${rsi?.toFixed(1) ?? 'N/A'}
@@ -103,13 +110,13 @@ ${priceChange5d !== null ? '- 5 Günlük Değişim: %' + priceChange5d.toFixed(2
 ${priceChange20d !== null ? '- 20 Günlük Değişim: %' + priceChange20d.toFixed(2) : ''}
 
 Destek/Direnç Seviyeleri:
-${supportResistance?.supports?.length ? 'Destekler: ' + supportResistance.supports.map((s: any) => s.price.toFixed(2) + ' TL').join(', ') : 'Destek bilgisi yok'}
-${supportResistance?.resistances?.length ? 'Dirençler: ' + supportResistance.resistances.map((r: any) => r.price.toFixed(2) + ' TL').join(', ') : 'Direnç bilgisi yok'}
+${supportResistance?.supports?.length ? 'Destekler: ' + supportResistance.supports.map((s: any) => s.price.toFixed(2) + ' ' + priceUnit).join(', ') : 'Destek bilgisi yok'}
+${supportResistance?.resistances?.length ? 'Dirençler: ' + supportResistance.resistances.map((r: any) => r.price.toFixed(2) + ' ' + priceUnit).join(', ') : 'Direnç bilgisi yok'}
 ${recentNews?.length ? '\nSon Haberler ve KAP Bildirimleri:\n' + recentNews.map((n: any, i: number) => `${i + 1}. [${n.sentiment || 'nötr'}] [${n.category === 'kap' ? 'KAP' : 'Haber'}] ${n.title} (Kaynak: ${n.source})`).join('\n') : 'Son haber bulunamadı.'}
 `;
 
-    const systemPrompt = `Sen profesyonel bir Borsa İstanbul teknik analistisin. Türkçe yanıt ver.
-Kullanıcıya verilen hisse senedi verileri ve güncel haberleri üzerinden kapsamlı bir teknik analiz yap.
+    const systemPrompt = `Sen Borsa İstanbul ve kripto piyasaları için teknik analiz yapan bir asistansın. Türkçe yanıt ver.
+Kullanıcıya verilen varlığın verileri ve güncel haberleri üzerinden kapsamlı bir teknik analiz yap. Fiyat birimini (${priceUnit}) koru.
 Eğer haberler verilmişse, haberlerin fiyat üzerindeki olası etkisini de değerlendir.
 
 JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
@@ -144,30 +151,14 @@ JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
 
 ÖNEMLİ: Sadece teknik verilere dayalı analiz yap. Her zaman "Bu yatırım tavsiyesi değildir" uyarısını genel görünümün sonuna ekle. Respond with raw JSON only. Do not include code blocks, markdown, or any other formatting.`;
 
-    const response = await fetch('https://apps.abacus.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-5.4-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Aşağıdaki hisse senedi verilerini analiz et:\n${dataContext}` }
-        ],
-        stream: true,
-        max_tokens: 2000,
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-      }),
+    const response = await requestAICompletion({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Aşağıdaki varlık verilerini analiz et:\n${dataContext}` },
+      ],
+      stream: true, max_tokens: 3000, temperature: 0.3,
+      response_format: { type: 'json_object' }, signal: request.signal,
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('LLM API error:', errText);
-      return new Response(JSON.stringify({ error: 'Analiz servisi şu an kullanılamıyor' }), { status: 500 });
-    }
 
     // Stream back with buffering for JSON
     const reader = response.body?.getReader();
@@ -232,7 +223,6 @@ JSON formatında yanıt ver. Aşağıdaki yapıyı kullan:
       },
     });
   } catch (error: any) {
-    console.error('Stock analysis error:', error);
-    return new Response(JSON.stringify({ error: 'Analiz yapılamadı: ' + (error?.message || 'Bilinmeyen hata') }), { status: 500 });
+    return aiErrorResponse(error);
   }
 }

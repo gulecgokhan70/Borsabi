@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Zap, RefreshCw, TrendingUp, TrendingDown, Target, Shield,
@@ -7,9 +7,12 @@ import {
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency, getScoreCategory, SCORE_LABELS } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
+import type { TradeMarketType } from '@/lib/asset-display';
 import { useRouter } from 'next/navigation';
 
 interface DayTradeResult {
+  lastClosedAt?: number;
+  regime?: string;
   symbol: string;
   yahooSymbol: string;
   name: string;
@@ -54,31 +57,39 @@ export function DayTradingClient() {
   const router = useRouter();
   const [data, setData] = useState<DayTradeResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string; stopLoss?: number; takeProfit?: number } | null>(null);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: TradeMarketType; stopLoss?: number; takeProfit?: number } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
   const [marketOpen, setMarketOpen] = useState(true);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [isFresh, setIsFresh] = useState(true);
+  const [error, setError] = useState('');
+  const [unavailable, setUnavailable] = useState(0);
+  const requestRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (requestRef.current) return;
+    const controller = new AbortController(); requestRef.current = controller;
     try {
-      const res = await fetch('/api/day-trading');
+      const res = await fetch('/api/day-trading', { signal: controller.signal });
       const json = await res.json();
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error(json.error || 'Tarama tamamlanamadı.');
+      setError(''); setUnavailable(json.unavailable || 0);
       setData(json?.data ?? []);
       if (json?.marketOpen !== undefined) setMarketOpen(json.marketOpen);
       if (json?.cachedAt) setCachedAt(json.cachedAt);
       if (json?.fresh !== undefined) setIsFresh(json.fresh);
     } catch (e) {
-      console.error('Day trading fetch error:', e);
+      if (!controller.signal.aborted) { setError(e instanceof Error ? e.message : 'Tarama tamamlanamadı.'); setData([]); }
     } finally {
-      setLoading(false);
+      if (requestRef.current === controller) { requestRef.current = null; setLoading(false); }
     }
   }, []);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(() => { fetchData(); }, 60000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); requestRef.current?.abort(); requestRef.current = null; };
   }, [fetchData]);
 
   const filteredData = data.filter((item: DayTradeResult) => {
@@ -132,7 +143,7 @@ export function DayTradingClient() {
             Day Trading Motoru
           </h1>
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            <p className="text-muted-foreground text-sm">5 Kategori Puanlama Sistemi ile Gün İçi Fırsat Analizi</p>
+            <p className="text-muted-foreground text-sm">V2 ortak motor · Kapanmış 15 dakikalık mumlar</p>
             {cachedAt && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full glass-inner text-muted-foreground">
                 <span className={`w-1.5 h-1.5 rounded-full ${isFresh ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'}`} />
@@ -187,14 +198,15 @@ export function DayTradingClient() {
           <div>
             <p className="text-sm font-medium text-[#F59E0B]">Day Trading Uyarısı</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Filtre: Hacim {'>'} 20 günlük ort. | VWAP üstü | EMA9 {'>'} EMA21 | RSI(5) {'>'} 55 | MACD pozitif | Değişim {'>'} %1. 
-              Minimum R:R 1:1.2. Hedef fiyatlar tavan/taban limitlerine göre sınırlandırılmıştır. Stop loss olmadan işlem açmayın.
+              Ana puan ve sinyal V2 motorundan gelir; yüksek puan tek başına işlem onayı değildir. Fiyat/değişim kotasyon, göstergeler kapanmış mum verisidir. ATR (fiyat oynaklığı) stop/hedef seviyeleri yalnızca örnektir; portföy bütçesi ve komisyon dahil işlem planı değildir. Tavan/taban sınırları uygulanır.
             </p>
           </div>
         </div>
       </div>
 
       {/* Stats Summary */}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {unavailable > 0 && <p className="text-xs text-muted-foreground">{unavailable} hisse geçerli/yeterli kapanmış veri alınamadığı için atlandı.</p>}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Toplam Hisse', value: data.length, icon: BarChart3, color: '#3B82F6' },
@@ -265,7 +277,7 @@ export function DayTradingClient() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setTradeModal({ open: true, symbol: item.symbol, name: item.name, price: item.price, marketType: 'BIST', stopLoss: item.stop, takeProfit: item.target1 })}
+                      onClick={() => setTradeModal({ open: true, symbol: item.symbol, name: item.name, price: item.price, marketType: 'BIST', stopLoss: item.passesFilter ? item.stop : undefined, takeProfit: item.passesFilter ? item.target1 : undefined })}
                       className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       İşlem Aç
@@ -300,11 +312,11 @@ export function DayTradingClient() {
                 <div className="rounded-lg p-3 mb-4 bg-white/60 dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.06]">
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase mb-2 font-semibold">Puan Dağılımı</p>
                   <div className="space-y-1.5">
-                    <PuanBar label="Hacim" puan={item.hacimPuan ?? 0} max={20} />
-                    <PuanBar label="Trend" puan={item.trendPuan ?? 0} max={20} />
+                    <PuanBar label="Hacim" puan={item.hacimPuan ?? 0} max={15} />
+                    <PuanBar label="Trend" puan={item.trendPuan ?? 0} max={25} />
                     <PuanBar label="Momentum" puan={item.momentumPuan ?? 0} max={20} />
-                    <PuanBar label="Formasyon" puan={item.formasyonPuan ?? 0} max={20} />
-                    <PuanBar label="Risk/Ödül" puan={item.riskOdulPuan ?? 0} max={20} />
+                    <PuanBar label="Yapı/Mum" puan={item.formasyonPuan ?? 0} max={25} />
+                    <PuanBar label="Oynaklık/Rejim" puan={item.riskOdulPuan ?? 0} max={15} />
                   </div>
                 </div>
 

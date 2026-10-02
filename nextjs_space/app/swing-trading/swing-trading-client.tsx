@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, RefreshCw, Target, Shield, Clock,
@@ -7,9 +7,12 @@ import {
 } from 'lucide-react';
 import { formatNumber, formatPercent, formatCurrency, getScoreCategory } from '@/lib/constants';
 import { TradeModal } from '@/components/trade-modal';
+import type { TradeMarketType } from '@/lib/asset-display';
 import { useRouter } from 'next/navigation';
 
 interface SwingTradeResult {
+  lastClosedAt?: number;
+  regime?: string;
   symbol: string;
   yahooSymbol: string;
   name: string;
@@ -49,31 +52,39 @@ export function SwingTradingClient() {
   const router = useRouter();
   const [data, setData] = useState<SwingTradeResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string; stopLoss?: number; takeProfit?: number } | null>(null);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: TradeMarketType; stopLoss?: number; takeProfit?: number } | null>(null);
   const [filter, setFilter] = useState<'all' | 'elite' | 'strong' | 'watch'>('all');
   const [marketOpen, setMarketOpen] = useState(true);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [isFresh, setIsFresh] = useState(true);
+  const [error, setError] = useState('');
+  const [unavailable, setUnavailable] = useState(0);
+  const requestRef = useRef<AbortController | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (requestRef.current) return;
+    const controller = new AbortController(); requestRef.current = controller;
     try {
-      const res = await fetch('/api/swing-trading');
+      const res = await fetch('/api/swing-trading', { signal: controller.signal });
       const json = await res.json();
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error(json.error || 'Tarama tamamlanamadı.');
+      setError(''); setUnavailable(json.unavailable || 0);
       setData(json?.data ?? []);
       if (json?.marketOpen !== undefined) setMarketOpen(json.marketOpen);
       if (json?.cachedAt) setCachedAt(json.cachedAt);
       if (json?.fresh !== undefined) setIsFresh(json.fresh);
     } catch (e) {
-      console.error('Swing trading fetch error:', e);
+      if (!controller.signal.aborted) { setError(e instanceof Error ? e.message : 'Tarama tamamlanamadı.'); setData([]); }
     } finally {
-      setLoading(false);
+      if (requestRef.current === controller) { requestRef.current = null; setLoading(false); }
     }
   }, []);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(() => { fetchData(); }, 60000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); requestRef.current?.abort(); requestRef.current = null; };
   }, [fetchData]);
 
   const filteredData = data.filter((item: SwingTradeResult) => {
@@ -166,14 +177,15 @@ export function SwingTradingClient() {
           <div>
             <p className="text-sm font-medium text-[#3B82F6]">Swing Trading Stratejisi</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Filtre: EMA20 üstü | EMA20 {'>'} EMA50 | RSI(14) 50-70 | MACD pozitif | Hacim {'>'} ort. 
-              Sapan Sistemi (pullback to EMA20) ve Dip-Bip Sistemi (dip dönüşü) tespit edilir. Minimum R:R 1:2.
+              V2 ortak motor kapanmış günlük mumlarla çalışır. Sapan/Dip-Bip ve formasyonlar ek gözlemdir; ana puanı değiştirmez. Fiyat kotasyondur. ATR (fiyat oynaklığı) stop/hedef seviyeleri bütçe ve komisyon dahil işlem planı değildir; bekleme süresi örnektir. Yüksek puan tek başına işlem onayı değildir.
             </p>
           </div>
         </div>
       </div>
 
       {/* Stats */}
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {unavailable > 0 && <p className="text-xs text-muted-foreground">{unavailable} hisse geçerli/yeterli kapanmış veri alınamadığı için atlandı.</p>}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'Toplam Hisse', value: data.length, icon: BarChart3, color: '#3B82F6' },
@@ -254,7 +266,7 @@ export function SwingTradingClient() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setTradeModal({ open: true, symbol: item.symbol, name: item.name, price: item.price, marketType: 'BIST', stopLoss: item.stop, takeProfit: item.target1 })}
+                      onClick={() => setTradeModal({ open: true, symbol: item.symbol, name: item.name, price: item.price, marketType: 'BIST', stopLoss: item.passesFilter ? item.stop : undefined, takeProfit: item.passesFilter ? item.target1 : undefined })}
                       className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       İşlem Aç

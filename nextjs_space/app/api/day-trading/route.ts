@@ -4,8 +4,11 @@ import { BIST_TOP_STOCKS } from '@/lib/constants';
 import { getMidasStockMap, type MidasStock } from '@/lib/midas-api';
 import { detectCandlePatterns, candlePatternScore } from '@/lib/candle-patterns';
 import { cachedScan } from '@/lib/scan-cache';
-import { calculateRSI, calculateEMA, calculateMACD, calculateATR, calculateVWAP } from '@/lib/technical-indicators';
+import { calculateRSI, calculateEMA, calculateVWAP } from '@/lib/technical-indicators';
 import { processInBatches, fetchStockData, isBistMarketHours, SCAN_BATCH_SIZE } from '@/lib/scan-utils';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { takeRequestSlot } from '@/lib/request-limit';
 
 // ===== MASTER TRADER DAY TRADE PUANLAMA SİSTEMİ =====
 
@@ -158,8 +161,10 @@ function scoreDayTrade(
   };
 }
 
-async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }> {
+async function runDayTradingScan() {
     const results: any[] = [];
+    const asOf = Date.now();
+    let unavailable = 0;
 
     let midasMap = new Map<string, MidasStock>();
     try {
@@ -180,9 +185,10 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
 
         const data = await fetchStockData(
           cleanSym, stock.symbol, midasData,
-          { period1: startDate, period2: endDate, interval: '1d' }
+          { period1: startDate, period2: endDate, interval: '15m' }, { timeframe: '15m', asOf }
         );
-        if (!data) return null;
+        if (!data?.engine?.analysis.indicators) { unavailable++; return null; }
+        const engine = data.engine, indicators = engine.analysis.indicators!;
 
         const { ohlcv, effectiveQuote, price } = data;
         const { closes, highs, lows, volumes, candleData } = ohlcv;
@@ -193,12 +199,12 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
         const cpScore = candlePatternScore(candlePatterns);
 
         const rsi5 = calculateRSI(closes, 5);
-        const rsi14 = calculateRSI(closes, 14);
-        const macd = calculateMACD(closes);
+        const rsi14 = indicators.rsi;
+        const macd = indicators.macd;
         const vwap = calculateVWAP(highs.slice(-20), lows.slice(-20), closes.slice(-20), volumes.slice(-20));
         const ema9 = calculateEMA(closes, 9);
         const ema21 = calculateEMA(closes, 21);
-        const atr = calculateATR(highs, lows, closes);
+        const atr = indicators.atr;
 
         const lastEma9 = ema9[ema9.length - 1] ?? 0;
         const lastEma21 = ema21[ema21.length - 1] ?? 0;
@@ -214,7 +220,7 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
         const midasTaban = midasData?.LowerLimit;
         const tavanFiyat = midasTavan && midasTavan > 0 ? midasTavan : prevClose * 1.10;
         const tabanFiyat = midasTaban && midasTaban > 0 ? midasTaban : prevClose * 0.90;
-        const stopDistance = atr > 0 ? Math.min(atr * 1.5, price - tabanFiyat) : price * 0.015;
+        const stopDistance = atr > 0 ? Math.max(0, Math.min(atr * 1.5, price - tabanFiyat)) : price * 0.015;
         const stopLevel = Math.max(price - stopDistance, tabanFiyat);
         let target1 = Math.min(price + (stopDistance * 2), tavanFiyat);
         let target2 = Math.min(price + (stopDistance * 3), tavanFiyat);
@@ -224,7 +230,8 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
         }
         const riskReward = stopDistance > 0 ? (target1 - price) / stopDistance : 0;
 
-        if (riskReward < 1.2) return null;
+        // Levels are a quote-based reference, never an executable account plan.
+        if (riskReward < 1.5) result.passesFilter = false;
 
         if (candlePatterns.length > 0) {
           for (const cp of candlePatterns) {
@@ -233,6 +240,15 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
           result.formasyonPuan = Math.min(20, result.formasyonPuan + Math.max(0, cpScore));
           result.score = Math.min(100, result.hacimPuan + result.trendPuan + result.momentumPuan + result.formasyonPuan + result.riskOdulPuan);
         }
+
+        result.score = engine.signal.score;
+        result.passesFilter = engine.signal.direction === 'LONG' && riskReward >= 1.5 && stopLevel < price && target1 > price;
+        result.signals = [...engine.signal.reasons, ...engine.signal.warnings, ...candlePatterns.map(cp => `🕯 ${cp.name}`)];
+        result.hacimPuan = engine.signal.components.volume;
+        result.trendPuan = engine.signal.components.trend;
+        result.momentumPuan = engine.signal.components.momentum;
+        result.formasyonPuan = engine.signal.components.structure + engine.signal.components.candle;
+        result.riskOdulPuan = engine.signal.components.volatility + engine.signal.components.regime;
 
         let quality = 'İşlem Yok';
         if (result.score >= 85) quality = 'Elite Kurulum';
@@ -252,6 +268,8 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
           high: effectiveQuote?.regularMarketDayHigh ?? 0,
           low: effectiveQuote?.regularMarketDayLow ?? 0,
           score: Math.round(result.score),
+          engine: 'v2', timeframe: '15m', direction: engine.signal.direction, regime: engine.signal.regime,
+          lastClosedAt: engine.analysis.lastClosedAt,
           quality,
           signals: result.signals,
           candlePatterns: candlePatterns.map(cp => ({ name: cp.name, type: cp.type, strength: cp.strength })),
@@ -279,6 +297,7 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
           },
         };
       } catch (e: any) {
+        unavailable++;
         console.error(`[DayTrade] ${stock?.shortName || stock?.symbol}: ${e?.message}`);
         return null;
       }
@@ -290,16 +309,22 @@ async function runDayTradingScan(): Promise<{ data: any[]; marketOpen: boolean }
     }
 
     results.sort((a: any, b: any) => (b?.score ?? 0) - (a?.score ?? 0));
-    const filtered = results.filter((r: any) => r.score >= 40);
-    const top10 = filtered.slice(0, 10);
+    const top10 = results.slice(0, 10);
     const marketOpen = isBistMarketHours();
-    return { data: top10, marketOpen };
+    if (unavailable === BIST_TOP_STOCKS.length) throw new Error('Geçerli kapanmış veri yok.');
+    return { data: top10, marketOpen, unavailable, engine: 'v2', timeframe: '15m', asOf };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const { result, cachedAt, fresh } = await cachedScan('day-trading', runDayTradingScan);
-    return NextResponse.json({ ...result, cachedAt, fresh });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: 'Oturum gerekli.' }, { status: 401 });
+    if (!takeRequestSlot('day-scan:' + session.user.id, 12, 60000).allowed) return NextResponse.json({ error: 'Bir dakika sonra yeniden deneyin.' }, { status: 429 });
+    const { result, cachedAt, fresh } = await cachedScan('day-trading-v2', runDayTradingScan);
+    return NextResponse.json({ ...result, marketOpen: isBistMarketHours(), cachedAt, fresh,
+      data: result.data.map(r => fresh && r.lastClosedAt !== null && Date.now() - r.lastClosedAt <= 15 * 60000 ? r
+        : { ...r, passesFilter: false, direction: 'NONE', quality: 'Güncel sinyal yok', signals: ['Veri/önbellek eski; güncel sinyal onayı yok.', ...r.signals] }) },
+      { headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie' } });
   } catch (error: any) {
     console.error('Day trading error:', error);
     return NextResponse.json({ error: 'Day trading taraması yapılamadı' }, { status: 500 });

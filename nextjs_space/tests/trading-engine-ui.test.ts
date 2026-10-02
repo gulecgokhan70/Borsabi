@@ -1,0 +1,34 @@
+import { createElement } from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { afterEach, expect, it, vi } from 'vitest';
+import { TradingEngineCard } from '../components/trading-engine-card';
+import { EngineBacktestPanel } from '../components/trading-engine-backtest';
+let renderer: ReactTestRenderer;
+afterEach(async () => { await act(async () => renderer?.unmount()); vi.unstubAllGlobals(); });
+it('aborts old asset analysis and ignores its late response', async () => {
+  const pending: { signal: AbortSignal; resolve: (value: unknown) => void }[] = [];
+  vi.stubGlobal('fetch', vi.fn((_url, options) => new Promise(resolve => pending.push({ signal: options.signal, resolve }))));
+  await act(async () => { renderer = create(createElement(TradingEngineCard, { symbol: 'THYAO.IS' })); });
+  await act(async () => { renderer.update(createElement(TradingEngineCard, { symbol: 'BTC-USD' })); });
+  expect(pending[0].signal.aborted).toBe(true);
+  await act(async () => { pending[1].resolve({ ok: true, json: async () => ({ analysis: { status: 'READY', regime: { regime: 'TREND_UP' }, lastClosedAt: 1 }, signal: { direction: 'NONE', score: 64, confidence: 0.7, reasons: [], warnings: [], strategy: null } }) }); });
+  await act(async () => { pending[0].resolve({ ok: false, json: async () => ({ error: 'OLD_ASSET_ERROR' }) }); });
+  expect(JSON.stringify(renderer.toJSON())).not.toContain('OLD_ASSET_ERROR');
+  expect(JSON.stringify(renderer.toJSON())).toContain('64');
+  expect(JSON.stringify(renderer.toJSON())).toContain('Yeni alım onayı yok');
+});
+it('rejects invalid research capital before request and prevents double submit', async () => {
+  let resolve: (value: unknown) => void = () => undefined;
+  const fetcher = vi.fn((_url: string, _options: { body: string }) => new Promise(r => { resolve = r; })); vi.stubGlobal('fetch', fetcher);
+  await act(async () => { renderer = create(createElement(EngineBacktestPanel, { symbol: 'BTC-USD', timeframe: '1d' })); });
+  expect(JSON.stringify(renderer.toJSON())).toContain('USD');
+  await act(async () => renderer.root.findByType('input').props.onChange({ target: { value: '-1' } }));
+  await act(async () => renderer.root.findAllByType('button')[0].props.onClick());
+  expect(fetcher).not.toHaveBeenCalled();
+  await act(async () => renderer.root.findByType('input').props.onChange({ target: { value: '1000' } }));
+  await act(async () => { renderer.root.findAllByType('button')[0].props.onClick(); renderer.root.findAllByType('button')[0].props.onClick(); });
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ symbol: 'BTC-USD', timeframe: '1d', initialCapital: 1000, walkForward: false });
+  await act(async () => { resolve({ ok: false, json: async () => ({ error: 'Pro üyelik gerekir.' }) }); });
+  expect(JSON.stringify(renderer.toJSON())).toContain('Pro üyelik gerekir.');
+});

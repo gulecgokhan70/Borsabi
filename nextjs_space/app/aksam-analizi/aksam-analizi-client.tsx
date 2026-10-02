@@ -10,6 +10,7 @@ import {
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/constants';
 import type { NewsImpact, StockWarning } from '@/lib/news-analysis';
 import { TradeModal } from '@/components/trade-modal';
+import type { TradeMarketType } from '@/lib/asset-display';
 
 interface TradeResult {
   symbol: string;
@@ -66,7 +67,7 @@ export default function AksamAnaliziClient() {
   const [newsImpact, setNewsImpact] = useState<NewsImpact | null>(null);
   const [newsLoading, setNewsLoading] = useState(false);
   const [showNewsPanel, setShowNewsPanel] = useState(false);
-  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: string; stopLoss?: number; takeProfit?: number } | null>(null);
+  const [tradeModal, setTradeModal] = useState<{ open: boolean; symbol: string; name: string; price: number; marketType: TradeMarketType; stopLoss?: number; takeProfit?: number } | null>(null);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import {
@@ -7,7 +7,7 @@ import {
   Copy, RotateCcw, Lightbulb, ChevronDown, ChevronUp, Target, Shield, Zap,
   Activity, Clock, Percent, Award
 } from 'lucide-react';
-import { formatCurrency, formatPercent, BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
+import { BIST_STOCKS, BIST_FUNDS, CRYPTO_ASSETS } from '@/lib/constants';
 import { SymbolSearch } from '@/components/symbol-search';
 
 const EquityChart = dynamic(() => import('../backtest/equity-chart'), { ssr: false });
@@ -170,6 +170,20 @@ export default function StrategyBuilderClient() {
   const [nextId, setNextId] = useState(3);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showRules, setShowRules] = useState(true);
+  const [error, setError] = useState('');
+  const requestRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    requestRef.current?.abort();
+    requestRef.current = null;
+    setLoading(false);
+    setResult(null);
+    setError('');
+  }, [name, symbol, period, stopLoss, takeProfit, rules]);
+  useEffect(() => () => requestRef.current?.abort(), []);
+  const currency = result?.currency || (symbol.endsWith('-USD') ? 'USD' : 'TRY');
+  const money = (value: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(value);
+  const exitLabel = (reason: string) => ({ STOP_LOSS: 'Zarar durdur', STOP_GAP: 'Boşlukta zarar durdur',
+    TAKE_PROFIT: 'Kâr al', TRAILING_STOP: 'İzleyen stop', REGIME_EXIT: 'Satış kuralı / piyasa yönü', TEST_END: 'Test sonu' } as Record<string, string>)[reason] || reason;
 
   const addRule = () => {
     setRules(r => [...r, { id: nextId, direction: 'buy', indicator: 'rsi', operator: 'lt', compareWith: 'value', compareIndicator: 'ema20', value: 30 }]);
@@ -201,20 +215,33 @@ export default function StrategyBuilderClient() {
   };
 
   const runBacktest = async () => {
-    if (rules.length === 0) return;
+    if (requestRef.current) return;
+    if (!rules.some(r => r.direction === 'buy') || !Number.isFinite(stopLoss) || !Number.isFinite(takeProfit)
+      || stopLoss < 0.1 || stopLoss > 50 || takeProfit < 0.1 || takeProfit > 50 || takeProfit / stopLoss < 1.5) {
+      setError('En az bir alış kuralı gerekli. Stop/hedef %0.1–50 ve hedef/stop oranı en az 1.5 olmalı.');
+      return;
+    }
+    const controller = new AbortController();
+    requestRef.current = controller;
     setLoading(true);
+    setError('');
     setResult(null);
     try {
       const res = await fetch('/api/strategy-builder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, symbol, period, initialCapital: 100000, stopLoss, takeProfit, rules }),
+        signal: controller.signal,
       });
       const data = await res.json();
-      if (data.error) { alert(data.error); }
-      else setResult(data);
-    } catch (e) { console.error(e); }
-    setLoading(false);
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error(data.error || 'Strateji testi tamamlanamadı.');
+      setResult(data);
+    } catch (e) {
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Strateji testi tamamlanamadı.');
+    } finally {
+      if (requestRef.current === controller) { requestRef.current = null; setLoading(false); }
+    }
   };
 
   const symbolGroups = [
@@ -245,7 +272,7 @@ export default function StrategyBuilderClient() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">Strateji Oluşturucu</h1>
-            <p className="text-xs text-muted-foreground">Kendi stratejinizi oluşturun ve backtest edin</p>
+            <p className="text-xs text-muted-foreground">V2 · Özel kurallar ve ortak risk sınırlarıyla geçmiş test</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -290,6 +317,9 @@ export default function StrategyBuilderClient() {
         )}
       </AnimatePresence>
 
+      <p className="text-xs text-muted-foreground">Alış kuralları V2 sinyaline ek filtre uygular; bütün alış kuralları sağlanmalı. Satış kurallarından biri pozisyonu kapatır, short (açığa satış) açmaz. Başlangıç: {money(100000)}. 1 gün/1 hafta/15 gün: 15 dakikalık mum; 1 ay: saatlik; daha uzun dönem: günlük mum. Eğitim/simülasyon; yatırım tavsiyesi değildir.</p>
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {result && <p className="text-xs text-muted-foreground">{result.warnings?.join(' ')} Gerçek test: {new Date(result.firstTest).toLocaleString('tr-TR')} – {new Date(result.lastTest).toLocaleString('tr-TR')}. Komisyon: %{(result.commissionRate * 100).toFixed(3)}. Son 100 işlem gösterilir.</p>}
       {/* Config */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         className="glass-card rounded-xl p-5">
@@ -379,7 +409,7 @@ export default function StrategyBuilderClient() {
                 </div>
               )}
               {rules.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Henüz kural eklenmedi. "Kural Ekle" veya bir şablon seçin.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">Henüz kural eklenmedi. &quot;Kural Ekle&quot; veya bir şablon seçin.</p>
               )}
             </motion.div>
           )}
@@ -406,7 +436,7 @@ export default function StrategyBuilderClient() {
             <div className="glass-card rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Award className="w-4 h-4 text-[#F59E0B]" /> "{result.name}" Sonuçları
+                  <Award className="w-4 h-4 text-[#F59E0B]" /> &quot;{result.name}&quot; Sonuçları
                 </h3>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black ${getGrade(result.summary.totalReturn).bg}`}
                   style={{ color: getGrade(result.summary.totalReturn).color }}>
@@ -452,19 +482,19 @@ export default function StrategyBuilderClient() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">Son Sermaye</p>
-                  <p className="text-sm font-bold text-foreground font-mono">{formatCurrency(result.summary.finalCapital)}</p>
+                  <p className="text-sm font-bold text-foreground font-mono">{money(result.summary.finalCapital)}</p>
                 </div>
                 <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">Başlangıç</p>
-                  <p className="text-sm font-bold text-muted-foreground font-mono">{formatCurrency(result.summary.initialCapital)}</p>
+                  <p className="text-sm font-bold text-muted-foreground font-mono">{money(result.summary.initialCapital)}</p>
                 </div>
                 <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">Ort. Kazanç</p>
-                  <p className="text-sm font-bold text-[#22C55E] font-mono">{formatPercent(result.summary.avgWin)}</p>
+                  <p className="text-sm font-bold text-[#22C55E] font-mono">{money(result.summary.avgWin)}</p>
                 </div>
                 <div className="bg-black/[0.03] dark:bg-white/[0.03] rounded-lg p-2.5">
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">Ort. Kayıp</p>
-                  <p className="text-sm font-bold text-[#F87171] font-mono">{formatPercent(result.summary.avgLoss)}</p>
+                  <p className="text-sm font-bold text-[#F87171] font-mono">{money(-result.summary.avgLoss)}</p>
                 </div>
               </div>
             </div>
@@ -476,7 +506,7 @@ export default function StrategyBuilderClient() {
                   <Activity className="w-4 h-4 text-[#3B82F6]" /> Sermaye Eğrisi
                 </h3>
                 <div className="h-[280px]">
-                  <EquityChart equity={result.equity} positive={result.summary.totalReturn >= 0} />
+                  <EquityChart equity={result.equity} positive={result.summary.totalReturn >= 0} currency={currency} />
                 </div>
               </div>
             )}
@@ -501,7 +531,7 @@ export default function StrategyBuilderClient() {
                       <th className="px-4 py-2 text-right">Giriş</th>
                       <th className="px-4 py-2 text-right">Çıkış</th>
                       <th className="px-4 py-2 text-right">K/Z %</th>
-                      <th className="px-4 py-2 text-right">K/Z ₺</th>
+                      <th className="px-4 py-2 text-right">K/Z {currency}</th>
                       <th className="px-4 py-2 text-left">Sebep</th>
                     </tr></thead>
                     <tbody>
@@ -509,20 +539,20 @@ export default function StrategyBuilderClient() {
                         <tr key={i} className="border-b border-black/[0.06] dark:border-white/[0.06] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]">
                           <td className="px-4 py-2 text-slate-400 dark:text-slate-500">{i + 1}</td>
                           <td className="px-4 py-2 text-muted-foreground">{t.date}</td>
-                          <td className="px-4 py-2 text-right text-foreground font-mono">{formatCurrency(t.entry)}</td>
-                          <td className="px-4 py-2 text-right text-foreground font-mono">{formatCurrency(t.exit)}</td>
+                          <td className="px-4 py-2 text-right text-foreground font-mono">{money(t.entry)}</td>
+                          <td className="px-4 py-2 text-right text-foreground font-mono">{money(t.exit)}</td>
                           <td className={`px-4 py-2 text-right font-mono font-medium ${t.pnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
                             {t.pnlPercent >= 0 ? '+' : ''}{t.pnlPercent.toFixed(2)}%
                           </td>
                           <td className={`px-4 py-2 text-right font-mono font-medium ${t.pnl >= 0 ? 'text-[#22C55E]' : 'text-[#F87171]'}`}>
-                            {formatCurrency(t.pnl)}
+                            {money(t.pnl)}
                           </td>
                           <td className="px-4 py-2">
                             <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                              t.reason === 'Stop Loss' ? 'bg-[#EF4444]/10 text-[#F87171]' :
-                              t.reason === 'Take Profit' ? 'bg-[#22C55E]/10 text-[#22C55E]' :
+                              ['STOP_LOSS', 'STOP_GAP', 'TRAILING_STOP'].includes(t.reason) ? 'bg-[#EF4444]/10 text-[#F87171]' :
+                              t.reason === 'TAKE_PROFIT' ? 'bg-[#22C55E]/10 text-[#22C55E]' :
                               'bg-[#3B82F6]/10 text-[#3B82F6]'
-                            }`}>{t.reason}</span>
+                            }`}>{exitLabel(t.reason)}</span>
                           </td>
                         </tr>
                       ))}

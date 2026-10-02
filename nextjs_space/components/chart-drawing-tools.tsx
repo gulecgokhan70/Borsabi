@@ -65,7 +65,7 @@ export function ChartDrawingToolbar({ activeTool, onToolChange, onClear, onUndo,
           const isActive = activeTool === tool.id;
           return (
             <button key={tool.id} onClick={() => onToolChange(tool.id)}
-              title={tool.label}
+              title={tool.label} aria-label={tool.label} aria-pressed={isActive}
               className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all ${
                 isActive
                   ? `text-white shadow-sm`
@@ -116,7 +116,7 @@ interface CandleData {
   [key: string]: any;
 }
 
-export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTool, drawings, setDrawings, chartData, magnetEnabled = false }: {
+export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTool, drawings, setDrawings, chartData, magnetEnabled = false, axisSide = 'left' }: {
   chartHeight: number;
   chartWidth: number;
   yDomain: [number, number];
@@ -125,6 +125,7 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
   setDrawings: React.Dispatch<React.SetStateAction<Drawing[]>>;
   chartData?: CandleData[];
   magnetEnabled?: boolean;
+  axisSide?: 'left' | 'right';
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [startPoint, setStartPoint] = useState<Point | null>(null);
@@ -137,8 +138,8 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [yMin, yMax] = yDomain;
-  const marginLeft = 65;
-  const marginRight = 5;
+  const marginLeft = axisSide === 'right' ? 0 : 65;
+  const marginRight = axisSide === 'right' ? 70 : 5;
   const marginTop = 5;
   const marginBottom = 25;
   const plotW = chartWidth - marginLeft - marginRight;
@@ -151,7 +152,7 @@ export function ChartDrawingOverlay({ chartHeight, chartWidth, yDomain, activeTo
     // Find nearest candle by X position
     const candleCount = chartData.length;
     const candleWidth = plotW / candleCount;
-    const candleIndex = Math.round((pt.x - marginLeft) / candleWidth);
+    const candleIndex = Math.floor((pt.x - marginLeft) / candleWidth);
     const idx = Math.max(0, Math.min(candleIndex, candleCount - 1));
     const candle = chartData[idx];
     if (!candle) return null;
